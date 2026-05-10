@@ -9,6 +9,8 @@ import pytest
 import httpx
 from fastapi.testclient import TestClient
 
+from app.config import settings
+from app.routers import import_ as import_router
 from app.schemas import BookImportCandidate
 from app.services import book_import
 
@@ -533,3 +535,76 @@ async def test_best_cover_returns_none_when_no_candidates():
     fake_client = _FakeClient()
     result = await book_import._best_google_books_cover(None, None, fake_client)  # type: ignore[arg-type]
     assert result is None
+
+
+# ── import_book cover-download integration tests ───────────────────────────────
+
+def test_import_book_downloads_cover_locally(client: TestClient, monkeypatch, tmp_path):
+    """When download_cover succeeds, cover_url is set to the local /api/covers/ path."""
+    monkeypatch.setattr(settings, "covers_dir", str(tmp_path))
+
+    async def fake_download(url, covers_dir, http_client):
+        return "abc123deadbeef.jpg"
+
+    monkeypatch.setattr(import_router, "download_cover", fake_download)
+
+    payload = {
+        "candidate": {
+            "title": "Dune",
+            "isbn": "9780441013593",
+            "cover_url": "https://covers.openlibrary.org/b/id/11481354-L.jpg",
+            "source": "open_library",
+        },
+        "reading_status": "want_to_read",
+    }
+    resp = client.post("/api/import", json=payload)
+    assert resp.status_code == 201
+    assert resp.json()["cover_url"] == "/api/covers/abc123deadbeef.jpg"
+
+
+def test_import_book_falls_back_to_external_url_on_cover_failure(client: TestClient, monkeypatch, tmp_path):
+    """When download_cover returns None, the original external URL is preserved."""
+    monkeypatch.setattr(settings, "covers_dir", str(tmp_path))
+
+    async def fake_download(url, covers_dir, http_client):
+        return None  # simulate download failure
+
+    monkeypatch.setattr(import_router, "download_cover", fake_download)
+
+    external_url = "https://covers.openlibrary.org/b/id/11481354-L.jpg"
+    payload = {
+        "candidate": {
+            "title": "Foundation",
+            "isbn": "9780553293357",
+            "cover_url": external_url,
+            "source": "open_library",
+        },
+        "reading_status": "want_to_read",
+    }
+    resp = client.post("/api/import", json=payload)
+    assert resp.status_code == 201
+    assert resp.json()["cover_url"] == external_url
+
+
+def test_import_book_no_cover_url_skips_download(client: TestClient, monkeypatch, tmp_path):
+    """When the candidate has no cover_url, download_cover is never called."""
+    monkeypatch.setattr(settings, "covers_dir", str(tmp_path))
+    called = []
+
+    async def fake_download(url, covers_dir, http_client):
+        called.append(url)
+        return None
+
+    monkeypatch.setattr(import_router, "download_cover", fake_download)
+
+    payload = {
+        "candidate": {
+            "title": "No Cover Book",
+            "source": "open_library",
+        },
+        "reading_status": "want_to_read",
+    }
+    resp = client.post("/api/import", json=payload)
+    assert resp.status_code == 201
+    assert resp.json()["cover_url"] is None
+    assert called == [], "download_cover should not be called when cover_url is None"

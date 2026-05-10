@@ -15,7 +15,7 @@ services:
     build: ./backend
     env_file: .env
     volumes:
-      - ./data/db_data:/app/data
+      - ./data:/app/data
     restart: unless-stopped
     labels:
       - "traefik.enable=true"

@@ -12,6 +12,7 @@ from app.database import get_session
 from app.models import Book
 from app.schemas import BookImportCandidate, BookImportRequest, BookRead
 from app.services import book_import
+from app.services.cover_storage import download_cover
 
 logger = logging.getLogger(__name__)
 
@@ -65,7 +66,7 @@ async def search_books_stream(
 
 
 @router.post("", response_model=BookRead, status_code=201)
-def import_book(
+async def import_book(
     body: BookImportRequest,
     session: Session = Depends(get_session),
 ) -> Book:
@@ -82,11 +83,19 @@ def import_book(
                 detail=f"A book with ISBN {c.isbn} already exists (id={existing.id}).",
             )
 
+    # Attempt to download and cache the cover locally; fall back to external URL.
+    cover_url = c.cover_url
+    if cover_url:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            filename = await download_cover(cover_url, settings.covers_dir, client)
+        if filename:
+            cover_url = f"/api/covers/{filename}"
+
     book = Book(
         title=c.title,
         author=c.author,
         isbn=c.isbn,
-        cover_url=c.cover_url,
+        cover_url=cover_url,
         publisher=c.publisher,
         published_year=c.published_year,
         page_count=c.page_count,
