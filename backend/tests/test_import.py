@@ -161,7 +161,9 @@ async def test_search_falls_back_to_google_books_when_ol_empty(monkeypatch, fake
     monkeypatch.setattr(book_import, "_search_open_library", fake_ol)
     monkeypatch.setattr(book_import, "_search_google_books", fake_gb)
 
-    results = await book_import.search("foundation", "title")
+    # api_key must be non-empty — the real API requires a key and the guard
+    # skips the fallback when none is configured.
+    results = await book_import.search("foundation", "title", api_key="test-key")
     assert len(results) == 1
     assert results[0].source == "google_books"
 

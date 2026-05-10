@@ -8,7 +8,9 @@ Search priority:
 Both return a list of BookImportCandidate objects normalised to the same schema.
 """
 
+import asyncio
 import logging
+import random
 from typing import Optional
 
 import httpx
@@ -21,6 +23,11 @@ OPEN_LIBRARY_SEARCH_URL = "https://openlibrary.org/search.json"
 OPEN_LIBRARY_COVER_URL = "https://covers.openlibrary.org/b/id/{cover_id}-M.jpg"
 
 GOOGLE_BOOKS_SEARCH_URL = "https://www.googleapis.com/books/v1/volumes"
+
+# 5xx codes that are worth retrying (transient backend / rate-limit errors)
+_RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
+_MAX_RETRIES = 3          # up to 3 extra attempts after the first try
+_RETRY_BASE_DELAY = 1.0   # seconds — doubles each attempt (1 → 2 → 4)
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -44,9 +51,17 @@ async def search(
         logger.info("Open Library returned %d result(s) for %r", len(results), query)
 
         if not results:
-            logger.info("No Open Library results — falling back to Google Books")
-            results = await _search_google_books(query, search_type, api_key, client)
-            logger.info("Google Books returned %d result(s) for %r", len(results), query)
+            if not api_key:
+                logger.warning(
+                    "No Open Library results for %r and GOOGLE_BOOKS_API_KEY is not set — "
+                    "Google Books requires an API key for all requests. "
+                    "Set GOOGLE_BOOKS_API_KEY in .env to enable the fallback.",
+                    query,
+                )
+            else:
+                logger.info("No Open Library results — falling back to Google Books")
+                results = await _search_google_books(query, search_type, api_key, client)
+                logger.info("Google Books returned %d result(s) for %r", len(results), query)
 
         return results
     finally:
@@ -152,17 +167,33 @@ async def _search_google_books(
                  GOOGLE_BOOKS_SEARCH_URL,
                  {k: v for k, v in params.items() if k != "key"})
 
-    try:
-        resp = await client.get(GOOGLE_BOOKS_SEARCH_URL, params=params)
-        logger.debug("Google Books response — status=%d body_size=%d bytes",
-                     resp.status_code, len(resp.content))
-        resp.raise_for_status()
-    except httpx.HTTPStatusError as exc:
-        logger.warning("Google Books HTTP error: %s — body: %s",
-                       exc.response.status_code, exc.response.text[:500])
+    resp = None
+    for attempt in range(_MAX_RETRIES + 1):
+        try:
+            resp = await client.get(GOOGLE_BOOKS_SEARCH_URL, params=params)
+            logger.debug("Google Books response — status=%d body_size=%d bytes (attempt %d)",
+                         resp.status_code, len(resp.content), attempt + 1)
+        except httpx.HTTPError as exc:
+            logger.warning("Google Books request failed (attempt %d): %s", attempt + 1, exc)
+            return []
+
+        if resp.status_code in _RETRYABLE_STATUSES and attempt < _MAX_RETRIES:
+            delay = _RETRY_BASE_DELAY * (2 ** attempt) + random.uniform(0, 0.25)
+            logger.warning(
+                "Google Books returned %d on attempt %d/%d — retrying in %.2fs",
+                resp.status_code, attempt + 1, _MAX_RETRIES + 1, delay,
+            )
+            await asyncio.sleep(delay)
+            continue
+
+        break  # success or non-retryable error — exit loop
+
+    if resp is None:
         return []
-    except httpx.HTTPError as exc:
-        logger.warning("Google Books request failed: %s", exc)
+
+    if not resp.is_success:
+        logger.warning("Google Books HTTP error: %s — body: %s",
+                       resp.status_code, resp.text[:500])
         return []
 
     body = resp.json()
