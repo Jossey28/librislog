@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import type { Book, ReadingStatus, SortField, SortOrder } from '$lib/types';
 	import { api } from '$lib/api';
+	import { toasts } from '$lib/toasts';
 	import BookCard from '$lib/components/BookCard.svelte';
 	import BookDrawer from '$lib/components/BookDrawer.svelte';
 	import SearchBar from '$lib/components/SearchBar.svelte';
@@ -31,6 +32,8 @@
 				sort,
 				order
 			});
+		} catch (e: unknown) {
+			toasts.add(e instanceof Error ? e.message : 'Failed to load books');
 		} finally {
 			loading = false;
 		}

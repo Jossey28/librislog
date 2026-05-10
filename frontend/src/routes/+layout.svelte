@@ -2,6 +2,7 @@
 	import '../app.css';
 	import type { ReadingStatus } from '$lib/types';
 	import AddBookModal from '$lib/components/AddBookModal.svelte';
+	import Toaster from '$lib/components/Toaster.svelte';
 
 	let { children } = $props();
 
@@ -65,3 +66,4 @@
 </div>
 
 <AddBookModal bind:open={addBookOpen} onAdded={() => {}} />
+<Toaster />
