@@ -1,0 +1,221 @@
+<script lang="ts">
+	import type { BookImportCandidate, ReadingStatus, SearchStage } from '$lib/types';
+	import { api } from '$lib/api';
+	import { toasts } from '$lib/toasts';
+
+	let {
+		onImport
+	}: {
+		onImport?: () => void;
+	} = $props();
+
+	let query = $state('');
+	let searchType = $state<'title' | 'isbn'>('title');
+	let results = $state<BookImportCandidate[]>([]);
+	let stages = $state<SearchStage[]>([]);
+	let searching = $state(false);
+	let supplementingGoogle = $state(false);
+	let googleSupplementSearched = $state(false);
+	let supplementAddedCount = $state<number | null>(null);
+	let importing = $state<string | null>(null);
+	let hasOlResults = $derived(results.some((r) => r.source === 'open_library'));
+
+	function stageLabel(s: SearchStage): string {
+		if (s.stage === 'open_library') {
+			if (s.status === 'searching') return 'Searching Open Library…';
+			return `Open Library — ${s.count} result${s.count === 1 ? '' : 's'}`;
+		}
+		if (s.stage === 'google_books') {
+			if (s.status === 'searching') return 'Searching Google Books…';
+			if (s.status === 'skipped') return 'Google Books skipped (no API key configured)';
+			return `Google Books — ${s.count} result${s.count === 1 ? '' : 's'}`;
+		}
+		if (s.stage === 'error') return `Search failed: ${s.message}`;
+		return '';
+	}
+
+	function stageIcon(s: SearchStage): string {
+		if (s.stage === 'open_library' || s.stage === 'google_books') {
+			if (s.status === 'searching') return '◌';
+			if (s.status === 'skipped') return '—';
+			return '✓';
+		}
+		if (s.stage === 'error') return '✗';
+		return '';
+	}
+
+	function stageClass(s: SearchStage): string {
+		if (s.stage === 'error') return 'text-error';
+		if (s.stage === 'google_books' && s.status === 'skipped') return 'text-base-content/40';
+		if (
+			(s.stage === 'open_library' || s.stage === 'google_books') &&
+			s.status === 'searching'
+		)
+			return 'text-base-content/60 animate-pulse';
+		return 'text-base-content/70';
+	}
+
+	function normalize(value: string | null | undefined): string {
+		return (value ?? '').trim().toLowerCase();
+	}
+
+	function normalizeIsbn(value: string | null | undefined): string {
+		return normalize(value).replaceAll('-', '').replaceAll(' ', '');
+	}
+
+	function candidateKey(candidate: BookImportCandidate): string {
+		const isbn = normalizeIsbn(candidate.isbn);
+		if (isbn) return `isbn:${isbn}`;
+		return `ta:${normalize(candidate.title)}|${normalize(candidate.author)}`;
+	}
+
+	function mergeCandidates(
+		existing: BookImportCandidate[],
+		incoming: BookImportCandidate[]
+	): BookImportCandidate[] {
+		const seen = new Set(existing.map(candidateKey));
+		const merged = [...existing];
+		for (const candidate of incoming) {
+			const key = candidateKey(candidate);
+			if (!seen.has(key)) {
+				seen.add(key);
+				merged.push(candidate);
+			}
+		}
+		return merged;
+	}
+
+	async function runSearch(mode: 'auto' | 'google_only', mergeResults: boolean) {
+		try {
+			for await (const event of api.import.searchStream(query.trim(), searchType, mode)) {
+				if (event.stage === 'complete') {
+					results = mergeResults ? mergeCandidates(results, event.results) : event.results;
+				} else {
+					stages = [...stages, event];
+				}
+			}
+		} catch (e: unknown) {
+			toasts.add(e instanceof Error ? e.message : 'Search failed', 'error');
+		}
+	}
+
+	async function search() {
+		if (!query.trim()) return;
+		searching = true;
+		supplementingGoogle = false;
+		googleSupplementSearched = false;
+		supplementAddedCount = null;
+		results = [];
+		stages = [];
+		try {
+			await runSearch('auto', false);
+		} finally {
+			searching = false;
+		}
+	}
+
+	async function searchGoogleToo() {
+		if (!query.trim() || searching || supplementingGoogle || googleSupplementSearched) return;
+		supplementingGoogle = true;
+		const beforeCount = results.length;
+		try {
+			await runSearch('google_only', true);
+			supplementAddedCount = Math.max(0, results.length - beforeCount);
+			googleSupplementSearched = true;
+		} finally {
+			supplementingGoogle = false;
+		}
+	}
+
+	async function importBook(candidate: BookImportCandidate, status: ReadingStatus) {
+		const key = candidate.isbn ?? candidate.title;
+		importing = key;
+		try {
+			await api.import.importBook(candidate, status);
+			onImport?.();
+		} catch (e: unknown) {
+			toasts.add(e instanceof Error ? e.message : 'Import failed', 'error');
+		} finally {
+			importing = null;
+		}
+	}
+</script>
+
+<div class="flex flex-col gap-3">
+	<div class="flex gap-2">
+		<input
+			type="text"
+			class="input input-bordered input-sm flex-1"
+			placeholder={searchType === 'isbn' ? 'Enter ISBN…' : 'Search by title or author…'}
+			bind:value={query}
+			onkeydown={(e) => e.key === 'Enter' && search()}
+		/>
+		<select class="select select-bordered select-sm" bind:value={searchType}>
+			<option value="title">Title</option>
+			<option value="isbn">ISBN</option>
+		</select>
+		<button class="btn btn-primary btn-sm" onclick={search} disabled={searching}>
+			{searching ? '…' : 'Search'}
+		</button>
+	</div>
+
+	{#if stages.length > 0}
+		<ul class="flex flex-col gap-1 text-sm">
+			{#each stages as s}
+				<li class="flex items-center gap-2 {stageClass(s)}">
+					<span class="w-4 text-center shrink-0">{stageIcon(s)}</span>
+					<span>{stageLabel(s)}</span>
+				</li>
+			{/each}
+		</ul>
+	{/if}
+
+	{#if hasOlResults && !googleSupplementSearched}
+		<div class="flex justify-start">
+			<button class="btn btn-outline btn-sm" onclick={searchGoogleToo} disabled={searching || supplementingGoogle}>
+				{supplementingGoogle ? 'Searching Google Books…' : 'Search Google Books too'}
+			</button>
+		</div>
+	{/if}
+
+	{#if googleSupplementSearched && supplementAddedCount !== null}
+		<p class="text-xs text-base-content/60">
+			Google Books results added: {supplementAddedCount}
+		</p>
+	{/if}
+
+	{#if results.length === 0 && !searching && stages.length === 0}
+		<p class="text-base-content/50 text-sm text-center py-4">No results yet</p>
+	{:else if results.length === 0 && !searching && stages.length > 0}
+		<p class="text-base-content/50 text-sm text-center py-2">No books found</p>
+	{/if}
+
+	<ul class="flex flex-col gap-2 max-h-80 overflow-y-auto">
+		{#each results as candidate}
+			{@const key = candidate.isbn ?? candidate.title}
+			<li class="flex gap-3 items-start p-2 rounded-lg border border-base-200">
+				{#if candidate.cover_url}
+					<img src={candidate.cover_url} alt="Cover" class="w-10 rounded flex-shrink-0 object-cover" />
+				{:else}
+					<div class="w-10 h-14 bg-base-200 rounded flex-shrink-0"></div>
+				{/if}
+				<div class="flex-1 min-w-0">
+					<p class="font-medium text-sm line-clamp-2">{candidate.title}</p>
+					{#if candidate.author}
+						<p class="text-xs text-base-content/60">{candidate.author}</p>
+					{/if}
+					<p class="text-xs text-base-content/40">{candidate.source}{candidate.published_year ? ` · ${candidate.published_year}` : ''}</p>
+				</div>
+				<div class="flex flex-col gap-1">
+					<button
+						class="btn btn-xs btn-primary"
+						disabled={importing === key}
+						onclick={() => importBook(candidate, 'want_to_read')}
+					>
+						{importing === key ? '…' : 'Add'}
+					</button>
+				</div>
+			</li>
+		{/each}
+	</ul>
+</div>

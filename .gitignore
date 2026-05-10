@@ -219,5 +219,6 @@ __marimo__/
 /.memsearch
 
 /ideas.txt
-/data
-backend/data/
+/data/
+/backend/data/
+!frontend/src/lib
