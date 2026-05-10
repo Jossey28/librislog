@@ -1,8 +1,10 @@
+import json
 import logging
 from typing import List, Literal
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
 
 from app.config import settings
@@ -32,6 +34,34 @@ async def search_books(
         )
     logger.debug("Search returning %d candidate(s) for %r", len(results), q)
     return results
+
+
+@router.get("/search/stream")
+async def search_books_stream(
+    q: str = Query(min_length=1, description="Title string or ISBN"),
+    type: Literal["title", "isbn"] = Query(default="title"),
+) -> StreamingResponse:
+    """Stream import search progress as Server-Sent Events (text/event-stream)."""
+    logger.debug("Stream search request — q=%r type=%r", q, type)
+
+    async def event_generator():
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            async for event in book_import.search_with_progress(
+                q,
+                type,
+                api_key=settings.google_books_api_key,
+                http_client=client,
+            ):
+                yield f"data: {json.dumps(event)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.post("", response_model=BookRead, status_code=201)
