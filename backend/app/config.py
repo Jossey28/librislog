@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     database_url: str = "sqlite:///./data/librislog.db"
     google_books_api_key: str = ""
     cors_origins: List[str] = ["http://localhost", "http://localhost:5173", "http://localhost:4173"]
+    log_level: str = "INFO"
 
 
 settings = Settings()

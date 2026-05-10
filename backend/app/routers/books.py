@@ -1,3 +1,4 @@
+import logging
 from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -6,6 +7,8 @@ from sqlmodel import Session, select
 from app.database import get_session
 from app.models import Book, ReadingStatus
 from app.schemas import BookCreate, BookRead, BookUpdate
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/books", tags=["books"])
 
@@ -18,6 +21,7 @@ def list_books(
     order: Literal["asc", "desc"] = Query(default="desc"),
     session: Session = Depends(get_session),
 ) -> List[Book]:
+    logger.debug("list_books — status=%r q=%r sort=%s order=%s", status, q, sort, order)
     statement = select(Book)
 
     if status is not None:
@@ -35,22 +39,28 @@ def list_books(
     else:
         statement = statement.order_by(sort_col.asc())  # type: ignore[union-attr]
 
-    return list(session.exec(statement).all())
+    books = list(session.exec(statement).all())
+    logger.debug("list_books — returning %d book(s)", len(books))
+    return books
 
 
 @router.post("", response_model=BookRead, status_code=201)
 def create_book(book_in: BookCreate, session: Session = Depends(get_session)) -> Book:
+    logger.debug("create_book — title=%r", book_in.title)
     book = Book.model_validate(book_in)
     session.add(book)
     session.commit()
     session.refresh(book)
+    logger.info("Created book: %r (id=%s)", book.title, book.id)
     return book
 
 
 @router.get("/{book_id}", response_model=BookRead)
 def get_book(book_id: int, session: Session = Depends(get_session)) -> Book:
+    logger.debug("get_book — id=%s", book_id)
     book = session.get(Book, book_id)
     if not book:
+        logger.debug("get_book — id=%s not found", book_id)
         raise HTTPException(status_code=404, detail="Book not found")
     return book
 
@@ -59,8 +69,10 @@ def get_book(book_id: int, session: Session = Depends(get_session)) -> Book:
 def update_book(
     book_id: int, book_in: BookUpdate, session: Session = Depends(get_session)
 ) -> Book:
+    logger.debug("update_book — id=%s fields=%s", book_id, list(book_in.model_dump(exclude_unset=True)))
     book = session.get(Book, book_id)
     if not book:
+        logger.debug("update_book — id=%s not found", book_id)
         raise HTTPException(status_code=404, detail="Book not found")
 
     update_data = book_in.model_dump(exclude_unset=True)
@@ -68,13 +80,17 @@ def update_book(
     session.add(book)
     session.commit()
     session.refresh(book)
+    logger.info("Updated book: %r (id=%s) — changed %s", book.title, book.id, list(update_data))
     return book
 
 
 @router.delete("/{book_id}", status_code=204)
 def delete_book(book_id: int, session: Session = Depends(get_session)) -> None:
+    logger.debug("delete_book — id=%s", book_id)
     book = session.get(Book, book_id)
     if not book:
+        logger.debug("delete_book — id=%s not found", book_id)
         raise HTTPException(status_code=404, detail="Book not found")
     session.delete(book)
     session.commit()
+    logger.info("Deleted book id=%s", book_id)

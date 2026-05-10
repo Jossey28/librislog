@@ -1,3 +1,4 @@
+import logging
 from typing import List, Literal
 
 import httpx
@@ -10,6 +11,8 @@ from app.models import Book
 from app.schemas import BookImportCandidate, BookImportRequest, BookRead
 from app.services import book_import
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/import", tags=["import"])
 
 
@@ -19,6 +22,7 @@ async def search_books(
     type: Literal["title", "isbn"] = Query(default="title"),
 ) -> List[BookImportCandidate]:
     """Search external APIs for books by title or ISBN."""
+    logger.debug("Search request — q=%r type=%r", q, type)
     async with httpx.AsyncClient(timeout=10.0) as client:
         results = await book_import.search(
             q,
@@ -26,6 +30,7 @@ async def search_books(
             api_key=settings.google_books_api_key,
             http_client=client,
         )
+    logger.debug("Search returning %d candidate(s) for %r", len(results), q)
     return results
 
 
@@ -41,6 +46,7 @@ def import_book(
     if c.isbn:
         existing = session.exec(select(Book).where(Book.isbn == c.isbn)).first()
         if existing:
+            logger.warning("Duplicate ISBN rejected — isbn=%s existing_id=%s", c.isbn, existing.id)
             raise HTTPException(
                 status_code=409,
                 detail=f"A book with ISBN {c.isbn} already exists (id={existing.id}).",
@@ -60,4 +66,5 @@ def import_book(
     session.add(book)
     session.commit()
     session.refresh(book)
+    logger.info("Imported book: %r (isbn=%s id=%s)", book.title, book.isbn, book.id)
     return book

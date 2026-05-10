@@ -8,11 +8,14 @@ Search priority:
 Both return a list of BookImportCandidate objects normalised to the same schema.
 """
 
+import logging
 from typing import Optional
 
 import httpx
 
 from app.schemas import BookImportCandidate
+
+logger = logging.getLogger(__name__)
 
 OPEN_LIBRARY_SEARCH_URL = "https://openlibrary.org/search.json"
 OPEN_LIBRARY_COVER_URL = "https://covers.openlibrary.org/b/id/{cover_id}-M.jpg"
@@ -30,13 +33,21 @@ async def search(
     http_client: Optional[httpx.AsyncClient] = None,
 ) -> list[BookImportCandidate]:
     """Search Open Library first; fall back to Google Books if no results."""
+    logger.debug("search() called — query=%r search_type=%r has_api_key=%s",
+                 query, search_type, bool(api_key))
+
     own_client = http_client is None
     client = http_client or httpx.AsyncClient(timeout=10.0)
 
     try:
         results = await _search_open_library(query, search_type, client)
+        logger.info("Open Library returned %d result(s) for %r", len(results), query)
+
         if not results:
+            logger.info("No Open Library results — falling back to Google Books")
             results = await _search_google_books(query, search_type, api_key, client)
+            logger.info("Google Books returned %d result(s) for %r", len(results), query)
+
         return results
     finally:
         if own_client:
@@ -63,14 +74,26 @@ async def _search_open_library(
             "limit": 10,
         }
 
+    logger.debug("Open Library request — url=%s params=%s", OPEN_LIBRARY_SEARCH_URL, params)
+
     try:
         resp = await client.get(OPEN_LIBRARY_SEARCH_URL, params=params)
+        logger.debug("Open Library response — status=%d body_size=%d bytes",
+                     resp.status_code, len(resp.content))
         resp.raise_for_status()
-    except httpx.HTTPError:
+    except httpx.HTTPStatusError as exc:
+        logger.warning("Open Library HTTP error: %s %s", exc.response.status_code, exc.response.text[:200])
+        return []
+    except httpx.HTTPError as exc:
+        logger.warning("Open Library request failed: %s", exc)
         return []
 
     docs = resp.json().get("docs", [])
-    return [map_open_library(doc) for doc in docs if doc.get("title")]
+    logger.debug("Open Library docs in response: %d", len(docs))
+    candidates = [map_open_library(doc) for doc in docs if doc.get("title")]
+    for c in candidates:
+        logger.debug("  OL candidate: title=%r isbn=%r", c.title, c.isbn)
+    return candidates
 
 
 def map_open_library(doc: dict) -> BookImportCandidate:
@@ -125,14 +148,36 @@ async def _search_google_books(
     if api_key:
         params["key"] = api_key
 
+    logger.debug("Google Books request — url=%s params=%s",
+                 GOOGLE_BOOKS_SEARCH_URL,
+                 {k: v for k, v in params.items() if k != "key"})
+
     try:
         resp = await client.get(GOOGLE_BOOKS_SEARCH_URL, params=params)
+        logger.debug("Google Books response — status=%d body_size=%d bytes",
+                     resp.status_code, len(resp.content))
         resp.raise_for_status()
-    except httpx.HTTPError:
+    except httpx.HTTPStatusError as exc:
+        logger.warning("Google Books HTTP error: %s — body: %s",
+                       exc.response.status_code, exc.response.text[:500])
+        return []
+    except httpx.HTTPError as exc:
+        logger.warning("Google Books request failed: %s", exc)
         return []
 
-    items = resp.json().get("items") or []
-    return [map_google_books(item) for item in items if item.get("volumeInfo", {}).get("title")]
+    body = resp.json()
+    items = body.get("items") or []
+    logger.debug("Google Books items in response: %d (totalItems=%s)",
+                 len(items), body.get("totalItems", "n/a"))
+
+    if not items and "error" in body:
+        logger.warning("Google Books API error payload: %s", body["error"])
+
+    candidates = [map_google_books(item) for item in items
+                  if item.get("volumeInfo", {}).get("title")]
+    for c in candidates:
+        logger.debug("  GB candidate: title=%r isbn=%r", c.title, c.isbn)
+    return candidates
 
 
 def map_google_books(item: dict) -> BookImportCandidate:

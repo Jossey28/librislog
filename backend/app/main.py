@@ -2,7 +2,10 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
+from app.logging_config import configure_logging
 from app.routers import books, import_
+
+configure_logging(settings.log_level)
 
 app = FastAPI(title="LibrisLog API")
 
