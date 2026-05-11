@@ -14,17 +14,17 @@
 	let addBookOpen = $state(false);
 	let i18nReady = $state(false);
 	let authReady = $state(false);
-	let showAppChrome = $state(false);
- 	const isPublicAuthRoute = $derived(
+	const isPublicAuthRoute = $derived(
 		$page.url.pathname.startsWith('/setup') || $page.url.pathname.startsWith('/login')
 	);
+	const showAppChrome = $derived(!isPublicAuthRoute && $currentUser !== null);
 
 	// Expose a way for pages to trigger open
 	// We use context to share this across routes
 	import { setContext } from 'svelte';
 	setContext('openAddBook', () => (addBookOpen = true));
 
-	onMount(async () => {
+		onMount(async () => {
 		loadAuthFromStorage();
 		await setupI18n();
 		i18nReady = true;
@@ -49,7 +49,6 @@
 			try {
 				const me = await api.auth.me();
 				currentUser.set(me);
-				showAppChrome = true;
 			} catch {
 				setAuthKey(null);
 				window.location.href = '/login';

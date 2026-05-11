@@ -5,6 +5,7 @@ import re
 import secrets
 from datetime import datetime, timezone
 
+import bcrypt
 from cryptography.fernet import Fernet
 from fastapi import Depends, Header, HTTPException, status
 from passlib.exc import UnknownHashError
@@ -14,6 +15,14 @@ from sqlmodel import Session, select
 from app.config import settings
 from app.database import get_session
 from app.models import ApiKey, User, UserRole
+
+
+if not hasattr(bcrypt, "__about__"):
+    class _BcryptAbout:
+        __version__ = getattr(bcrypt, "__version__", "")
+
+
+    bcrypt.__about__ = _BcryptAbout()  # type: ignore[attr-defined]
 
 bcrypt_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 fallback_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
