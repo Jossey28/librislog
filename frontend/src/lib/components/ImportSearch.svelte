@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Book, BookImportCandidate, ReadingStatus, SearchStage } from '$lib/types';
+	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
 	import { toasts } from '$lib/toasts';
 
@@ -18,7 +19,13 @@
 	let googleSupplementSearched = $state(false);
 	let supplementAddedCount = $state<number | null>(null);
 	let importing = $state<string | null>(null);
+	let importedIsbns = $state<Set<string>>(new Set());
+	let importedTitleAuthors = $state<Set<string>>(new Set());
 	let hasOlResults = $derived(results.some((r) => r.source === 'open_library'));
+
+	onMount(async () => {
+		await refreshImportedLookups();
+	});
 
 	function stageLabel(s: SearchStage): string {
 		if (s.stage === 'open_library') {
@@ -67,6 +74,48 @@
 		const isbn = normalizeIsbn(candidate.isbn);
 		if (isbn) return `isbn:${isbn}`;
 		return `ta:${normalize(candidate.title)}|${normalize(candidate.author)}`;
+	}
+
+	function titleAuthorKey(title: string | null | undefined, author: string | null | undefined): string {
+		return `${normalize(title)}|${normalize(author)}`;
+	}
+
+	function updateImportedLookups(books: Book[]) {
+		const isbnSet = new Set<string>();
+		const titleAuthorSet = new Set<string>();
+		for (const book of books) {
+			const isbn = normalizeIsbn(book.isbn);
+			if (isbn) isbnSet.add(isbn);
+			if (book.author) titleAuthorSet.add(titleAuthorKey(book.title, book.author));
+		}
+		importedIsbns = isbnSet;
+		importedTitleAuthors = titleAuthorSet;
+	}
+
+	async function refreshImportedLookups() {
+		try {
+			const books = await api.books.list();
+			updateImportedLookups(books);
+		} catch {
+			// Best-effort only; search and import still works without markers.
+		}
+	}
+
+	function markAsImported(book: Book) {
+		const nextIsbns = new Set(importedIsbns);
+		const nextTitleAuthors = new Set(importedTitleAuthors);
+		const isbn = normalizeIsbn(book.isbn);
+		if (isbn) nextIsbns.add(isbn);
+		if (book.author) nextTitleAuthors.add(titleAuthorKey(book.title, book.author));
+		importedIsbns = nextIsbns;
+		importedTitleAuthors = nextTitleAuthors;
+	}
+
+	function isAlreadyImported(candidate: BookImportCandidate): boolean {
+		const isbn = normalizeIsbn(candidate.isbn);
+		if (isbn && importedIsbns.has(isbn)) return true;
+		if (!candidate.author) return false;
+		return importedTitleAuthors.has(titleAuthorKey(candidate.title, candidate.author));
 	}
 
 	function mergeCandidates(
@@ -132,6 +181,7 @@
 		importing = key;
 		try {
 			const book = await api.import.importBook(candidate, status);
+			markAsImported(book);
 			onImport?.(book);
 		} catch (e: unknown) {
 			toasts.add(e instanceof Error ? e.message : 'Import failed', 'error');
@@ -193,7 +243,12 @@
 	<ul class="flex flex-col gap-2 max-h-80 overflow-y-auto">
 		{#each results as candidate}
 			{@const key = candidate.isbn ?? candidate.title}
-			<li class="flex gap-3 items-start p-2 rounded-lg border border-base-200">
+			{@const alreadyImported = isAlreadyImported(candidate)}
+			<li
+				class="flex gap-3 items-start p-2 rounded-lg border {alreadyImported
+					? 'border-success/40 bg-success/5'
+					: 'border-base-200'}"
+			>
 				{#if candidate.cover_url}
 					<img src={candidate.cover_url} alt="Cover" class="w-10 rounded flex-shrink-0 object-cover" />
 				{:else}
@@ -205,14 +260,20 @@
 						<p class="text-xs text-base-content/60">{candidate.author}</p>
 					{/if}
 					<p class="text-xs text-base-content/40">{candidate.source}{candidate.published_year ? ` · ${candidate.published_year}` : ''}</p>
+					{#if alreadyImported}
+						<div class="mt-1">
+							<span class="badge badge-success badge-outline badge-xs">Already imported</span>
+						</div>
+					{/if}
 				</div>
 				<div class="flex flex-col gap-1">
 					<button
-						class="btn btn-xs btn-primary"
-						disabled={importing === key}
+						class="btn btn-xs {alreadyImported ? 'btn-success btn-outline' : 'btn-primary'}"
+						disabled={alreadyImported || importing === key}
+						title={alreadyImported ? 'This book is already in your library' : ''}
 						onclick={() => importBook(candidate, 'want_to_read')}
 					>
-						{importing === key ? '…' : 'Add'}
+						{importing === key ? '…' : alreadyImported ? 'Imported' : 'Add'}
 					</button>
 				</div>
 			</li>
