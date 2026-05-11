@@ -73,7 +73,7 @@ class ApiKey(SQLModel, table=True):
 class OidcLink(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True, unique=True)
-    provider_name: str = Field(index=True)
+    provider_id: str = Field(index=True)
     oidc_sub: str = Field(index=True, unique=True)
     oidc_email: Optional[str] = Field(default=None)
     oidc_name: Optional[str] = Field(default=None)

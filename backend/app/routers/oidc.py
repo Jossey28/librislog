@@ -22,6 +22,10 @@ def _provider_name() -> str:
     return settings.oidc_provider_name
 
 
+def _provider_id() -> str:
+    return settings.oidc_provider_id
+
+
 def _frontend_warning_redirect(message: str) -> RedirectResponse:
     return RedirectResponse(url=f"/login?oidc_error={quote_plus(message)}", status_code=302)
 
@@ -78,7 +82,9 @@ async def oidc_callback(request: Request, session: Session = Depends(get_session
     if not oidc_sub:
         return _frontend_warning_redirect("OIDC response is missing subject")
 
-    link = session.exec(select(OidcLink).where(OidcLink.oidc_sub == oidc_sub)).first()
+    link = session.exec(
+        select(OidcLink).where(OidcLink.provider_id == _provider_id(), OidcLink.oidc_sub == oidc_sub)
+    ).first()
     if not link:
         return _frontend_warning_redirect(
             f"Your {_provider_name()} account is not linked. Please log in with email and password first, then link it in your profile."
@@ -115,7 +121,7 @@ def oidc_link_status(
 
     return OidcLinkRead(
         linked=True,
-        provider_name=link.provider_name,
+        provider_name=_provider_name(),
         oidc_email=link.oidc_email,
         oidc_name=link.oidc_name,
     )
@@ -163,13 +169,15 @@ async def oidc_link_callback(request: Request, session: Session = Depends(get_se
     if not oidc_sub:
         return _link_error_redirect("OIDC response is missing subject")
 
-    existing_by_sub = session.exec(select(OidcLink).where(OidcLink.oidc_sub == oidc_sub)).first()
+    existing_by_sub = session.exec(
+        select(OidcLink).where(OidcLink.provider_id == _provider_id(), OidcLink.oidc_sub == oidc_sub)
+    ).first()
     if existing_by_sub and existing_by_sub.user_id != user_id:
         return _link_error_redirect("This OIDC account is already linked to another user")
 
     existing_link = session.exec(select(OidcLink).where(OidcLink.user_id == user_id)).first()
     if existing_link:
-        existing_link.provider_name = _provider_name()
+        existing_link.provider_id = _provider_id()
         existing_link.oidc_sub = oidc_sub
         existing_link.oidc_email = userinfo.get("email")
         existing_link.oidc_name = userinfo.get("name")
@@ -177,13 +185,13 @@ async def oidc_link_callback(request: Request, session: Session = Depends(get_se
         session.add(existing_link)
     else:
         session.add(
-            OidcLink(
-                user_id=user_id,
-                provider_name=_provider_name(),
-                oidc_sub=oidc_sub,
-                oidc_email=userinfo.get("email"),
-                oidc_name=userinfo.get("name"),
-            )
+                OidcLink(
+                    user_id=user_id,
+                    provider_id=_provider_id(),
+                    oidc_sub=oidc_sub,
+                    oidc_email=userinfo.get("email"),
+                    oidc_name=userinfo.get("name"),
+                )
         )
 
     session.commit()

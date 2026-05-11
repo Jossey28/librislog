@@ -75,7 +75,7 @@ def test_oidc_callback_linked_redirects_with_api_key(
     session.add(
         OidcLink(
             user_id=user_id,
-            provider_name="Test SSO",
+            provider_id="test-oidc",
             oidc_sub="sub-linked",
             oidc_email="linked@example.com",
             oidc_name="Linked User",
@@ -112,7 +112,7 @@ def test_oidc_link_status_reports_linked(client: TestClient, session: Session, m
     session.add(
         OidcLink(
             user_id=user_id,
-            provider_name="Test SSO",
+            provider_id="test-oidc",
             oidc_sub="sub-status",
             oidc_email="status@example.com",
             oidc_name="Status User",
@@ -203,7 +203,7 @@ def test_oidc_link_callback_rejects_sub_already_linked_to_another_user(
     session.add(
         OidcLink(
             user_id=other_user.id,
-            provider_name="Test SSO",
+            provider_id="test-oidc",
             oidc_sub="shared-sub",
             oidc_email="other-oidc@example.com",
             oidc_name="Other OIDC",
@@ -231,7 +231,7 @@ def test_oidc_unlink_removes_existing_link(client: TestClient, session: Session,
     session.add(
         OidcLink(
             user_id=user_id,
-            provider_name="Test SSO",
+            provider_id="test-oidc",
             oidc_sub="sub-unlink",
             oidc_email="unlink@example.com",
             oidc_name="Unlink User",
