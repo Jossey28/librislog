@@ -1,0 +1,114 @@
+{
+  "app": {
+    "title": "LibrisLog",
+    "addBook": "Add Book",
+    "add": "Add",
+    "settings": "Settings",
+    "language": "Language"
+  },
+  "nav": {
+    "want_to_read": "Want to Read",
+    "currently_reading": "Reading",
+    "read": "Read",
+    "did_not_finish": "Did Not Finish"
+  },
+  "status": {
+    "want_to_read": "Want to Read",
+    "currently_reading": "Currently Reading",
+    "read": "Read",
+    "did_not_finish": "Did Not Finish"
+  },
+  "common": {
+    "search": "Search",
+    "searchBooks": "Search books...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm?",
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "syncing": "Syncing...",
+    "noBooksYet": "No books here yet.",
+    "addFirstBook": "Add your first book",
+    "dateAdded": "Date added",
+    "rating": "Rating",
+    "desc": "Desc",
+    "asc": "Asc",
+    "close": "Close",
+    "clearForm": "Clear Form",
+    "remove": "Remove",
+    "saving": "Saving...",
+    "loadingEllipsis": "...",
+    "starLabel": "{star} star",
+    "actionFailed": "{action} failed"
+  },
+  "book": {
+    "title": "Title",
+    "author": "Author",
+    "status": "Status",
+    "isbn": "ISBN",
+    "publisher": "Publisher",
+    "year": "Year",
+    "pages": "Pages",
+    "genre": "Genre",
+    "notes": "Notes",
+    "dateStarted": "Date started",
+    "dateFinished": "Date finished",
+    "cover": "Cover",
+    "coverOf": "Cover of {title}"
+  },
+  "addModal": {
+    "manual": "Manual",
+    "searchImport": "Search & Import",
+    "adding": "Adding...",
+    "failedAdd": "Failed to add book"
+  },
+  "import": {
+    "searchByTitleOrAuthor": "Search by title or author...",
+    "enterIsbn": "Enter ISBN...",
+    "noResultsYet": "No results yet",
+    "noBooksFound": "No books found",
+    "alreadyImported": "Already imported",
+    "imported": "Imported",
+    "googleToo": "Search Google Books too",
+    "googleSearching": "Searching Google Books...",
+    "googleAdded": "Google Books results added: {count}",
+    "scan": "Scan",
+    "scanIsbn": "Scan ISBN barcode",
+    "importFailed": "Import failed",
+    "searchFailed": "Search failed",
+    "scannedIsbn": "Scanned ISBN: {isbn}",
+    "sourceSkipped": "Google Books skipped (no API key configured)",
+    "sourceOpenLibrarySearching": "Searching Open Library...",
+    "sourceGoogleSearching": "Searching Google Books...",
+    "sourceError": "Search failed: {message}",
+    "resultCount": "{source} - {count} result{suffix}"
+  },
+  "scanner": {
+    "title": "Scan ISBN Barcode",
+    "help": "Point your camera at a book barcode. The search starts automatically after a valid ISBN is found.",
+    "startError": "Unable to start barcode scanner. Check camera permissions.",
+    "noCamera": "No camera device found.",
+    "close": "Close scanner"
+  },
+  "coverPicker": {
+    "dropzone": "Drag & drop an image, or",
+    "browse": "browse",
+    "pasteUrl": "Or paste an image URL...",
+    "useUrl": "Use URL",
+    "uploadFailed": "Upload failed",
+    "previewAlt": "Cover preview"
+  },
+  "toasts": {
+    "dismiss": "Dismiss"
+  },
+  "settings": {
+    "title": "Settings",
+    "languageTitle": "Language",
+    "languageHelp": "Choose the language used across the app interface.",
+    "saved": "Language preference is saved in your browser."
+  },
+  "languages": {
+    "en": "English",
+    "de": "German"
+  }
+}

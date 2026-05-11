@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { _ } from '$lib/i18n';
 	import { toasts, type ToastLevel } from '$lib/toasts';
 
 	const CLASSES: Record<ToastLevel, string> = {
@@ -16,7 +17,7 @@
 			<button
 				class="btn btn-ghost btn-xs ml-auto"
 				onclick={() => toasts.remove(toast.id)}
-				aria-label="Dismiss"
+				aria-label={$_('toasts.dismiss')}
 			>✕</button>
 		</div>
 	{/each}

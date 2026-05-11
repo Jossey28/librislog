@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { _ } from '$lib/i18n';
+
 	let { value = $bindable(null), readonly = false, onChange }: {
 		value?: number | null;
 		readonly?: boolean;
@@ -15,7 +17,7 @@
 			checked={value === star}
 			disabled={readonly}
 			onclick={() => !readonly && onChange?.(star)}
-			aria-label="{star} star"
+			aria-label={$_('common.starLabel', { values: { star } })}
 		/>
 	{/each}
 </div>

@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import type { Book, ReadingStatus, SortField, SortOrder } from '$lib/types';
 	import { api } from '$lib/api';
+	import { _ } from '$lib/i18n';
 	import { toasts } from '$lib/toasts';
 	import BookCard from '$lib/components/BookCard.svelte';
 	import BookDrawer from '$lib/components/BookDrawer.svelte';
@@ -38,7 +39,7 @@
 				order
 			});
 		} catch (e: unknown) {
-			toasts.add(e instanceof Error ? e.message : 'Failed to load books');
+			toasts.add(e instanceof Error ? e.message : $_('import.searchFailed'), 'error');
 		} finally {
 			if (background) {
 				syncing = false;
@@ -84,44 +85,44 @@
 		void fetchBooks(true);
 	}
 
-	const STATUS_LABELS: Record<string, string> = {
-		want_to_read: 'Want to Read',
-		currently_reading: 'Currently Reading',
-		read: 'Read',
-		did_not_finish: 'Did Not Finish'
+	const STATUS_LABEL_KEYS: Record<string, string> = {
+		want_to_read: 'status.want_to_read',
+		currently_reading: 'status.currently_reading',
+		read: 'status.read',
+		did_not_finish: 'status.did_not_finish'
 	};
 </script>
 
 <div class="flex flex-col gap-4">
 	<!-- Header row -->
 	<div class="flex flex-col sm:flex-row sm:items-center gap-3">
-		<h1 class="text-xl font-bold">{STATUS_LABELS[activeStatus]}</h1>
+		<h1 class="text-xl font-bold">{$_(STATUS_LABEL_KEYS[activeStatus])}</h1>
 		{#if syncing}
 			<span class="text-xs text-base-content/60 inline-flex items-center gap-1">
 				<span class="loading loading-spinner loading-xs"></span>
-				Syncing…
+				{$_('common.syncing')}
 			</span>
 		{/if}
 		<div class="flex items-center gap-2 flex-1">
 			<SearchBar
 				bind:value={searchQuery}
-				placeholder="Search books…"
+				placeholder={$_('common.searchBooks')}
 				onSearch={(q) => (searchQuery = q)}
 			/>
 		</div>
 		<!-- Sort controls -->
 		<div class="flex items-center gap-2 text-sm">
 			<select class="select select-bordered select-xs" bind:value={sort}>
-				<option value="date_added">Date added</option>
-				<option value="rating">Rating</option>
+				<option value="date_added">{$_('common.dateAdded')}</option>
+				<option value="rating">{$_('common.rating')}</option>
 			</select>
 			<select class="select select-bordered select-xs" bind:value={order}>
-				<option value="desc">Desc</option>
-				<option value="asc">Asc</option>
+				<option value="desc">{$_('common.desc')}</option>
+				<option value="asc">{$_('common.asc')}</option>
 			</select>
 		</div>
 		<button class="btn btn-primary btn-sm hidden sm:flex" onclick={() => (addBookOpen = true)}>
-			+ Add Book
+			+ {$_('app.addBook')}
 		</button>
 	</div>
 
@@ -133,8 +134,8 @@
 	{:else if books.length === 0}
 		<div class="text-center py-16 text-base-content/40">
 			<p class="text-4xl mb-2">📚</p>
-			<p>No books here yet.</p>
-			<button class="btn btn-primary btn-sm mt-4" onclick={() => (addBookOpen = true)}>Add your first book</button>
+			<p>{$_('common.noBooksYet')}</p>
+			<button class="btn btn-primary btn-sm mt-4" onclick={() => (addBookOpen = true)}>{$_('common.addFirstBook')}</button>
 		</div>
 	{:else}
 		<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">

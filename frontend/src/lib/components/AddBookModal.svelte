@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Book, ReadingStatus } from '$lib/types';
 	import { api } from '$lib/api';
+	import { _ } from '$lib/i18n';
 	import { toasts } from '$lib/toasts';
 	import ImportSearch from './ImportSearch.svelte';
 	import BarcodeScanner from './BarcodeScanner.svelte';
@@ -71,17 +72,17 @@
 			open = false;
 			reset();
 		} catch (e: unknown) {
-			toasts.add(e instanceof Error ? e.message : 'Failed to add book', 'error');
+			toasts.add(e instanceof Error ? e.message : $_('addModal.failedAdd'), 'error');
 		} finally {
 			submitting = false;
 		}
 	}
 
 	const STATUS_OPTIONS: { value: ReadingStatus; label: string }[] = [
-		{ value: 'want_to_read', label: 'Want to Read' },
-		{ value: 'currently_reading', label: 'Currently Reading' },
-		{ value: 'read', label: 'Read' },
-		{ value: 'did_not_finish', label: 'Did Not Finish' }
+		{ value: 'want_to_read', label: 'status.want_to_read' },
+		{ value: 'currently_reading', label: 'status.currently_reading' },
+		{ value: 'read', label: 'status.read' },
+		{ value: 'did_not_finish', label: 'status.did_not_finish' }
 	];
 </script>
 
@@ -89,7 +90,7 @@
 	<div class="modal modal-open">
 		<div class="modal-box w-full max-w-lg">
 			<div class="flex items-center justify-between mb-4">
-				<h3 class="text-lg font-bold">Add Book</h3>
+				<h3 class="text-lg font-bold">{$_('app.addBook')}</h3>
 				<button class="btn btn-ghost btn-sm btn-circle" onclick={() => { open = false; }}>✕</button>
 			</div>
 
@@ -99,60 +100,60 @@
 					role="tab"
 					class="tab {activeTab === 'manual' ? 'tab-active' : ''}"
 					onclick={() => (activeTab = 'manual')}
-				>Manual</button>
+				>{$_('addModal.manual')}</button>
 				<button
 					role="tab"
 					class="tab {activeTab === 'import' ? 'tab-active' : ''}"
 					onclick={() => (activeTab = 'import')}
-				>Search & Import</button>
+				>{$_('addModal.searchImport')}</button>
 			</div>
 
 			{#if activeTab === 'manual'}
 				<form onsubmit={(e) => { e.preventDefault(); submitManual(); }} class="flex flex-col gap-2">
 					<label class="form-control">
-						<span class="label label-text">Title <span class="text-error">*</span></span>
+						<span class="label label-text">{$_('book.title')} <span class="text-error">*</span></span>
 						<input class="input input-bordered input-sm" bind:value={title} required />
 					</label>
 					<div class="grid grid-cols-2 gap-2">
 						<label class="form-control">
-							<span class="label label-text">Author</span>
+							<span class="label label-text">{$_('book.author')}</span>
 							<input class="input input-bordered input-sm" bind:value={author} />
 						</label>
 						<label class="form-control">
-							<span class="label label-text">ISBN</span>
+							<span class="label label-text">{$_('book.isbn')}</span>
 							<input class="input input-bordered input-sm" bind:value={isbn} />
 						</label>
 						<label class="form-control">
-							<span class="label label-text">Publisher</span>
+							<span class="label label-text">{$_('book.publisher')}</span>
 							<input class="input input-bordered input-sm" bind:value={publisher} />
 						</label>
 						<label class="form-control">
-							<span class="label label-text">Year</span>
+							<span class="label label-text">{$_('book.year')}</span>
 							<input type="number" class="input input-bordered input-sm" bind:value={published_year} min="1000" max="2100" />
 						</label>
 						<label class="form-control">
-							<span class="label label-text">Pages</span>
+							<span class="label label-text">{$_('book.pages')}</span>
 							<input type="number" class="input input-bordered input-sm" bind:value={page_count} min="1" />
 						</label>
 						<label class="form-control">
-							<span class="label label-text">Rating (1–5)</span>
+							<span class="label label-text">{$_('common.rating')} (1-5)</span>
 							<input type="number" class="input input-bordered input-sm" bind:value={rating} min="1" max="5" />
 						</label>
 					</div>
 					<label class="form-control">
-						<span class="label label-text">Genre</span>
+						<span class="label label-text">{$_('book.genre')}</span>
 						<input class="input input-bordered input-sm" bind:value={genre} />
 					</label>
 					<label class="form-control">
-						<span class="label label-text">Status</span>
+						<span class="label label-text">{$_('book.status')}</span>
 						<select class="select select-bordered select-sm" bind:value={status}>
 							{#each STATUS_OPTIONS as opt}
-								<option value={opt.value}>{opt.label}</option>
+								<option value={opt.value}>{$_(opt.label)}</option>
 							{/each}
 				</select>
 				</label>
 				<label class="form-control">
-					<span class="label label-text">Notes</span>
+					<span class="label label-text">{$_('book.notes')}</span>
 					<textarea class="textarea textarea-bordered text-sm" rows="2" bind:value={notes}></textarea>
 				</label>
 
@@ -160,10 +161,10 @@
 
 				<div class="modal-action mt-2">
 					<button type="button" class="btn btn-ghost btn-sm" onclick={reset}>
-						Clear Form
+						{$_('common.clearForm')}
 					</button>
 					<button type="submit" class="btn btn-primary btn-sm" disabled={submitting}>
-						{submitting ? 'Adding…' : 'Add Book'}
+						{submitting ? $_('addModal.adding') : $_('app.addBook')}
 					</button>
 				</div>
 				</form>

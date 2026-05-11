@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { api } from '$lib/api';
+	import { _ } from '$lib/i18n';
 	import { toasts } from '$lib/toasts';
 
 	let {
@@ -22,7 +23,7 @@
 			value = await api.covers.upload(file);
 			urlInput = '';
 		} catch (e: unknown) {
-			toasts.add(e instanceof Error ? e.message : 'Upload failed', 'error');
+			toasts.add(e instanceof Error ? e.message : $_('coverPicker.uploadFailed'), 'error');
 		} finally {
 			uploading = false;
 		}
@@ -55,19 +56,23 @@
 </script>
 
 <div class="flex flex-col gap-2">
-	<span class="label label-text">Cover</span>
+	<span class="label label-text">{$_('book.cover')}</span>
 
 	{#if value}
 		<!-- Preview + clear -->
 		<div class="flex items-start gap-3">
-			<img src={value} alt="Cover preview" class="w-20 rounded shadow object-cover flex-shrink-0" />
+			<img
+				src={value}
+				alt={$_('coverPicker.previewAlt')}
+				class="w-20 rounded shadow object-cover flex-shrink-0"
+			/>
 			{#if !disabled}
-				<button
-					type="button"
-					class="btn btn-ghost btn-xs"
-					onclick={clear}
-					aria-label="Remove cover"
-				>Remove</button>
+			<button
+				type="button"
+				class="btn btn-ghost btn-xs"
+				onclick={clear}
+				aria-label={$_('common.remove')}
+			>{$_('common.remove')}</button>
 			{/if}
 		</div>
 	{:else}
@@ -88,7 +93,7 @@
 			{#if uploading}
 				<span class="loading loading-spinner loading-sm"></span>
 			{:else}
-				<p>Drag & drop an image, or <span class="text-primary font-medium">browse</span></p>
+				<p>{$_('coverPicker.dropzone')} <span class="text-primary font-medium">{$_('coverPicker.browse')}</span></p>
 			{/if}
 		</div>
 
@@ -105,7 +110,7 @@
 		<div class="flex gap-2">
 			<input
 				class="input input-bordered input-sm flex-1"
-				placeholder="Or paste an image URL…"
+				placeholder={$_('coverPicker.pasteUrl')}
 				bind:value={urlInput}
 				{disabled}
 				onkeydown={(e) => e.key === 'Enter' && (e.preventDefault(), fetchUrl())}
@@ -115,7 +120,7 @@
 				class="btn btn-sm btn-outline"
 				disabled={disabled || !urlInput.trim()}
 				onclick={fetchUrl}
-			>Use URL</button>
+			>{$_('coverPicker.useUrl')}</button>
 		</div>
 	{/if}
 </div>

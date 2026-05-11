@@ -2,6 +2,7 @@
 	import type { Book, BookImportCandidate, ReadingStatus, SearchStage } from '$lib/types';
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
+	import { _ } from '$lib/i18n';
 	import { toasts } from '$lib/toasts';
 
 	let {
@@ -44,22 +45,26 @@
 		lastHandledScannedIsbn = scannedIsbn;
 		searchType = 'isbn';
 		query = scannedIsbn;
-		toasts.add(`Scanned ISBN: ${scannedIsbn}`, 'success');
+		toasts.add($_('import.scannedIsbn', { values: { isbn: scannedIsbn } }), 'success');
 		void search();
 		onScannedHandled?.();
 	});
 
 	function stageLabel(s: SearchStage): string {
 		if (s.stage === 'open_library') {
-			if (s.status === 'searching') return 'Searching Open Library…';
-			return `Open Library — ${s.count} result${s.count === 1 ? '' : 's'}`;
+			if (s.status === 'searching') return $_('import.sourceOpenLibrarySearching');
+			return $_('import.resultCount', {
+				values: { source: 'Open Library', count: s.count, suffix: s.count === 1 ? '' : 's' }
+			});
 		}
 		if (s.stage === 'google_books') {
-			if (s.status === 'searching') return 'Searching Google Books…';
-			if (s.status === 'skipped') return 'Google Books skipped (no API key configured)';
-			return `Google Books — ${s.count} result${s.count === 1 ? '' : 's'}`;
+			if (s.status === 'searching') return $_('import.sourceGoogleSearching');
+			if (s.status === 'skipped') return $_('import.sourceSkipped');
+			return $_('import.resultCount', {
+				values: { source: 'Google Books', count: s.count, suffix: s.count === 1 ? '' : 's' }
+			});
 		}
-		if (s.stage === 'error') return `Search failed: ${s.message}`;
+		if (s.stage === 'error') return $_('import.sourceError', { values: { message: s.message } });
 		return '';
 	}
 
@@ -166,7 +171,7 @@
 				}
 			}
 		} catch (e: unknown) {
-			toasts.add(e instanceof Error ? e.message : 'Search failed', 'error');
+			toasts.add(e instanceof Error ? e.message : $_('import.searchFailed'), 'error');
 		}
 	}
 
@@ -206,7 +211,7 @@
 			markAsImported(book);
 			onImport?.(book);
 		} catch (e: unknown) {
-			toasts.add(e instanceof Error ? e.message : 'Import failed', 'error');
+			toasts.add(e instanceof Error ? e.message : $_('import.importFailed'), 'error');
 		} finally {
 			importing = null;
 		}
@@ -218,21 +223,21 @@
 		<input
 			type="text"
 			class="input input-bordered input-sm flex-1"
-			placeholder={searchType === 'isbn' ? 'Enter ISBN…' : 'Search by title or author…'}
+			placeholder={searchType === 'isbn' ? $_('import.enterIsbn') : $_('import.searchByTitleOrAuthor')}
 			bind:value={query}
 			onkeydown={(e) => e.key === 'Enter' && search()}
 		/>
 		<select class="select select-bordered select-sm" bind:value={searchType}>
-			<option value="title">Title</option>
-			<option value="isbn">ISBN</option>
+			<option value="title">{$_('book.title')}</option>
+			<option value="isbn">{$_('book.isbn')}</option>
 		</select>
 		{#if cameraSupported}
 			<button
 				class="btn btn-outline btn-sm"
 				onclick={() => onOpenScanner?.()}
 				disabled={searching}
-				title="Scan ISBN barcode"
-				aria-label="Scan ISBN barcode"
+				title={$_('import.scanIsbn')}
+				aria-label={$_('import.scanIsbn')}
 			>
 				<svg viewBox="0 0 24 24" class="w-4 h-4" aria-hidden="true">
 					<rect x="2" y="4" width="1" height="16" fill="currentColor" />
@@ -244,11 +249,11 @@
 					<rect x="18" y="4" width="1" height="16" fill="currentColor" />
 					<rect x="20" y="4" width="2" height="16" fill="currentColor" />
 				</svg>
-				<span>Scan</span>
+				<span>{$_('import.scan')}</span>
 			</button>
 		{/if}
 		<button class="btn btn-primary btn-sm" onclick={search} disabled={searching}>
-			{searching ? '…' : 'Search'}
+			{searching ? $_('common.loadingEllipsis') : $_('common.search')}
 		</button>
 	</div>
 
@@ -266,21 +271,21 @@
 	{#if hasOlResults && !googleSupplementSearched}
 		<div class="flex justify-start">
 			<button class="btn btn-outline btn-sm" onclick={searchGoogleToo} disabled={searching || supplementingGoogle}>
-				{supplementingGoogle ? 'Searching Google Books…' : 'Search Google Books too'}
+				{supplementingGoogle ? $_('import.googleSearching') : $_('import.googleToo')}
 			</button>
 		</div>
 	{/if}
 
 	{#if googleSupplementSearched && supplementAddedCount !== null}
 		<p class="text-xs text-base-content/60">
-			Google Books results added: {supplementAddedCount}
+			{$_('import.googleAdded', { values: { count: supplementAddedCount } })}
 		</p>
 	{/if}
 
 	{#if results.length === 0 && !searching && stages.length === 0}
-		<p class="text-base-content/50 text-sm text-center py-4">No results yet</p>
+		<p class="text-base-content/50 text-sm text-center py-4">{$_('import.noResultsYet')}</p>
 	{:else if results.length === 0 && !searching && stages.length > 0}
-		<p class="text-base-content/50 text-sm text-center py-2">No books found</p>
+		<p class="text-base-content/50 text-sm text-center py-2">{$_('import.noBooksFound')}</p>
 	{/if}
 
 	<ul class="flex flex-col gap-2 max-h-80 overflow-y-auto">
@@ -293,7 +298,11 @@
 					: 'border-base-200'}"
 			>
 				{#if candidate.cover_url}
-					<img src={candidate.cover_url} alt="Cover" class="w-10 rounded flex-shrink-0 object-cover" />
+					<img
+						src={candidate.cover_url}
+						alt={$_('book.cover')}
+						class="w-10 rounded flex-shrink-0 object-cover"
+					/>
 				{:else}
 					<div class="w-10 h-14 bg-base-200 rounded flex-shrink-0"></div>
 				{/if}
@@ -314,12 +323,12 @@
 						{/if}
 						{#if candidate.page_count}
 							<span>·</span>
-							<span>{candidate.page_count} pages</span>
+							<span>{candidate.page_count} {$_('book.pages').toLowerCase()}</span>
 						{/if}
 					</div>
 					{#if alreadyImported}
 						<div class="mt-1">
-							<span class="badge badge-success badge-outline badge-xs">Already imported</span>
+							<span class="badge badge-success badge-outline badge-xs">{$_('import.alreadyImported')}</span>
 						</div>
 					{/if}
 				</div>
@@ -327,10 +336,14 @@
 					<button
 						class="btn btn-xs {alreadyImported ? 'btn-success btn-outline' : 'btn-primary'}"
 						disabled={alreadyImported || importing === key}
-						title={alreadyImported ? 'This book is already in your library' : ''}
+						title={alreadyImported ? $_('import.alreadyImported') : ''}
 						onclick={() => importBook(candidate, 'want_to_read')}
 					>
-						{importing === key ? '…' : alreadyImported ? 'Imported' : 'Add'}
+						{importing === key
+							? $_('common.loadingEllipsis')
+							: alreadyImported
+								? $_('import.imported')
+								: $_('app.add')}
 					</button>
 				</div>
 			</li>

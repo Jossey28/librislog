@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { _ } from '$lib/i18n';
+
 	let {
 		value = $bindable(''),
-		placeholder = 'Search…',
+		placeholder,
 		onSearch
 	}: {
 		value?: string;
@@ -10,6 +12,7 @@
 	} = $props();
 
 	let debounce: ReturnType<typeof setTimeout>;
+	const effectivePlaceholder = $derived(placeholder ?? $_('common.search'));
 
 	function handleInput(e: Event) {
 		const target = e.target as HTMLInputElement;
@@ -26,7 +29,7 @@
 	<input
 		type="text"
 		class="grow bg-transparent outline-none text-sm"
-		{placeholder}
+		placeholder={effectivePlaceholder}
 		{value}
 		oninput={handleInput}
 	/>
@@ -34,7 +37,7 @@
 		<button
 			class="text-base-content/40 hover:text-base-content"
 			onclick={() => { value = ''; onSearch?.(''); }}
-			aria-label="Clear search"
+			aria-label={$_('common.search')}
 		>✕</button>
 	{/if}
 </label>

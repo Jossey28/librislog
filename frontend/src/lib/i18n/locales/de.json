@@ -1,0 +1,114 @@
+{
+  "app": {
+    "title": "LibrisLog",
+    "addBook": "Buch hinzufügen",
+    "add": "Hinzufügen",
+    "settings": "Einstellungen",
+    "language": "Sprache"
+  },
+  "nav": {
+    "want_to_read": "Möchte ich lesen",
+    "currently_reading": "Lese ich gerade",
+    "read": "Gelesen",
+    "did_not_finish": "Abgebrochen"
+  },
+  "status": {
+    "want_to_read": "Möchte ich lesen",
+    "currently_reading": "Lese ich gerade",
+    "read": "Gelesen",
+    "did_not_finish": "Abgebrochen"
+  },
+  "common": {
+    "search": "Suchen",
+    "searchBooks": "Bücher suchen...",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "confirm": "Bestätigen?",
+    "delete": "Löschen",
+    "deleting": "Lösche...",
+    "syncing": "Synchronisiere...",
+    "noBooksYet": "Hier sind noch keine Bücher.",
+    "addFirstBook": "Erstes Buch hinzufügen",
+    "dateAdded": "Hinzugefügt am",
+    "rating": "Bewertung",
+    "desc": "Absteigend",
+    "asc": "Aufsteigend",
+    "close": "Schließen",
+    "clearForm": "Formular leeren",
+    "remove": "Entfernen",
+    "saving": "Speichere...",
+    "loadingEllipsis": "...",
+    "starLabel": "{star} Stern",
+    "actionFailed": "{action} fehlgeschlagen"
+  },
+  "book": {
+    "title": "Titel",
+    "author": "Autor",
+    "status": "Status",
+    "isbn": "ISBN",
+    "publisher": "Verlag",
+    "year": "Jahr",
+    "pages": "Seiten",
+    "genre": "Genre",
+    "notes": "Notizen",
+    "dateStarted": "Begonnen am",
+    "dateFinished": "Beendet am",
+    "cover": "Cover",
+    "coverOf": "Cover von {title}"
+  },
+  "addModal": {
+    "manual": "Manuell",
+    "searchImport": "Suchen & Importieren",
+    "adding": "Füge hinzu...",
+    "failedAdd": "Buch konnte nicht hinzugefügt werden"
+  },
+  "import": {
+    "searchByTitleOrAuthor": "Nach Titel oder Autor suchen...",
+    "enterIsbn": "ISBN eingeben...",
+    "noResultsYet": "Noch keine Ergebnisse",
+    "noBooksFound": "Keine Bücher gefunden",
+    "alreadyImported": "Bereits importiert",
+    "imported": "Importiert",
+    "googleToo": "Auch Google Books durchsuchen",
+    "googleSearching": "Durchsuche Google Books...",
+    "googleAdded": "Google-Books-Ergebnisse hinzugefügt: {count}",
+    "scan": "Scannen",
+    "scanIsbn": "ISBN-Barcode scannen",
+    "importFailed": "Import fehlgeschlagen",
+    "searchFailed": "Suche fehlgeschlagen",
+    "scannedIsbn": "ISBN gescannt: {isbn}",
+    "sourceSkipped": "Google Books übersprungen (kein API-Schlüssel konfiguriert)",
+    "sourceOpenLibrarySearching": "Durchsuche Open Library...",
+    "sourceGoogleSearching": "Durchsuche Google Books...",
+    "sourceError": "Suche fehlgeschlagen: {message}",
+    "resultCount": "{source} - {count} Ergebnis{suffix}"
+  },
+  "scanner": {
+    "title": "ISBN-Barcode scannen",
+    "help": "Richte die Kamera auf den Barcode eines Buchs. Nach einem gültigen ISBN-Treffer startet die Suche automatisch.",
+    "startError": "Barcode-Scanner konnte nicht gestartet werden. Prüfe die Kameraberechtigungen.",
+    "noCamera": "Kein Kameragerät gefunden.",
+    "close": "Scanner schließen"
+  },
+  "coverPicker": {
+    "dropzone": "Bild hierher ziehen oder",
+    "browse": "auswählen",
+    "pasteUrl": "Oder Bild-URL einfügen...",
+    "useUrl": "URL verwenden",
+    "uploadFailed": "Upload fehlgeschlagen",
+    "previewAlt": "Cover-Vorschau"
+  },
+  "toasts": {
+    "dismiss": "Schließen"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "languageTitle": "Sprache",
+    "languageHelp": "Wähle die Sprache für die Benutzeroberfläche der App.",
+    "saved": "Die Spracheinstellung wird im Browser gespeichert."
+  },
+  "languages": {
+    "en": "Englisch",
+    "de": "Deutsch"
+  }
+}

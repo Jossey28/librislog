@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { Book, ReadingStatus } from '$lib/types';
 	import { api } from '$lib/api';
+	import { _ } from '$lib/i18n';
 	import { toasts } from '$lib/toasts';
 	import StarRating from './StarRating.svelte';
 	import CoverPicker from './CoverPicker.svelte';
@@ -49,21 +50,26 @@
 		if (!book) return;
 		saving = true;
 		try {
-		const updated = await api.books.update(book.id, {
-			title,
-			author: author || null,
-			notes: notes || null,
-			rating,
-			reading_status,
-			date_started: date_started || null,
-			date_finished: date_finished || null,
-			cover_url: cover_url || null
-		});
+			const updated = await api.books.update(book.id, {
+				title,
+				author: author || null,
+				notes: notes || null,
+				rating,
+				reading_status,
+				date_started: date_started || null,
+				date_finished: date_finished || null,
+				cover_url: cover_url || null
+			});
 			book = updated;
 			onSave?.(updated);
 			open = false;
 		} catch (e: unknown) {
-			toasts.add(e instanceof Error ? e.message : 'Save failed');
+			toasts.add(
+				e instanceof Error
+					? e.message
+					: $_('common.actionFailed', { values: { action: $_('common.save') } }),
+				'error'
+			);
 		} finally {
 			saving = false;
 		}
@@ -77,17 +83,22 @@
 			onDelete?.(book.id);
 			open = false;
 		} catch (e: unknown) {
-			toasts.add(e instanceof Error ? e.message : 'Delete failed');
+			toasts.add(
+				e instanceof Error
+					? e.message
+					: $_('common.actionFailed', { values: { action: $_('common.delete') } }),
+				'error'
+			);
 		} finally {
 			deleting = false;
 		}
 	}
 
 	const STATUS_OPTIONS: { value: ReadingStatus; label: string }[] = [
-		{ value: 'want_to_read', label: 'Want to Read' },
-		{ value: 'currently_reading', label: 'Currently Reading' },
-		{ value: 'read', label: 'Read' },
-		{ value: 'did_not_finish', label: 'Did Not Finish' }
+		{ value: 'want_to_read', label: 'status.want_to_read' },
+		{ value: 'currently_reading', label: 'status.currently_reading' },
+		{ value: 'read', label: 'status.read' },
+		{ value: 'did_not_finish', label: 'status.did_not_finish' }
 	];
 </script>
 
@@ -105,7 +116,11 @@
 		<!-- Header -->
 		<div class="flex items-center justify-between p-4 border-b border-base-200">
 			<h2 class="text-lg font-bold truncate">{book.title}</h2>
-			<button class="btn btn-ghost btn-sm btn-circle" onclick={() => (open = false)}>✕</button>
+			<button
+				class="btn btn-ghost btn-sm btn-circle"
+				onclick={() => (open = false)}
+				aria-label={$_('common.close')}
+			>✕</button>
 		</div>
 
 		<!-- Meta -->
@@ -113,77 +128,77 @@
 			<div class="text-sm text-base-content/60 space-y-1">
 				{#if book.publisher}<p>{book.publisher}</p>{/if}
 				{#if book.published_year}<p>{book.published_year}</p>{/if}
-				{#if book.page_count}<p>{book.page_count} pages</p>{/if}
+				{#if book.page_count}<p>{book.page_count} {$_('book.pages').toLowerCase()}</p>{/if}
 				{#if book.genre}<p class="italic">{book.genre}</p>{/if}
-				{#if book.isbn}<p class="font-mono text-xs">ISBN {book.isbn}</p>{/if}
+				{#if book.isbn}<p class="font-mono text-xs">{$_('book.isbn')} {book.isbn}</p>{/if}
 			</div>
 		</div>
 
 		<!-- Editable form -->
 		<form class="flex flex-col gap-3 px-4 pb-4 flex-1" onsubmit={(e) => { e.preventDefault(); save(); }}>
 			<label class="form-control">
-				<span class="label label-text">Title</span>
+				<span class="label label-text">{$_('book.title')}</span>
 				<input class="input input-bordered input-sm" bind:value={title} required />
 			</label>
 
 			<label class="form-control">
-				<span class="label label-text">Author</span>
+				<span class="label label-text">{$_('book.author')}</span>
 				<input class="input input-bordered input-sm" bind:value={author} />
 			</label>
 
 			<label class="form-control">
-				<span class="label label-text">Status</span>
+				<span class="label label-text">{$_('book.status')}</span>
 				<select class="select select-bordered select-sm" bind:value={reading_status}>
 					{#each STATUS_OPTIONS as opt}
-						<option value={opt.value}>{opt.label}</option>
+						<option value={opt.value}>{$_(opt.label)}</option>
 					{/each}
 				</select>
 			</label>
 
 			<div class="form-control">
-				<span class="label label-text">Rating</span>
+				<span class="label label-text">{$_('common.rating')}</span>
 				<StarRating value={rating} onChange={(v) => (rating = v)} />
 			</div>
 
 			<label class="form-control">
-				<span class="label label-text">Date started</span>
+				<span class="label label-text">{$_('book.dateStarted')}</span>
 				<input type="date" class="input input-bordered input-sm" bind:value={date_started} />
 			</label>
 
 			<label class="form-control">
-				<span class="label label-text">Date finished</span>
+				<span class="label label-text">{$_('book.dateFinished')}</span>
 				<input type="date" class="input input-bordered input-sm" bind:value={date_finished} />
 			</label>
 
-		<label class="form-control">
-			<span class="label label-text">Notes</span>
-			<textarea class="textarea textarea-bordered text-sm" rows="4" bind:value={notes}></textarea>
-		</label>
+			<label class="form-control">
+				<span class="label label-text">{$_('book.notes')}</span>
+				<textarea class="textarea textarea-bordered text-sm" rows="4" bind:value={notes}></textarea>
+			</label>
 
-		<CoverPicker bind:value={cover_url} disabled={saving} />
+			<CoverPicker bind:value={cover_url} disabled={saving} />
 
-		<div class="flex gap-2 mt-auto pt-2">
+			<div class="flex gap-2 mt-auto pt-2">
 				<button type="submit" class="btn btn-primary btn-sm flex-1" disabled={saving}>
-					{saving ? 'Saving…' : 'Save'}
+					{saving ? $_('common.saving') : $_('common.save')}
 				</button>
 				{#if !confirmDelete}
 					<button
 						type="button"
 						class="btn btn-error btn-outline btn-sm"
 						onclick={() => (confirmDelete = true)}
-					>Delete</button>
+					>{$_('common.delete')}</button>
 				{:else}
 					<button
 						type="button"
 						class="btn btn-error btn-sm"
 						disabled={deleting}
 						onclick={deleteBook}
-					>{deleting ? 'Deleting…' : 'Confirm?'}</button>
+					>{deleting ? $_('common.deleting') : $_('common.confirm')}</button>
 					<button
 						type="button"
 						class="btn btn-ghost btn-sm"
 						onclick={() => (confirmDelete = false)}
-					>Cancel</button>
+					>{$_('common.cancel')}</button>
 				{/if}
 			</div>
 		</form>

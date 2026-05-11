@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+	import { _ } from '$lib/i18n';
 	import { onDestroy, tick } from 'svelte';
 
 	let {
@@ -96,7 +97,7 @@
 			} catch {
 				const cameras = await Html5Qrcode.getCameras();
 				if (!cameras.length) {
-					throw new Error('No camera device found.');
+					throw new Error($_('scanner.noCamera'));
 				}
 				await nextScanner.start(cameras[0].id, scanConfig, onSuccess, onError);
 			}
@@ -104,7 +105,7 @@
 			scanner = nextScanner;
 		} catch (err: unknown) {
 			scannerError =
-				err instanceof Error ? err.message : 'Unable to start barcode scanner. Check camera permissions.';
+				err instanceof Error ? err.message : $_('scanner.startError');
 			await stopScanner();
 		} finally {
 			starting = false;
@@ -135,19 +136,19 @@
 			onkeydown={(e) => e.key === 'Escape' && closeScanner()}
 			role="button"
 			tabindex="0"
-			aria-label="Close scanner"
+			aria-label={$_('scanner.close')}
 		></div>
 
 		<div class="absolute inset-0 z-[401] flex items-center justify-center p-2 sm:p-4">
-			<div class="w-full max-w-4xl h-[88dvh] bg-base-100 rounded-xl shadow-2xl flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-label="Scan ISBN Barcode">
+			<div class="w-full max-w-4xl h-[88dvh] bg-base-100 rounded-xl shadow-2xl flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-label={$_('scanner.title')}>
 				<div class="flex items-center justify-between px-4 py-3 border-b border-base-200">
-					<h3 class="text-lg font-semibold">Scan ISBN Barcode</h3>
-					<button class="btn btn-ghost btn-sm btn-circle" onclick={closeScanner} aria-label="Close scanner">✕</button>
+					<h3 class="text-lg font-semibold">{$_('scanner.title')}</h3>
+					<button class="btn btn-ghost btn-sm btn-circle" onclick={closeScanner} aria-label={$_('scanner.close')}>✕</button>
 				</div>
 
 				<div class="flex-1 min-h-0 p-4 flex flex-col gap-3 overflow-y-auto">
 					<p class="text-sm text-base-content/70">
-						Point your camera at a book barcode. The search starts automatically after a valid ISBN is found.
+						{$_('scanner.help')}
 					</p>
 
 					{#if scannerError}

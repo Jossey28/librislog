@@ -1,14 +1,15 @@
 <script lang="ts">
 	import type { Book } from '$lib/types';
+	import { _ } from '$lib/i18n';
 	import StarRating from './StarRating.svelte';
 
 	let { book, onClick }: { book: Book; onClick: (book: Book) => void } = $props();
 
-	const STATUS_LABELS: Record<string, string> = {
-		want_to_read: 'Want to Read',
-		currently_reading: 'Reading',
-		read: 'Read',
-		did_not_finish: 'Did Not Finish'
+	const STATUS_LABEL_KEYS: Record<string, string> = {
+		want_to_read: 'status.want_to_read',
+		currently_reading: 'status.currently_reading',
+		read: 'status.read',
+		did_not_finish: 'status.did_not_finish'
 	};
 
 	const STATUS_BADGE: Record<string, string> = {
@@ -25,7 +26,11 @@
 >
 	<figure class="aspect-[2/3] bg-base-200 overflow-hidden">
 		{#if book.cover_url}
-			<img src={book.cover_url} alt="Cover of {book.title}" class="w-full h-full object-cover" />
+			<img
+				src={book.cover_url}
+				alt={$_('book.coverOf', { values: { title: book.title } })}
+				class="w-full h-full object-cover"
+			/>
 		{:else}
 			<div class="w-full h-full flex items-center justify-center text-base-content/30">
 				<svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -42,7 +47,7 @@
 		<div class="flex items-center justify-between mt-1">
 			<StarRating value={book.rating} readonly />
 			<span class="badge badge-xs {STATUS_BADGE[book.reading_status]}">
-				{STATUS_LABELS[book.reading_status]}
+				{$_(STATUS_LABEL_KEYS[book.reading_status])}
 			</span>
 		</div>
 	</div>
