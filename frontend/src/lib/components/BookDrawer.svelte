@@ -61,6 +61,7 @@
 		});
 			book = updated;
 			onSave?.(updated);
+			open = false;
 		} catch (e: unknown) {
 			toasts.add(e instanceof Error ? e.message : 'Save failed');
 		} finally {
@@ -95,7 +96,6 @@
 		class="fixed inset-0 bg-black/40 z-40"
 		role="button"
 		tabindex="-1"
-		onclick={() => (open = false)}
 		onkeydown={(e) => e.key === 'Escape' && (open = false)}
 	></div>
 

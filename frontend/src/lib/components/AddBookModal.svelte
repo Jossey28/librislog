@@ -86,7 +86,7 @@
 		<div class="modal-box w-full max-w-lg">
 			<div class="flex items-center justify-between mb-4">
 				<h3 class="text-lg font-bold">Add Book</h3>
-				<button class="btn btn-ghost btn-sm btn-circle" onclick={() => { open = false; reset(); }}>✕</button>
+				<button class="btn btn-ghost btn-sm btn-circle" onclick={() => { open = false; }}>✕</button>
 			</div>
 
 			<!-- Tabs -->
@@ -155,10 +155,13 @@
 				<CoverPicker bind:value={cover_url} disabled={submitting} />
 
 				<div class="modal-action mt-2">
-						<button type="submit" class="btn btn-primary btn-sm" disabled={submitting}>
-							{submitting ? 'Adding…' : 'Add Book'}
-						</button>
-					</div>
+					<button type="button" class="btn btn-ghost btn-sm" onclick={reset}>
+						Clear Form
+					</button>
+					<button type="submit" class="btn btn-primary btn-sm" disabled={submitting}>
+						{submitting ? 'Adding…' : 'Add Book'}
+					</button>
+				</div>
 				</form>
 			{:else}
 			<ImportSearch
@@ -171,6 +174,6 @@
 		{/if}
 		</div>
 		<!-- Click-outside to close -->
-		<div class="modal-backdrop" role="button" tabindex="-1" onclick={() => { open = false; reset(); }} onkeydown={() => {}}></div>
+		<div class="modal-backdrop" role="button" tabindex="-1" onkeydown={(e) => e.key === 'Escape' && (open = false)}></div>
 	</div>
 {/if}
