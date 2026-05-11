@@ -95,7 +95,7 @@ def test_auth_setup_flow_when_no_admin(session: Session):
 def test_profile_patch_updates_fields(client: TestClient):
     resp = client.patch(
         "/api/profile",
-        json={"firstname": "Updated", "lastname": "Name"},
+        json={"firstname": "Updated", "lastname": "Name", "password": "new-pass"},
     )
     assert resp.status_code == 200
     data = resp.json()
@@ -103,10 +103,27 @@ def test_profile_patch_updates_fields(client: TestClient):
     assert data["lastname"] == "Name"
 
 
-def test_profile_patch_rejects_duplicate_email(client: TestClient, create_user_with_key):
+def test_profile_patch_ignores_email_changes(client: TestClient, create_user_with_key):
     create_user_with_key(email="other@example.com")
     resp = client.patch("/api/profile", json={"email": "other@example.com"})
-    assert resp.status_code == 400
+    assert resp.status_code == 422
+
+
+def test_profile_patch_changes_password_and_login_uses_new_password(client: TestClient):
+    updated = client.patch("/api/profile", json={"password": "changed-secret"})
+    assert updated.status_code == 200
+
+    old_login = client.post(
+        "/api/auth/login",
+        json={"email": "test@example.com", "password": "test-password"},
+    )
+    assert old_login.status_code == 401
+
+    new_login = client.post(
+        "/api/auth/login",
+        json={"email": "test@example.com", "password": "changed-secret"},
+    )
+    assert new_login.status_code == 200
 
 
 def test_profile_settings_get_and_update(client: TestClient):
@@ -192,6 +209,25 @@ def test_users_create_rejects_duplicate_email(client: TestClient):
             "role": "user",
         },
     )
+    assert resp.status_code == 400
+
+
+def test_users_update_user_allows_admin_email_change(client: TestClient, create_user_with_key):
+    user, _key = create_user_with_key(email="member-update@example.com", role=UserRole.user)
+    resp = client.patch(
+        f"/api/users/{user.id}",
+        json={"email": "member-updated@example.com", "firstname": "Renamed"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["email"] == "member-updated@example.com"
+    assert data["firstname"] == "Renamed"
+
+
+def test_users_update_user_rejects_duplicate_email(client: TestClient, create_user_with_key):
+    user_a, _ = create_user_with_key(email="dup-a@example.com", role=UserRole.user)
+    create_user_with_key(email="dup-b@example.com", role=UserRole.user)
+    resp = client.patch(f"/api/users/{user_a.id}", json={"email": "dup-b@example.com"})
     assert resp.status_code == 400
 
 

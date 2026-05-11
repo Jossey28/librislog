@@ -13,7 +13,7 @@ from app.auth import (
 )
 from app.database import get_session
 from app.models import ApiKey, User, UserSettings
-from app.schemas import UserCreate, UserRead
+from app.schemas import UserAdminUpdate, UserCreate, UserRead
 
 router = APIRouter(prefix="/api/users", tags=["users"])
 
@@ -59,6 +59,33 @@ def create_user(
     )
     session.commit()
     return {"user": UserRead.model_validate(user), "api_key": main_key}
+
+
+@router.patch("/{user_id}", response_model=UserRead)
+def update_user(
+    user_id: int,
+    user_in: UserAdminUpdate,
+    _admin: User = Depends(require_admin),
+    session: Session = Depends(get_session),
+) -> User:
+    user = session.get(User, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    update_data = user_in.model_dump(exclude_unset=True)
+    if "email" in update_data and update_data["email"] != user.email:
+        existing = session.exec(select(User).where(User.email == update_data["email"])).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="Email already registered")
+    if "password" in update_data:
+        update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
+
+    user.sqlmodel_update(update_data)
+    user.updated_at = datetime.now(timezone.utc)
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
 
 
 @router.delete("/{user_id}", status_code=204)

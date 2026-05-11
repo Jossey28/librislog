@@ -7,12 +7,34 @@ Create Date: 2026-05-11 14:30:00.000000
 """
 
 from datetime import datetime, timezone
+import logging
 from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
 
 from app.auth import encrypt_api_key, generate_api_key, get_api_key_prefix, get_password_hash, hash_api_key
+
+
+logger = logging.getLogger("alembic.runtime.migration")
+
+
+def _log_bootstrap_admin_credentials(email: str, password: str) -> None:
+    border = "=" * 76
+    yellow = "\033[1;33m"
+    red = "\033[1;31m"
+    reset = "\033[0m"
+    lines = [
+        border,
+        "BOOTSTRAP ADMIN USER WAS AUTO-CREATED DURING MIGRATION",
+        f"EMAIL:    {email}",
+        f"PASSWORD: {password}",
+        "PLEASE LOGIN IMMEDIATELY AND CHANGE THE PASSWORD.",
+        border,
+    ]
+
+    logger.warning("\n%s%s%s", yellow, "\n".join(lines), reset)
+    logger.warning("%sSECURITY ACTION REQUIRED: ROTATE DEFAULT ADMIN PASSWORD NOW.%s", red, reset)
 
 
 revision: str = "b0b8f41f6b20"
@@ -79,6 +101,7 @@ def upgrade() -> None:
     conn = op.get_bind()
     book_count = conn.execute(sa.text("SELECT COUNT(*) FROM book")).scalar_one()
     if book_count > 0:
+        default_email = "admin@librislog.local"
         default_password = "admin"
         primary_api_key = generate_api_key()
         conn.execute(
@@ -91,14 +114,14 @@ def upgrade() -> None:
             {
                 "firstname": "Admin",
                 "lastname": "User",
-                "email": "admin@librislog.local",
+                "email": default_email,
                 "role": "admin",
                 "hashed_password": get_password_hash(default_password),
                 "created_at": now,
                 "updated_at": now,
             },
         )
-        admin_id = conn.execute(sa.text("SELECT id FROM user WHERE email = 'admin@librislog.local' LIMIT 1")).scalar_one()
+        admin_id = conn.execute(sa.text("SELECT id FROM user WHERE email = :email LIMIT 1"), {"email": default_email}).scalar_one()
         conn.execute(sa.text("UPDATE book SET user_id = :uid WHERE user_id IS NULL"), {"uid": admin_id})
         conn.execute(
             sa.text("INSERT INTO usersettings (user_id, language) VALUES (:uid, 'en')"),
@@ -125,6 +148,7 @@ def upgrade() -> None:
                 "revoked_at": None,
             },
         )
+        _log_bootstrap_admin_credentials(default_email, default_password)
 
     with op.batch_alter_table("book") as batch_op:
         batch_op.alter_column("user_id", existing_type=sa.Integer(), nullable=False)

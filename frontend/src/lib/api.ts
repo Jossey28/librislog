@@ -10,6 +10,7 @@ import type {
 	SortField,
 	SortOrder,
 	User,
+	UserAdminUpdate,
 	UserSettings
 } from './types';
 import { apiKey } from './stores/auth';
@@ -82,7 +83,7 @@ export const api = {
 			return request<User>('/profile');
 		},
 
-		update(data: Partial<Pick<User, 'firstname' | 'lastname' | 'email'>> & { password?: string }): Promise<User> {
+		update(data: Partial<Pick<User, 'firstname' | 'lastname'>> & { password?: string }): Promise<User> {
 			return request<User>('/profile', { method: 'PATCH', body: JSON.stringify(data) });
 		},
 
@@ -127,6 +128,13 @@ export const api = {
 		}): Promise<{ user: User; api_key: string }> {
 			return request<{ user: User; api_key: string }>('/users', {
 				method: 'POST',
+				body: JSON.stringify(data)
+			});
+		},
+
+		update(id: number, data: UserAdminUpdate): Promise<User> {
+			return request<User>(`/users/${id}`, {
+				method: 'PATCH',
 				body: JSON.stringify(data)
 			});
 		},

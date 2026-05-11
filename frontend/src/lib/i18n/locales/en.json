@@ -153,6 +153,18 @@
     "keyDescription": "Description (optional)",
     "addKey": "Add key",
     "newKeyShownOnce": "Copy this key now. It is shown only once",
-    "noDescription": "No description"
+    "noDescription": "No description",
+    "newPassword": "New password"
+  },
+  "admin": {
+    "title": "User Management",
+    "newUser": "Create User",
+    "existingUsers": "Existing Users",
+    "role": "Role",
+    "create": "Create",
+    "editing": "Editing user",
+    "edit": "Edit",
+    "saveChanges": "Save changes",
+    "cancelEdit": "Cancel edit"
   }
 }

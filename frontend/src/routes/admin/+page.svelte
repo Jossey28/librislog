@@ -1,0 +1,143 @@
+<script lang="ts">
+	import { api } from '$lib/api';
+	import { currentUser } from '$lib/stores/auth';
+	import type { User, UserRole } from '$lib/types';
+	import { _ } from '$lib/i18n';
+
+	let users = $state<User[]>([]);
+	let firstname = $state('');
+	let lastname = $state('');
+	let email = $state('');
+	let password = $state('');
+	let role = $state<UserRole>('user');
+
+	let editingUserId = $state<number | null>(null);
+	let editFirstname = $state('');
+	let editLastname = $state('');
+	let editEmail = $state('');
+	let editPassword = $state('');
+	let editRole = $state<UserRole>('user');
+
+	const isAdmin = $derived($currentUser?.role === 'admin');
+
+	async function loadUsers() {
+		if (!isAdmin) return;
+		users = await api.users.list();
+	}
+
+	$effect(() => {
+		void $currentUser;
+		void loadUsers();
+	});
+
+	async function createUser() {
+		await api.users.create({ firstname, lastname, email, password, role });
+		firstname = '';
+		lastname = '';
+		email = '';
+		password = '';
+		role = 'user';
+		await loadUsers();
+	}
+
+	function startEdit(user: User) {
+		editingUserId = user.id;
+		editFirstname = user.firstname;
+		editLastname = user.lastname;
+		editEmail = user.email;
+		editRole = user.role;
+		editPassword = '';
+	}
+
+	function cancelEdit() {
+		editingUserId = null;
+		editPassword = '';
+	}
+
+	async function saveEdit() {
+		if (editingUserId === null) return;
+		await api.users.update(editingUserId, {
+			firstname: editFirstname,
+			lastname: editLastname,
+			email: editEmail,
+			role: editRole,
+			password: editPassword.trim() ? editPassword : undefined
+		});
+		editingUserId = null;
+		editPassword = '';
+		await loadUsers();
+	}
+
+	async function deleteUser(id: number) {
+		await api.users.delete(id);
+		await loadUsers();
+	}
+</script>
+
+{#if !isAdmin}
+	<div class="max-w-3xl mx-auto">
+		<div class="alert alert-error"><span>Admin access required.</span></div>
+	</div>
+{:else}
+	<div class="max-w-4xl mx-auto flex flex-col gap-6">
+		<h1 class="text-2xl font-bold">{$_('admin.title')}</h1>
+
+		<div class="card bg-base-100 border border-base-200 shadow-sm">
+			<div class="card-body gap-3">
+				<h2 class="text-lg font-semibold">{$_('admin.newUser')}</h2>
+				<div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+					<input class="input input-bordered" bind:value={firstname} placeholder={$_('auth.firstname')} />
+					<input class="input input-bordered" bind:value={lastname} placeholder={$_('auth.lastname')} />
+					<input class="input input-bordered" bind:value={email} placeholder={$_('auth.email')} />
+					<input class="input input-bordered" type="password" bind:value={password} placeholder={$_('auth.password')} />
+					<select class="select select-bordered" bind:value={role}>
+						<option value="user">user</option>
+						<option value="admin">admin</option>
+					</select>
+				</div>
+				<button class="btn btn-primary btn-sm self-start" onclick={createUser}>{$_('admin.create')}</button>
+			</div>
+		</div>
+
+		<div class="card bg-base-100 border border-base-200 shadow-sm">
+			<div class="card-body gap-3">
+				<h2 class="text-lg font-semibold">{$_('admin.existingUsers')}</h2>
+				<ul class="flex flex-col gap-2">
+					{#each users as user}
+						<li class="border border-base-200 rounded p-3 flex flex-col gap-2">
+							{#if editingUserId === user.id}
+								<div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+									<input class="input input-bordered" bind:value={editFirstname} placeholder={$_('auth.firstname')} />
+									<input class="input input-bordered" bind:value={editLastname} placeholder={$_('auth.lastname')} />
+									<input class="input input-bordered" bind:value={editEmail} placeholder={$_('auth.email')} />
+									<input class="input input-bordered" type="password" bind:value={editPassword} placeholder={$_('user.newPassword')} />
+									<select class="select select-bordered" bind:value={editRole}>
+										<option value="user">user</option>
+										<option value="admin">admin</option>
+									</select>
+								</div>
+								<div class="flex gap-2">
+									<button class="btn btn-primary btn-xs" onclick={saveEdit}>{$_('admin.saveChanges')}</button>
+									<button class="btn btn-ghost btn-xs" onclick={cancelEdit}>{$_('admin.cancelEdit')}</button>
+								</div>
+							{:else}
+								<div class="flex items-center justify-between gap-2">
+									<div>
+										<p class="font-semibold">{user.firstname} {user.lastname}</p>
+										<p class="text-sm text-base-content/70">{user.email} - {user.role}</p>
+									</div>
+									<div class="flex gap-2">
+										<button class="btn btn-outline btn-xs" onclick={() => startEdit(user)}>{$_('admin.edit')}</button>
+										{#if $currentUser?.id !== user.id}
+											<button class="btn btn-error btn-outline btn-xs" onclick={() => deleteUser(user.id)}>{$_('common.delete')}</button>
+										{/if}
+									</div>
+								</div>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			</div>
+		</div>
+	</div>
+{/if}

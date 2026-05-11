@@ -153,6 +153,18 @@
     "keyDescription": "Beschreibung (optional)",
     "addKey": "Schlüssel hinzufügen",
     "newKeyShownOnce": "Diesen Schlüssel jetzt kopieren. Er wird nur einmal angezeigt",
-    "noDescription": "Keine Beschreibung"
+    "noDescription": "Keine Beschreibung",
+    "newPassword": "Neues Passwort"
+  },
+  "admin": {
+    "title": "Benutzerverwaltung",
+    "newUser": "Benutzer erstellen",
+    "existingUsers": "Bestehende Benutzer",
+    "role": "Rolle",
+    "create": "Erstellen",
+    "editing": "Benutzer bearbeiten",
+    "edit": "Bearbeiten",
+    "saveChanges": "Änderungen speichern",
+    "cancelEdit": "Bearbeiten abbrechen"
   }
 }

@@ -60,13 +60,19 @@
 		authReady = true;
 	});
 
-	const NAV_ITEMS = [
-		{ href: '/?status=want_to_read', labelKey: 'nav.want_to_read', icon: '📚' },
-		{ href: '/?status=currently_reading', labelKey: 'nav.currently_reading', icon: '📖' },
-		{ href: '/?status=read', labelKey: 'nav.read', icon: '✓' },
-		{ href: '/?status=did_not_finish', labelKey: 'nav.did_not_finish', icon: '❌' },
-		{ href: '/settings', labelKey: 'app.settings', icon: '⚙️' }
-	];
+	const NAV_ITEMS = $derived.by(() => {
+		const items = [
+			{ href: '/?status=want_to_read', labelKey: 'nav.want_to_read', icon: '📚' },
+			{ href: '/?status=currently_reading', labelKey: 'nav.currently_reading', icon: '📖' },
+			{ href: '/?status=read', labelKey: 'nav.read', icon: '✓' },
+			{ href: '/?status=did_not_finish', labelKey: 'nav.did_not_finish', icon: '❌' },
+			{ href: '/settings', labelKey: 'app.settings', icon: '⚙️' }
+		];
+		if ($currentUser?.role === 'admin') {
+			items.push({ href: '/admin', labelKey: 'admin.title', icon: '🛠️' });
+		}
+		return items;
+	});
 
 	const STATUS_LABEL_KEYS: Record<string, string> = {
 		want_to_read: 'status.want_to_read',
@@ -80,6 +86,10 @@
 
 		if ($page.url.pathname.startsWith('/settings')) {
 			return `${$_('app.title')} - ${$_('settings.title')}`;
+		}
+
+		if ($page.url.pathname.startsWith('/admin')) {
+			return `${$_('app.title')} - ${$_('admin.title')}`;
 		}
 
 		if ($page.url.pathname.startsWith('/login')) {

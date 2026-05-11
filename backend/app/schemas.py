@@ -1,6 +1,7 @@
 from typing import Optional
 from datetime import datetime
 
+from pydantic import ConfigDict
 from sqlmodel import Field, SQLModel
 
 from app.models import ReadingStatus, UserRole
@@ -109,6 +110,22 @@ class UserUpdate(SQLModel):
     firstname: Optional[str] = None
     lastname: Optional[str] = None
     email: Optional[str] = None
+    password: Optional[str] = None
+
+
+class ProfileUpdate(SQLModel):
+    model_config = ConfigDict(extra="forbid")
+
+    firstname: Optional[str] = None
+    lastname: Optional[str] = None
+    password: Optional[str] = None
+
+
+class UserAdminUpdate(SQLModel):
+    firstname: Optional[str] = None
+    lastname: Optional[str] = None
+    email: Optional[str] = None
+    role: Optional[UserRole] = None
     password: Optional[str] = None
 
 

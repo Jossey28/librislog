@@ -6,7 +6,7 @@
 
 	let firstname = $state('');
 	let lastname = $state('');
-	let email = $state('');
+	let password = $state('');
 	let language = $state('en');
 	let description = $state('');
 	let createdKey = $state<string | null>(null);
@@ -19,7 +19,6 @@
 		if ($currentUser) {
 			firstname = $currentUser.firstname;
 			lastname = $currentUser.lastname;
-			email = $currentUser.email;
 		}
 	});
 
@@ -32,8 +31,11 @@
 	void load();
 
 	async function saveProfile() {
-		const updated = await api.profile.update({ firstname, lastname, email });
+		const payload: { firstname?: string; lastname?: string; password?: string } = { firstname, lastname };
+		if (password.trim()) payload.password = password;
+		const updated = await api.profile.update(payload);
 		currentUser.set(updated);
+		password = '';
 	}
 
 	async function saveLanguage() {
@@ -82,7 +84,7 @@
 			<h2 class="text-lg font-semibold">{$_('user.profile')}</h2>
 			<input class="input input-bordered" bind:value={firstname} placeholder={$_('auth.firstname')} />
 			<input class="input input-bordered" bind:value={lastname} placeholder={$_('auth.lastname')} />
-			<input class="input input-bordered" bind:value={email} placeholder={$_('auth.email')} />
+			<input class="input input-bordered" type="password" bind:value={password} placeholder={$_('user.newPassword')} />
 			<button class="btn btn-primary btn-sm self-start" onclick={saveProfile}>{$_('common.save')}</button>
 		</div>
 	</div>

@@ -64,6 +64,14 @@ export interface User {
 	created_at: string;
 }
 
+export interface UserAdminUpdate {
+	firstname?: string;
+	lastname?: string;
+	email?: string;
+	role?: UserRole;
+	password?: string;
+}
+
 export interface UserSettings {
 	user_id: number;
 	language: string;

@@ -16,10 +16,10 @@ from app.schemas import (
     ApiKeyCreate,
     ApiKeyCreateResponse,
     ApiKeyRead,
+    ProfileUpdate,
     UserRead,
     UserSettingsRead,
     UserSettingsUpdate,
-    UserUpdate,
 )
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
@@ -32,15 +32,11 @@ def get_profile(current_user: User = Depends(require_user_by_api_key)) -> User:
 
 @router.patch("", response_model=UserRead)
 def update_profile(
-    user_in: UserUpdate,
+    user_in: ProfileUpdate,
     current_user: User = Depends(require_user_by_api_key),
     session: Session = Depends(get_session),
 ) -> User:
     update_data = user_in.model_dump(exclude_unset=True)
-    if "email" in update_data and update_data["email"] != current_user.email:
-        existing = session.exec(select(User).where(User.email == update_data["email"])).first()
-        if existing:
-            raise HTTPException(status_code=400, detail="Email already registered")
     if "password" in update_data:
         update_data["hashed_password"] = get_password_hash(update_data.pop("password"))
 
