@@ -15,6 +15,7 @@
 
 	let books = $state<Book[]>([]);
 	let loading = $state(false);
+	let syncing = $state(false);
 	let searchQuery = $state('');
 	let sort = $state<SortField>('date_added');
 	let order = $state<SortOrder>('desc');
@@ -23,8 +24,12 @@
 	let drawerOpen = $state(false);
 	let addBookOpen = $state(false);
 
-	async function fetchBooks() {
-		loading = true;
+	async function fetchBooks(background = false) {
+		if (background) {
+			syncing = true;
+		} else {
+			loading = true;
+		}
 		try {
 			books = await api.books.list({
 				status: activeStatus,
@@ -35,7 +40,11 @@
 		} catch (e: unknown) {
 			toasts.add(e instanceof Error ? e.message : 'Failed to load books');
 		} finally {
-			loading = false;
+			if (background) {
+				syncing = false;
+			} else {
+				loading = false;
+			}
 		}
 	}
 
@@ -54,11 +63,17 @@
 	}
 
 	function handleSave(updated: Book) {
-		books = books.map((b) => (b.id === updated.id ? updated : b));
+		if (updated.reading_status !== activeStatus) {
+			books = books.filter((b) => b.id !== updated.id);
+		} else {
+			books = books.map((b) => (b.id === updated.id ? updated : b));
+		}
+		void fetchBooks(true);
 	}
 
 	function handleDelete(id: number) {
 		books = books.filter((b) => b.id !== id);
+		void fetchBooks(true);
 	}
 
 	function handleAdded(book: Book) {
@@ -66,6 +81,7 @@
 			books = [book, ...books];
 		}
 		addBookOpen = false;
+		void fetchBooks(true);
 	}
 
 	const STATUS_LABELS: Record<string, string> = {
@@ -79,6 +95,12 @@
 	<!-- Header row -->
 	<div class="flex flex-col sm:flex-row sm:items-center gap-3">
 		<h1 class="text-xl font-bold">{STATUS_LABELS[activeStatus]}</h1>
+		{#if syncing}
+			<span class="text-xs text-base-content/60 inline-flex items-center gap-1">
+				<span class="loading loading-spinner loading-xs"></span>
+				Syncing…
+			</span>
+		{/if}
 		<div class="flex items-center gap-2 flex-1">
 			<SearchBar
 				bind:value={searchQuery}

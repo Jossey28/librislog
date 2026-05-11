@@ -1,12 +1,12 @@
 <script lang="ts">
-	import type { BookImportCandidate, ReadingStatus, SearchStage } from '$lib/types';
+	import type { Book, BookImportCandidate, ReadingStatus, SearchStage } from '$lib/types';
 	import { api } from '$lib/api';
 	import { toasts } from '$lib/toasts';
 
 	let {
 		onImport
 	}: {
-		onImport?: () => void;
+		onImport?: (book: Book) => void;
 	} = $props();
 
 	let query = $state('');
@@ -131,8 +131,8 @@
 		const key = candidate.isbn ?? candidate.title;
 		importing = key;
 		try {
-			await api.import.importBook(candidate, status);
-			onImport?.();
+			const book = await api.import.importBook(candidate, status);
+			onImport?.(book);
 		} catch (e: unknown) {
 			toasts.add(e instanceof Error ? e.message : 'Import failed', 'error');
 		} finally {

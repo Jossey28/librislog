@@ -161,8 +161,14 @@
 					</div>
 				</form>
 			{:else}
-				<ImportSearch onImport={() => { open = false; reset(); }} />
-			{/if}
+			<ImportSearch
+				onImport={(book) => {
+					onAdded?.(book);
+					open = false;
+					reset();
+				}}
+			/>
+		{/if}
 		</div>
 		<!-- Click-outside to close -->
 		<div class="modal-backdrop" role="button" tabindex="-1" onclick={() => { open = false; reset(); }} onkeydown={() => {}}></div>
