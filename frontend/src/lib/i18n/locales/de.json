@@ -146,6 +146,7 @@
     "setupTitle": "Admin-Konto erstellen",
     "setupFailed": "Setup fehlgeschlagen",
     "createAdmin": "Admin erstellen",
+    "invalidEmailError": "Bitte eine gueltige E-Mail-Adresse eingeben",
     "passwordComplexityError": "Passwort erfüllt die Komplexitätsanforderungen nicht"
   },
   "user": {

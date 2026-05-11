@@ -3,6 +3,7 @@
 	import PasswordRequirements from '$lib/components/PasswordRequirements.svelte';
 	import { currentUser } from '$lib/stores/auth';
 	import { getPasswordChecks, passwordChecksPassed, passwordPattern } from '$lib/password';
+	import { isValidEmailFormat } from '$lib/validation';
 	import type { User, UserRole } from '$lib/types';
 	import { _ } from '$lib/i18n';
 
@@ -42,6 +43,10 @@
 			adminError = $_('admin.requiredFieldError');
 			return;
 		}
+		if (!isValidEmailFormat(email)) {
+			adminError = $_('auth.invalidEmailError');
+			return;
+		}
 		if (!passwordChecksPassed(getPasswordChecks(password.trim()))) {
 			adminError = $_('auth.passwordComplexityError');
 			return;
@@ -75,6 +80,10 @@
 		if (editingUserId === null) return;
 		if (!editFirstname.trim() || !editLastname.trim() || !editEmail.trim()) {
 			adminError = $_('admin.requiredFieldError');
+			return;
+		}
+		if (!isValidEmailFormat(editEmail)) {
+			adminError = $_('auth.invalidEmailError');
 			return;
 		}
 		if ($currentUser?.id === editingUserId && editRole !== 'admin') {
@@ -141,7 +150,7 @@
 					</label>
 					<label class="form-control">
 						<span class="label label-text">{$_('auth.email')} *</span>
-						<input class="input input-bordered" bind:value={email} placeholder={$_('auth.email')} required />
+						<input type="email" class="input input-bordered" bind:value={email} placeholder={$_('auth.email')} required />
 					</label>
 					<label class="form-control">
 						<span class="label label-text">{$_('auth.password')} *</span>
@@ -186,10 +195,10 @@
 										<span class="label label-text">{$_('auth.lastname')} *</span>
 										<input class="input input-bordered" bind:value={editLastname} placeholder={$_('auth.lastname')} required />
 									</label>
-									<label class="form-control">
-										<span class="label label-text">{$_('auth.email')} *</span>
-										<input class="input input-bordered" bind:value={editEmail} placeholder={$_('auth.email')} required />
-									</label>
+								<label class="form-control">
+									<span class="label label-text">{$_('auth.email')} *</span>
+									<input type="email" class="input input-bordered" bind:value={editEmail} placeholder={$_('auth.email')} required />
+								</label>
 									<label class="form-control">
 										<span class="label label-text">{$_('user.newPassword')}</span>
 									<input

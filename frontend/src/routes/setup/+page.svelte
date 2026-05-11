@@ -3,6 +3,7 @@
 	import { api } from '$lib/api';
 	import PasswordRequirements from '$lib/components/PasswordRequirements.svelte';
 	import { getPasswordChecks, passwordChecksPassed, passwordPattern } from '$lib/password';
+	import { isValidEmailFormat } from '$lib/validation';
 	import { currentUser, setAuthKey } from '$lib/stores/auth';
 	import { _, locale, setLocale, SUPPORTED_LOCALES, type AppLocale } from '$lib/i18n';
 
@@ -30,6 +31,10 @@
 
 	async function submit() {
 		error = '';
+		if (!isValidEmailFormat(email)) {
+			error = $_('auth.invalidEmailError');
+			return;
+		}
 		const passwordToValidate = password.trim();
 		if (!passwordChecksPassed(getPasswordChecks(passwordToValidate))) {
 			error = $_('auth.passwordComplexityError');

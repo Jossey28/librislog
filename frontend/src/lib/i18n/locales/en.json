@@ -146,6 +146,7 @@
     "setupTitle": "Create Admin Account",
     "setupFailed": "Setup failed",
     "createAdmin": "Create Admin",
+    "invalidEmailError": "Please enter a valid email address",
     "passwordComplexityError": "Password does not meet complexity requirements"
   },
   "user": {
