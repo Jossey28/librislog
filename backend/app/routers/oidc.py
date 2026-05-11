@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from urllib.parse import quote_plus
 
@@ -16,6 +17,7 @@ from app.config import settings
 from app.schemas import OidcConfigRead, OidcLinkRead
 
 router = APIRouter(prefix="/api/oidc", tags=["oidc"])
+logger = logging.getLogger(__name__)
 
 
 def _provider_name() -> str:
@@ -63,41 +65,53 @@ async def oidc_login(request: Request):
         raise HTTPException(status_code=404, detail="OIDC is not enabled")
 
     redirect_uri = _resolve_callback_redirect_uri(request, "/api/oidc/callback", "oidc_callback")
-    return await client.authorize_redirect(request, redirect_uri)
+    try:
+        return await client.authorize_redirect(request, redirect_uri)
+    except Exception:
+        logger.exception("OIDC login redirect failed: provider=%s redirect_uri=%s", _provider_id(), redirect_uri)
+        return _frontend_warning_redirect(
+            f"{_provider_name()} login is currently unavailable. Please use email and password, then try again later."
+        )
 
 
 @router.get("/callback", name="oidc_callback")
 async def oidc_callback(request: Request, session: Session = Depends(get_session)):
     client = get_oidc_client()
     if not client:
+        logger.warning("OIDC callback called while OIDC disabled")
         return _frontend_warning_redirect("OIDC is not enabled")
 
     try:
         token = await client.authorize_access_token(request)
     except Exception:
+        logger.exception("OIDC authorize_access_token failed during login callback")
         return _frontend_warning_redirect("OIDC login failed")
 
     userinfo = token.get("userinfo") or {}
     oidc_sub = userinfo.get("sub")
     if not oidc_sub:
+        logger.warning("OIDC callback missing sub claim: token_keys=%s", list(token.keys()))
         return _frontend_warning_redirect("OIDC response is missing subject")
 
     link = session.exec(
         select(OidcLink).where(OidcLink.provider_id == _provider_id(), OidcLink.oidc_sub == oidc_sub)
     ).first()
     if not link:
+        logger.info("OIDC login rejected because account not linked: provider=%s sub=%s", _provider_id(), oidc_sub)
         return _frontend_warning_redirect(
             f"Your {_provider_name()} account is not linked. Please log in with email and password first, then link it in your profile."
         )
 
     user = session.get(User, link.user_id)
     if not user:
+        logger.error("OIDC link points to missing user: link_id=%s user_id=%s", link.id, link.user_id)
         return _frontend_warning_redirect("Linked user account no longer exists")
 
     primary_key = session.exec(
         select(ApiKey).where(ApiKey.user_id == user.id, ApiKey.is_primary.is_(True), ApiKey.revoked_at.is_(None))
     ).first()
     if not primary_key or not primary_key.key_encrypted:
+        logger.error("OIDC login failed due to missing primary key: user_id=%s", user.id)
         return _frontend_warning_redirect("Primary API key missing")
 
     primary_key.last_used_at = datetime.now(timezone.utc)
@@ -143,36 +157,52 @@ async def oidc_link_authorize(request: Request):
         raise HTTPException(status_code=404, detail="OIDC is not enabled")
 
     if not request.session.get("oidc_link_user_id"):
+        logger.warning("OIDC link authorize called without link session")
         return _link_error_redirect("Missing link session. Please start linking again.")
 
     redirect_uri = _resolve_callback_redirect_uri(request, "/api/oidc/link-callback", "oidc_link_callback")
-    return await client.authorize_redirect(request, redirect_uri)
+    try:
+        return await client.authorize_redirect(request, redirect_uri)
+    except Exception:
+        logger.exception("OIDC link authorize redirect failed: provider=%s redirect_uri=%s", _provider_id(), redirect_uri)
+        return _link_error_redirect("OIDC provider is currently unavailable. Please try again later.")
 
 
 @router.get("/link-callback", name="oidc_link_callback")
 async def oidc_link_callback(request: Request, session: Session = Depends(get_session)):
     client = get_oidc_client()
     if not client:
+        logger.warning("OIDC link callback called while OIDC disabled")
         return _link_error_redirect("OIDC is not enabled")
 
     user_id = request.session.pop("oidc_link_user_id", None)
     if not user_id:
+        logger.warning("OIDC link callback missing link session")
         return _link_error_redirect("Missing link session. Please start linking again.")
 
     try:
         token = await client.authorize_access_token(request)
     except Exception:
+        logger.exception("OIDC authorize_access_token failed during link callback")
         return _link_error_redirect("OIDC linking failed")
 
     userinfo = token.get("userinfo") or {}
     oidc_sub = userinfo.get("sub")
     if not oidc_sub:
+        logger.warning("OIDC link callback missing sub claim: token_keys=%s", list(token.keys()))
         return _link_error_redirect("OIDC response is missing subject")
 
     existing_by_sub = session.exec(
         select(OidcLink).where(OidcLink.provider_id == _provider_id(), OidcLink.oidc_sub == oidc_sub)
     ).first()
     if existing_by_sub and existing_by_sub.user_id != user_id:
+        logger.warning(
+            "OIDC link conflict: provider=%s sub=%s existing_user_id=%s requested_user_id=%s",
+            _provider_id(),
+            oidc_sub,
+            existing_by_sub.user_id,
+            user_id,
+        )
         return _link_error_redirect("This OIDC account is already linked to another user")
 
     existing_link = session.exec(select(OidcLink).where(OidcLink.user_id == user_id)).first()

@@ -38,11 +38,22 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 		headers,
 		...options
 	});
+
+	const contentType = res.headers.get('content-type') ?? '';
+	const isJson = contentType.includes('application/json');
+
 	if (!res.ok) {
-		const detail = await res.json().catch(() => ({}));
-		throw new Error(detail?.detail ?? `HTTP ${res.status}`);
+		if (isJson) {
+			const detail = await res.json().catch(() => ({}));
+			throw new Error(detail?.detail ?? `HTTP ${res.status}`);
+		}
+		const text = await res.text().catch(() => '');
+		throw new Error(text || `HTTP ${res.status}`);
 	}
 	if (res.status === 204) return undefined as T;
+	if (!isJson) {
+		throw new Error(`Unexpected non-JSON response for ${path}`);
+	}
 	return res.json() as Promise<T>;
 }
 

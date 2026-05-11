@@ -26,7 +26,7 @@
 	import { setContext } from 'svelte';
 	setContext('openAddBook', () => (addBookOpen = true));
 
-		onMount(async () => {
+	onMount(async () => {
 		loadAuthFromStorage();
 		await setupI18n();
 		i18nReady = true;
@@ -36,29 +36,37 @@
 		const isLoginRoute = path.startsWith('/login');
 		const publicAuthRoute = isSetupRoute || isLoginRoute;
 
-		const setup = await api.auth.setupRequired();
-		if (setup.required && !isSetupRoute) {
-			window.location.href = '/setup';
-			return;
-		}
+		try {
+			const setup = await api.auth.setupRequired();
+			if (setup.required && !isSetupRoute) {
+				window.location.href = '/setup';
+				return;
+			}
 
-		if (!setup.required && isSetupRoute) {
-			window.location.href = '/login';
-			return;
-		}
+			if (!setup.required && isSetupRoute) {
+				window.location.href = '/login';
+				return;
+			}
 
-		if (!setup.required && !publicAuthRoute) {
-			try {
-				const me = await api.auth.me();
-				currentUser.set(me);
-			} catch {
+			if (!setup.required && !publicAuthRoute) {
+				try {
+					const me = await api.auth.me();
+					currentUser.set(me);
+				} catch {
+					setAuthKey(null);
+					window.location.href = '/login';
+					return;
+				}
+			}
+		} catch {
+			if (!publicAuthRoute) {
 				setAuthKey(null);
 				window.location.href = '/login';
 				return;
 			}
+		} finally {
+			authReady = true;
 		}
-
-		authReady = true;
 	});
 
 	const NAV_ITEMS = $derived.by(() => {

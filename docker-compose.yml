@@ -16,6 +16,10 @@ services:
     env_file: .env
     volumes:
       - ./data:/app/data
+      - /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
+    environment:
+      REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
+      SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
     restart: unless-stopped
     labels:
       - "traefik.enable=true"
