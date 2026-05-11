@@ -1,5 +1,5 @@
 from typing import Optional
-from datetime import date, datetime
+from datetime import datetime
 
 from sqlmodel import Field, SQLModel
 
@@ -18,8 +18,8 @@ class BookCreate(SQLModel):
     notes: Optional[str] = None
     rating: Optional[int] = Field(default=None, ge=1, le=5)
     reading_status: ReadingStatus = ReadingStatus.want_to_read
-    date_started: Optional[date] = None
-    date_finished: Optional[date] = None
+    date_started: Optional[datetime] = None
+    date_finished: Optional[datetime] = None
 
 
 class BookUpdate(SQLModel):
@@ -34,8 +34,8 @@ class BookUpdate(SQLModel):
     notes: Optional[str] = None
     rating: Optional[int] = Field(default=None, ge=1, le=5)
     reading_status: Optional[ReadingStatus] = None
-    date_started: Optional[date] = None
-    date_finished: Optional[date] = None
+    date_started: Optional[datetime] = None
+    date_finished: Optional[datetime] = None
 
 
 class BookImportCandidate(SQLModel):
@@ -72,5 +72,22 @@ class BookRead(SQLModel):
     rating: Optional[int]
     reading_status: ReadingStatus
     date_added: datetime
-    date_started: Optional[date]
-    date_finished: Optional[date]
+    date_started: Optional[datetime]
+    date_finished: Optional[datetime]
+
+
+class StatusTransitionRequest(SQLModel):
+    new_status: ReadingStatus
+    force_date_started: Optional[datetime] = None
+    force_date_finished: Optional[datetime] = None
+
+
+class DateConflict(SQLModel):
+    field: str
+    existing_date: datetime
+    suggested_date: datetime
+
+
+class StatusTransitionResponse(SQLModel):
+    book: BookRead
+    date_conflict: Optional[DateConflict] = None

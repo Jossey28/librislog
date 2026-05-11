@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+from datetime import datetime, timezone
 
 from app.config import settings
 import app.routers.books as books_router
@@ -126,6 +127,48 @@ def test_list_books_sort_by_date_added_asc(client: TestClient):
     assert data[0]["title"] == "First"
 
 
+def test_list_books_smart_sort_currently_reading_by_date_started(client: TestClient):
+    _create_book(
+        client,
+        title="Older",
+        reading_status="currently_reading",
+        date_started="2024-01-01",
+    )
+    _create_book(
+        client,
+        title="Newer",
+        reading_status="currently_reading",
+        date_started="2024-02-01",
+    )
+    _create_book(client, title="No Start", reading_status="currently_reading")
+
+    resp = client.get("/api/books?status=currently_reading")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert [item["title"] for item in data] == ["Newer", "Older", "No Start"]
+
+
+def test_list_books_smart_sort_read_by_date_finished(client: TestClient):
+    _create_book(client, title="Older", reading_status="read", date_finished="2024-01-01")
+    _create_book(client, title="Newer", reading_status="read", date_finished="2024-02-01")
+    _create_book(client, title="No Finish", reading_status="read")
+
+    resp = client.get("/api/books?status=read")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert [item["title"] for item in data] == ["Newer", "Older", "No Finish"]
+
+
+def test_list_books_manual_sort_still_available_with_smart_sort_off(client: TestClient):
+    _create_book(client, title="Low", reading_status="currently_reading", rating=1)
+    _create_book(client, title="High", reading_status="currently_reading", rating=5)
+
+    resp = client.get("/api/books?status=currently_reading&smart_sort=false&sort=rating&order=desc")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert [item["title"] for item in data] == ["High", "Low"]
+
+
 # ── get ───────────────────────────────────────────────────────────────────────
 
 def test_get_book_returns_book(client: TestClient):
@@ -172,6 +215,166 @@ def test_update_book_to_did_not_finish_status(client: TestClient):
     resp = client.patch(f"/api/books/{book['id']}", json={"reading_status": "did_not_finish"})
     assert resp.status_code == 200
     assert resp.json()["reading_status"] == "did_not_finish"
+
+
+def test_update_book_sets_date_started_when_moving_to_currently_reading(client: TestClient, monkeypatch):
+    book = _create_book(client, title="Date Start")
+    monkeypatch.setattr(
+        books_router,
+        "_utcnow",
+        lambda: datetime(2026, 5, 11, 10, 30, tzinfo=timezone.utc),
+    )
+
+    resp = client.patch(f"/api/books/{book['id']}", json={"reading_status": "currently_reading"})
+    assert resp.status_code == 200
+    assert resp.json()["date_started"].startswith("2026-05-11T10:30:00")
+
+
+def test_update_book_sets_date_finished_when_moving_to_read(client: TestClient, monkeypatch):
+    book = _create_book(client, title="Date Finished")
+    monkeypatch.setattr(
+        books_router,
+        "_utcnow",
+        lambda: datetime(2026, 5, 11, 10, 30, tzinfo=timezone.utc),
+    )
+
+    resp = client.patch(f"/api/books/{book['id']}", json={"reading_status": "read"})
+    assert resp.status_code == 200
+    assert resp.json()["date_finished"].startswith("2026-05-11T10:30:00")
+
+
+def test_update_book_does_not_override_existing_date_started(client: TestClient, monkeypatch):
+    book = _create_book(
+        client,
+        title="Keep Date",
+        reading_status="want_to_read",
+        date_started="2020-01-01",
+    )
+    monkeypatch.setattr(
+        books_router,
+        "_utcnow",
+        lambda: datetime(2026, 5, 11, 10, 30, tzinfo=timezone.utc),
+    )
+
+    resp = client.patch(f"/api/books/{book['id']}", json={"reading_status": "currently_reading"})
+    assert resp.status_code == 200
+    assert resp.json()["date_started"].startswith("2020-01-01T00:00:00")
+
+
+def test_transition_status_returns_conflict_when_date_started_exists(client: TestClient, monkeypatch):
+    book = _create_book(client, title="Conflict", date_started="2024-01-10")
+    monkeypatch.setattr(
+        books_router,
+        "_utcnow",
+        lambda: datetime(2026, 5, 11, 10, 30, tzinfo=timezone.utc),
+    )
+
+    resp = client.post(
+        f"/api/books/{book['id']}/transition-status",
+        json={"new_status": "currently_reading"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["book"]["reading_status"] == "want_to_read"
+    assert data["date_conflict"] == {
+        "field": "date_started",
+        "existing_date": "2024-01-10T00:00:00",
+        "suggested_date": "2026-05-11T10:30:00Z",
+    }
+
+
+def test_transition_status_can_keep_existing_date_started(client: TestClient, monkeypatch):
+    book = _create_book(client, title="Keep", date_started="2024-01-10")
+    monkeypatch.setattr(
+        books_router,
+        "_utcnow",
+        lambda: datetime(2026, 5, 11, 10, 30, tzinfo=timezone.utc),
+    )
+
+    resp = client.post(
+        f"/api/books/{book['id']}/transition-status",
+        json={
+            "new_status": "currently_reading",
+            "force_date_started": "2024-01-10T00:00:00Z",
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["book"]["reading_status"] == "currently_reading"
+    assert data["book"]["date_started"] == "2024-01-10T00:00:00"
+    assert data["date_conflict"] is None
+
+
+def test_transition_status_sets_date_finished_for_did_not_finish(client: TestClient, monkeypatch):
+    book = _create_book(client, title="DNF Date")
+    monkeypatch.setattr(
+        books_router,
+        "_utcnow",
+        lambda: datetime(2026, 5, 11, 10, 30, tzinfo=timezone.utc),
+    )
+
+    resp = client.post(
+        f"/api/books/{book['id']}/transition-status",
+        json={"new_status": "did_not_finish"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["book"]["reading_status"] == "did_not_finish"
+    assert data["book"]["date_finished"].startswith("2026-05-11T10:30:00")
+
+
+def test_transition_status_returns_conflict_when_date_finished_exists(client: TestClient, monkeypatch):
+    book = _create_book(
+        client,
+        title="Finished Conflict",
+        reading_status="currently_reading",
+        date_finished="2024-02-02",
+    )
+    monkeypatch.setattr(
+        books_router,
+        "_utcnow",
+        lambda: datetime(2026, 5, 11, 10, 30, tzinfo=timezone.utc),
+    )
+
+    resp = client.post(
+        f"/api/books/{book['id']}/transition-status",
+        json={"new_status": "read"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["book"]["reading_status"] == "currently_reading"
+    assert data["date_conflict"] == {
+        "field": "date_finished",
+        "existing_date": "2024-02-02T00:00:00",
+        "suggested_date": "2026-05-11T10:30:00Z",
+    }
+
+
+def test_transition_status_can_override_existing_date_finished(client: TestClient, monkeypatch):
+    book = _create_book(
+        client,
+        title="Finished Override",
+        reading_status="currently_reading",
+        date_finished="2024-02-02",
+    )
+    monkeypatch.setattr(
+        books_router,
+        "_utcnow",
+        lambda: datetime(2026, 5, 11, 10, 30, tzinfo=timezone.utc),
+    )
+
+    resp = client.post(
+        f"/api/books/{book['id']}/transition-status",
+        json={
+            "new_status": "read",
+            "force_date_finished": "2026-06-01T08:15:00Z",
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["book"]["reading_status"] == "read"
+    assert data["book"]["date_finished"].startswith("2026-06-01T08:15:00")
+    assert data["date_conflict"] is None
 
 
 def test_update_book_rating(client: TestClient):

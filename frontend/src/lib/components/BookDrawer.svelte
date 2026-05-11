@@ -3,8 +3,10 @@
 	import { api } from '$lib/api';
 	import { _ } from '$lib/i18n';
 	import { toasts } from '$lib/toasts';
+	import { formatDate, fromDateInputValue, toDateInputValue } from '$lib/date';
 	import StarRating from './StarRating.svelte';
 	import CoverPicker from './CoverPicker.svelte';
+	import DateConflictDialog from './DateConflictDialog.svelte';
 
 	let {
 		book = $bindable(null),
@@ -21,6 +23,12 @@
 	let saving = $state(false);
 	let deleting = $state(false);
 	let confirmDelete = $state(false);
+	let dateConflictOpen = $state(false);
+	let conflictField = $state<'date_started' | 'date_finished'>('date_started');
+	let conflictExistingDate = $state('');
+	let conflictSuggestedDate = $state('');
+	let pendingStatus = $state<ReadingStatus | null>(null);
+	let pendingPayload = $state<Partial<Book> | null>(null);
 
 	// Editable fields
 	let title = $state('');
@@ -39,26 +47,107 @@
 			notes = book.notes ?? '';
 			rating = book.rating;
 			reading_status = book.reading_status;
-			date_started = book.date_started ?? '';
-			date_finished = book.date_finished ?? '';
+			date_started = toDateInputValue(book.date_started);
+			date_finished = toDateInputValue(book.date_finished);
 			cover_url = book.cover_url ?? null;
 			confirmDelete = false;
+			dateConflictOpen = false;
+			pendingStatus = null;
+			pendingPayload = null;
 		}
 	});
+
+	function buildNonStatusPayload(includeDates: boolean): Partial<Book> {
+		const payload: Partial<Book> = {
+			title,
+			author: author || null,
+			notes: notes || null,
+			rating,
+			cover_url: cover_url || null
+		};
+
+		if (includeDates) {
+			payload.date_started = fromDateInputValue(date_started);
+			payload.date_finished = fromDateInputValue(date_finished);
+		}
+
+		return payload;
+	}
+
+	async function applyPendingTransition(params: {
+		forceDateStarted?: string | null;
+		forceDateFinished?: string | null;
+	}) {
+		if (!book || !pendingStatus) return;
+
+		const transition = await api.books.transitionStatus(book.id, {
+			new_status: pendingStatus,
+			force_date_started: params.forceDateStarted,
+			force_date_finished: params.forceDateFinished
+		});
+
+		if (transition.date_conflict) {
+			conflictField = transition.date_conflict.field;
+			conflictExistingDate = transition.date_conflict.existing_date;
+			conflictSuggestedDate = transition.date_conflict.suggested_date;
+			dateConflictOpen = true;
+			return;
+		}
+
+		let updated = transition.book;
+		if (pendingPayload && Object.keys(pendingPayload).length > 0) {
+			updated = await api.books.update(book.id, pendingPayload);
+		}
+
+		book = updated;
+		onSave?.(updated);
+		open = false;
+		dateConflictOpen = false;
+		pendingStatus = null;
+		pendingPayload = null;
+	}
 
 	async function save() {
 		if (!book) return;
 		saving = true;
 		try {
+			const statusChanged = reading_status !== book.reading_status;
+			const dateStartedChanged =
+				fromDateInputValue(date_started) !== (book.date_started ?? null);
+			const dateFinishedChanged =
+				fromDateInputValue(date_finished) !== (book.date_finished ?? null);
+
+			if (statusChanged) {
+				pendingStatus = reading_status;
+				pendingPayload = buildNonStatusPayload(dateStartedChanged || dateFinishedChanged);
+
+				const transition = await api.books.transitionStatus(book.id, {
+					new_status: reading_status
+				});
+
+				if (transition.date_conflict) {
+					conflictField = transition.date_conflict.field;
+					conflictExistingDate = transition.date_conflict.existing_date;
+					conflictSuggestedDate = transition.date_conflict.suggested_date;
+					dateConflictOpen = true;
+					return;
+				}
+
+				let updated = transition.book;
+				if (pendingPayload && Object.keys(pendingPayload).length > 0) {
+					updated = await api.books.update(book.id, pendingPayload);
+				}
+				book = updated;
+				onSave?.(updated);
+				open = false;
+				pendingStatus = null;
+				pendingPayload = null;
+				return;
+			}
+
 			const updated = await api.books.update(book.id, {
-				title,
-				author: author || null,
-				notes: notes || null,
-				rating,
-				reading_status,
-				date_started: date_started || null,
-				date_finished: date_finished || null,
-				cover_url: cover_url || null
+				...buildNonStatusPayload(true),
+				reading_status
 			});
 			book = updated;
 			onSave?.(updated);
@@ -203,4 +292,30 @@
 			</div>
 		</form>
 	</div>
+
+	<DateConflictDialog
+		open={dateConflictOpen}
+		field={conflictField}
+		existingDate={formatDate(conflictExistingDate)}
+		suggestedDate={formatDate(conflictSuggestedDate)}
+		onCancel={() => {
+			dateConflictOpen = false;
+			pendingStatus = null;
+			pendingPayload = null;
+		}}
+		onKeep={() => {
+			dateConflictOpen = false;
+			void applyPendingTransition({
+				forceDateStarted: conflictField === 'date_started' ? conflictExistingDate : undefined,
+				forceDateFinished: conflictField === 'date_finished' ? conflictExistingDate : undefined
+			});
+		}}
+		onUseSuggested={() => {
+			dateConflictOpen = false;
+			void applyPendingTransition({
+				forceDateStarted: conflictField === 'date_started' ? conflictSuggestedDate : undefined,
+				forceDateFinished: conflictField === 'date_finished' ? conflictSuggestedDate : undefined
+			});
+		}}
+	/>
 {/if}

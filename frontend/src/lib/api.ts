@@ -1,6 +1,8 @@
 import type {
 	Book,
 	BookImportCandidate,
+	StatusTransitionRequest,
+	StatusTransitionResponse,
 	ImportSearchMode,
 	ReadingStatus,
 	SearchStage,
@@ -30,12 +32,14 @@ export const api = {
 			q?: string;
 			sort?: SortField;
 			order?: SortOrder;
+			smart_sort?: boolean;
 		}): Promise<Book[]> {
 			const qs = new URLSearchParams();
 			if (params?.status) qs.set('status', params.status);
 			if (params?.q) qs.set('q', params.q);
 			if (params?.sort) qs.set('sort', params.sort);
 			if (params?.order) qs.set('order', params.order);
+			if (params?.smart_sort !== undefined) qs.set('smart_sort', String(params.smart_sort));
 			const query = qs.toString() ? `?${qs}` : '';
 			return request<Book[]>(`/books${query}`);
 		},
@@ -50,6 +54,13 @@ export const api = {
 
 		update(id: number, data: Partial<Book>): Promise<Book> {
 			return request<Book>(`/books/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+		},
+
+		transitionStatus(id: number, data: StatusTransitionRequest): Promise<StatusTransitionResponse> {
+			return request<StatusTransitionResponse>(`/books/${id}/transition-status`, {
+				method: 'POST',
+				body: JSON.stringify(data)
+			});
 		},
 
 		delete(id: number): Promise<void> {

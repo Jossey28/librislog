@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Optional
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 
 from sqlmodel import Field, SQLModel
 
@@ -30,5 +30,5 @@ class Book(SQLModel, table=True):
     rating: Optional[int] = Field(default=None, ge=1, le=5)
     reading_status: ReadingStatus = Field(default=ReadingStatus.want_to_read, index=True)
     date_added: datetime = Field(default_factory=_utcnow, index=True)
-    date_started: Optional[date] = None
-    date_finished: Optional[date] = None
+    date_started: Optional[datetime] = Field(default=None, index=True)
+    date_finished: Optional[datetime] = Field(default=None, index=True)

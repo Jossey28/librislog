@@ -33,8 +33,25 @@ export interface BookImportCandidate {
 
 export type ImportSearchMode = 'auto' | 'google_only';
 
-export type SortField = 'date_added' | 'rating';
+export type SortField = 'title' | 'date_added' | 'date_started' | 'date_finished' | 'rating';
 export type SortOrder = 'asc' | 'desc';
+
+export interface StatusTransitionRequest {
+	new_status: ReadingStatus;
+	force_date_started?: string | null;
+	force_date_finished?: string | null;
+}
+
+export interface DateConflict {
+	field: 'date_started' | 'date_finished';
+	existing_date: string;
+	suggested_date: string;
+}
+
+export interface StatusTransitionResponse {
+	book: Book;
+	date_conflict: DateConflict | null;
+}
 
 export type SearchStage =
 	| { stage: 'open_library'; status: 'searching' }

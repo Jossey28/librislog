@@ -107,6 +107,23 @@
     "languageHelp": "Choose the language used across the app interface.",
     "saved": "Language preference is saved in your browser."
   },
+  "sort": {
+    "smart": "Smart sort"
+  },
+  "dateConflict": {
+    "started": {
+      "title": "Start date already set",
+      "message": "Date started is already set. Do you want to keep {oldDate} or set {newDate} as the new date started?",
+      "keepOld": "Keep {oldDate}",
+      "useNew": "Use {newDate}"
+    },
+    "finished": {
+      "title": "Finish date already set",
+      "message": "Date finished is already set. Do you want to keep {oldDate} or set {newDate} as the new date finished?",
+      "keepOld": "Keep {oldDate}",
+      "useNew": "Use {newDate}"
+    }
+  },
   "languages": {
     "en": "English",
     "de": "German"

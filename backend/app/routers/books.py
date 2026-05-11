@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 from typing import List, Literal, Optional
 
 import httpx
@@ -8,7 +9,14 @@ from sqlmodel import Session, select
 from app.config import settings
 from app.database import get_session
 from app.models import Book, ReadingStatus
-from app.schemas import BookCreate, BookRead, BookUpdate
+from app.schemas import (
+    BookCreate,
+    BookRead,
+    BookUpdate,
+    DateConflict,
+    StatusTransitionRequest,
+    StatusTransitionResponse,
+)
 from app.services.cover_storage import (
     delete_cover_file,
     download_cover,
@@ -18,6 +26,34 @@ from app.services.cover_storage import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/books", tags=["books"])
+
+STATUS_DEFAULT_SORT_COLUMN = {
+    ReadingStatus.want_to_read: Book.date_added,
+    ReadingStatus.currently_reading: Book.date_started,
+    ReadingStatus.read: Book.date_finished,
+    ReadingStatus.did_not_finish: Book.date_started,
+}
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _apply_status_transition_dates(
+    book: Book,
+    target_status: ReadingStatus,
+    update_data: dict,
+) -> None:
+    if target_status == book.reading_status:
+        return
+
+    if target_status == ReadingStatus.currently_reading and book.date_started is None:
+        if update_data.get("date_started") is None:
+            update_data["date_started"] = _utcnow()
+
+    if target_status in (ReadingStatus.read, ReadingStatus.did_not_finish):
+        if update_data.get("date_finished") is None:
+            update_data["date_finished"] = _utcnow()
 
 
 def _is_external_url(url: str | None) -> bool:
@@ -29,11 +65,21 @@ def _is_external_url(url: str | None) -> bool:
 def list_books(
     status: Optional[ReadingStatus] = Query(default=None),
     q: Optional[str] = Query(default=None),
-    sort: Literal["date_added", "rating"] = Query(default="date_added"),
+    sort: Literal["title", "date_added", "date_started", "date_finished", "rating"] = Query(
+        default="date_added"
+    ),
     order: Literal["asc", "desc"] = Query(default="desc"),
+    smart_sort: bool = Query(default=True),
     session: Session = Depends(get_session),
 ) -> List[Book]:
-    logger.debug("list_books — status=%r q=%r sort=%s order=%s", status, q, sort, order)
+    logger.debug(
+        "list_books — status=%r q=%r sort=%s order=%s smart_sort=%s",
+        status,
+        q,
+        sort,
+        order,
+        smart_sort,
+    )
     statement = select(Book)
 
     if status is not None:
@@ -45,11 +91,30 @@ def list_books(
             Book.title.ilike(pattern) | Book.author.ilike(pattern)  # type: ignore[union-attr]
         )
 
-    sort_col = Book.date_added if sort == "date_added" else Book.rating
-    if order == "desc":
-        statement = statement.order_by(sort_col.desc())  # type: ignore[union-attr]
+    if smart_sort and status is not None:
+        sort_col = STATUS_DEFAULT_SORT_COLUMN[status]
+        sort_order = "desc"
+    elif sort == "rating":
+        sort_col = Book.rating
+        sort_order = order
+    elif sort == "date_started":
+        sort_col = Book.date_started
+        sort_order = order
+    elif sort == "date_finished":
+        sort_col = Book.date_finished
+        sort_order = order
+    elif sort == "title":
+        sort_col = Book.title
+        sort_order = order
     else:
-        statement = statement.order_by(sort_col.asc())  # type: ignore[union-attr]
+        sort_col = Book.date_added
+        sort_order = order
+
+    sort_expression = sort_col.desc() if sort_order == "desc" else sort_col.asc()  # type: ignore[union-attr]
+    if sort_col in (Book.date_started, Book.date_finished):
+        sort_expression = sort_expression.nullslast()  # type: ignore[assignment]
+
+    statement = statement.order_by(sort_expression)
 
     books = list(session.exec(statement).all())
     logger.debug("list_books — returning %d book(s)", len(books))
@@ -99,6 +164,7 @@ async def update_book(
         raise HTTPException(status_code=404, detail="Book not found")
 
     update_data = book_in.model_dump(exclude_unset=True)
+    target_status = update_data.get("reading_status", book.reading_status)
 
     # Download external cover URL → local file.
     if "cover_url" in update_data and _is_external_url(update_data["cover_url"]):
@@ -121,12 +187,71 @@ async def update_book(
             if not shared:
                 delete_cover_file(old_filename, settings.covers_dir)
 
+    _apply_status_transition_dates(book, target_status, update_data)
+
     book.sqlmodel_update(update_data)
     session.add(book)
     session.commit()
     session.refresh(book)
     logger.info("Updated book: %r (id=%s) — changed %s", book.title, book.id, list(update_data))
     return book
+
+
+@router.post("/{book_id}/transition-status", response_model=StatusTransitionResponse)
+def transition_status(
+    book_id: int,
+    transition: StatusTransitionRequest,
+    session: Session = Depends(get_session),
+) -> StatusTransitionResponse:
+    logger.debug(
+        "transition_status — id=%s new_status=%s force_date_started=%r force_date_finished=%r",
+        book_id,
+        transition.new_status,
+        transition.force_date_started,
+        transition.force_date_finished,
+    )
+    book = session.get(Book, book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    conflict: DateConflict | None = None
+    update_data: dict = {"reading_status": transition.new_status}
+    now = _utcnow()
+
+    if (
+        transition.new_status == ReadingStatus.currently_reading
+        and transition.new_status != book.reading_status
+        and book.date_started is not None
+    ):
+        if transition.force_date_started is None:
+            conflict = DateConflict(
+                field="date_started",
+                existing_date=book.date_started,
+                suggested_date=now,
+            )
+            return StatusTransitionResponse(book=BookRead.model_validate(book), date_conflict=conflict)
+        update_data["date_started"] = transition.force_date_started
+
+    if (
+        transition.new_status in (ReadingStatus.read, ReadingStatus.did_not_finish)
+        and transition.new_status != book.reading_status
+        and book.date_finished is not None
+    ):
+        if transition.force_date_finished is None:
+            conflict = DateConflict(
+                field="date_finished",
+                existing_date=book.date_finished,
+                suggested_date=now,
+            )
+            return StatusTransitionResponse(book=BookRead.model_validate(book), date_conflict=conflict)
+        update_data["date_finished"] = transition.force_date_finished
+
+    _apply_status_transition_dates(book, transition.new_status, update_data)
+    book.sqlmodel_update(update_data)
+    session.add(book)
+    session.commit()
+    session.refresh(book)
+    return StatusTransitionResponse(book=BookRead.model_validate(book), date_conflict=None)
 
 
 @router.delete("/{book_id}", status_code=204)

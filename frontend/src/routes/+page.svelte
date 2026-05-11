@@ -18,6 +18,7 @@
 	let loading = $state(false);
 	let syncing = $state(false);
 	let searchQuery = $state('');
+	let smartSort = $state(true);
 	let sort = $state<SortField>('date_added');
 	let order = $state<SortOrder>('desc');
 
@@ -35,6 +36,7 @@
 			books = await api.books.list({
 				status: activeStatus,
 				q: searchQuery || undefined,
+				smart_sort: smartSort,
 				sort,
 				order
 			});
@@ -53,6 +55,7 @@
 		// Re-fetch whenever any filter changes
 		void activeStatus;
 		void searchQuery;
+		void smartSort;
 		void sort;
 		void order;
 		fetchBooks();
@@ -110,13 +113,19 @@
 				onSearch={(q) => (searchQuery = q)}
 			/>
 		</div>
-		<!-- Sort controls -->
 		<div class="flex items-center gap-2 text-sm">
-			<select class="select select-bordered select-xs" bind:value={sort}>
+			<label class="label cursor-pointer gap-2">
+				<span class="label-text text-xs">{$_('sort.smart')}</span>
+				<input type="checkbox" class="toggle toggle-xs" bind:checked={smartSort} />
+			</label>
+			<select class="select select-bordered select-xs" bind:value={sort} disabled={smartSort}>
 				<option value="date_added">{$_('common.dateAdded')}</option>
+				<option value="title">{$_('book.title')}</option>
+				<option value="date_started">{$_('book.dateStarted')}</option>
+				<option value="date_finished">{$_('book.dateFinished')}</option>
 				<option value="rating">{$_('common.rating')}</option>
 			</select>
-			<select class="select select-bordered select-xs" bind:value={order}>
+			<select class="select select-bordered select-xs" bind:value={order} disabled={smartSort}>
 				<option value="desc">{$_('common.desc')}</option>
 				<option value="asc">{$_('common.asc')}</option>
 			</select>
