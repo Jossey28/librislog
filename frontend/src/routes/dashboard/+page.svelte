@@ -6,6 +6,7 @@
 	import { toasts } from '$lib/toasts';
 	import { shouldShowActionToast } from '$lib/errors';
 	import BookCard from '$lib/components/BookCard.svelte';
+	import BookDetailDialog from '$lib/components/BookDetailDialog.svelte';
 	import BookDrawer from '$lib/components/BookDrawer.svelte';
 
 	let loading = $state(true);
@@ -23,6 +24,7 @@
 	let quote = $state<DashboardQuote | null>(null);
 
 	let selectedBook = $state<Book | null>(null);
+	let detailOpen = $state(false);
 	let drawerOpen = $state(false);
 
 	onMount(() => {
@@ -83,18 +85,28 @@
 		}
 	}
 
-	function openDrawer(book: Book) {
+	function openDetailView(book: Book) {
 		selectedBook = book;
+		detailOpen = true;
+		drawerOpen = false;
+	}
+
+	function openEditFromDetail(book: Book) {
+		selectedBook = book;
+		detailOpen = false;
 		drawerOpen = true;
 	}
 
 	function handleSave(updated: Book) {
+		selectedBook = updated;
 		currentlyReading = currentlyReading.map((book) => (book.id === updated.id ? updated : book));
 		nextToRead = nextToRead.map((book) => (book.id === updated.id ? updated : book));
 		void loadDashboard();
 	}
 
 	function handleDelete(id: number) {
+		detailOpen = false;
+		drawerOpen = false;
 		currentlyReading = currentlyReading.filter((book) => book.id !== id);
 		nextToRead = nextToRead.filter((book) => book.id !== id);
 		void loadDashboard();
@@ -162,7 +174,7 @@
 			{:else}
 				<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
 					{#each currentlyReading as book (book.id)}
-						<BookCard {book} onClick={openDrawer} />
+						<BookCard {book} onClick={openDetailView} />
 					{/each}
 				</div>
 			{/if}
@@ -183,7 +195,7 @@
 			{:else}
 				<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
 					{#each nextToRead as book (book.id)}
-						<BookCard {book} onClick={openDrawer} />
+						<BookCard {book} onClick={openDetailView} />
 					{/each}
 				</div>
 			{/if}
@@ -191,9 +203,10 @@
 	</div>
 </div>
 
+<BookDetailDialog bind:book={selectedBook} bind:open={detailOpen} onEdit={openEditFromDetail} onDelete={handleDelete} />
+
 <BookDrawer
 	bind:book={selectedBook}
 	bind:open={drawerOpen}
 	onSave={handleSave}
-	onDelete={handleDelete}
 />

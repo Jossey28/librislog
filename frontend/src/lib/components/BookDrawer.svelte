@@ -11,18 +11,14 @@
 	let {
 		book = $bindable(null),
 		open = $bindable(false),
-		onSave,
-		onDelete
+		onSave
 	}: {
 		book?: Book | null;
 		open?: boolean;
 		onSave?: (book: Book) => void;
-		onDelete?: (id: number) => void;
 	} = $props();
 
 	let saving = $state(false);
-	let deleting = $state(false);
-	let confirmDelete = $state(false);
 	let dateConflictOpen = $state(false);
 	let conflictField = $state<'date_started' | 'date_finished'>('date_started');
 	let conflictExistingDate = $state('');
@@ -58,7 +54,6 @@
 			date_started = toDateInputValue(book.date_started);
 			date_finished = toDateInputValue(book.date_finished);
 			cover_url = book.cover_url ?? null;
-			confirmDelete = false;
 			dateConflictOpen = false;
 			pendingStatus = null;
 			pendingPayload = null;
@@ -176,25 +171,6 @@
 		}
 	}
 
-	async function deleteBook() {
-		if (!book) return;
-		deleting = true;
-		try {
-			await api.books.delete(book.id);
-			onDelete?.(book.id);
-			open = false;
-		} catch (e: unknown) {
-			toasts.add(
-				e instanceof Error
-					? e.message
-					: $_('common.actionFailed', { values: { action: $_('common.delete') } }),
-				'error'
-			);
-		} finally {
-			deleting = false;
-		}
-	}
-
 	const STATUS_OPTIONS: { value: ReadingStatus; label: string }[] = [
 		{ value: 'want_to_read', label: 'status.want_to_read' },
 		{ value: 'currently_reading', label: 'status.currently_reading' },
@@ -294,28 +270,12 @@
 			<CoverPicker bind:value={cover_url} disabled={saving} />
 
 			<div class="flex gap-2 mt-auto pt-2">
+				<button type="button" class="btn btn-ghost btn-sm" onclick={() => (open = false)} disabled={saving}>
+					{$_('common.cancel')}
+				</button>
 				<button type="submit" class="btn btn-primary btn-sm flex-1" disabled={saving}>
 					{saving ? $_('common.saving') : $_('common.save')}
 				</button>
-				{#if !confirmDelete}
-					<button
-						type="button"
-						class="btn btn-error btn-outline btn-sm"
-						onclick={() => (confirmDelete = true)}
-					>{$_('common.delete')}</button>
-				{:else}
-					<button
-						type="button"
-						class="btn btn-error btn-sm"
-						disabled={deleting}
-						onclick={deleteBook}
-					>{deleting ? $_('common.deleting') : $_('common.confirm')}</button>
-					<button
-						type="button"
-						class="btn btn-ghost btn-sm"
-						onclick={() => (confirmDelete = false)}
-					>{$_('common.cancel')}</button>
-				{/if}
 			</div>
 		</form>
 	</div>

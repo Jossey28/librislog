@@ -52,5 +52,6 @@
 				{$_(STATUS_LABEL_KEYS[book.reading_status])}
 			</span>
 		</div>
+		<p class="text-[11px] text-base-content/50 mt-1">{$_('book.openDetailsHint')}</p>
 	</div>
 </button>

@@ -37,6 +37,7 @@
     "search": "Suchen",
     "searchBooks": "Bücher suchen...",
     "save": "Speichern",
+    "edit": "Bearbeiten",
     "cancel": "Abbrechen",
     "confirm": "Bestätigen?",
     "delete": "Löschen",
@@ -74,7 +75,8 @@
     "dateStarted": "Begonnen am",
     "dateFinished": "Beendet am",
     "cover": "Cover",
-    "coverOf": "Cover von {title}"
+    "coverOf": "Cover von {title}",
+    "openDetailsHint": "Zum Oeffnen der Details klicken"
   },
   "addModal": {
     "manual": "Manuell",

@@ -7,6 +7,7 @@
 	import { _ } from '$lib/i18n';
 	import { toasts } from '$lib/toasts';
 	import BookCard from '$lib/components/BookCard.svelte';
+	import BookDetailDialog from '$lib/components/BookDetailDialog.svelte';
 	import BookDrawer from '$lib/components/BookDrawer.svelte';
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import AddBookModal from '$lib/components/AddBookModal.svelte';
@@ -44,6 +45,7 @@
 	let order = $state<SortOrder>('desc');
 
 	let selectedBook = $state<Book | null>(null);
+	let detailOpen = $state(false);
 	let drawerOpen = $state(false);
 	let addBookOpen = $state(false);
 
@@ -89,13 +91,23 @@
 		fetchBooks();
 	});
 
-	function openDrawer(book: Book) {
+	function openDetailView(book: Book) {
 		selectedBook = book;
+		detailOpen = true;
+		drawerOpen = false;
+	}
+
+	function openEditFromDetail(book: Book) {
+		selectedBook = book;
+		detailOpen = false;
 		drawerOpen = true;
 	}
 
 	function handleSave(updated: Book) {
+		selectedBook = updated;
 		if (updated.reading_status !== activeStatus) {
+			detailOpen = false;
+			drawerOpen = false;
 			books = books.filter((b) => b.id !== updated.id);
 		} else {
 			books = books.map((b) => (b.id === updated.id ? updated : b));
@@ -104,6 +116,8 @@
 	}
 
 	function handleDelete(id: number) {
+		detailOpen = false;
+		drawerOpen = false;
 		books = books.filter((b) => b.id !== id);
 		void fetchBooks(true);
 	}
@@ -183,17 +197,18 @@
 	{:else}
 		<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
 			{#each books as book (book.id)}
-				<BookCard {book} onClick={openDrawer} />
+				<BookCard {book} onClick={openDetailView} />
 			{/each}
 		</div>
 	{/if}
 </div>
 
+<BookDetailDialog bind:book={selectedBook} bind:open={detailOpen} onEdit={openEditFromDetail} onDelete={handleDelete} />
+
 <BookDrawer
 	bind:book={selectedBook}
 	bind:open={drawerOpen}
 	onSave={handleSave}
-	onDelete={handleDelete}
 />
 
 <AddBookModal
