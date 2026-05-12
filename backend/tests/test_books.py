@@ -33,7 +33,7 @@ def test_create_book_with_all_fields(client: TestClient):
         "publisher": "Ace Books",
         "published_year": 1965,
         "page_count": 412,
-        "genre": "Science Fiction",
+        "tags": "Science Fiction",
         "notes": "A classic",
         "rating": 5,
         "reading_status": "read",

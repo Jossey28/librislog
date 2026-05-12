@@ -35,6 +35,14 @@
 		did_not_finish: 'badge-error'
 	};
 
+	function splitTags(raw: string | null): string[] {
+		if (!raw) return [];
+		return raw
+			.split(',')
+			.map((tag) => tag.trim())
+			.filter(Boolean);
+	}
+
 	$effect(() => {
 		if (book) {
 			confirmDelete = false;
@@ -120,8 +128,16 @@
 					<div>{book.page_count ?? '-'}</div>
 				</div>
 				<div>
-					<div class="text-xs text-base-content/60">{$_('book.genre')}</div>
-					<div>{book.genre ?? '-'}</div>
+					<div class="text-xs text-base-content/60">{$_('book.tags')}</div>
+					{#if splitTags(book.tags).length > 0}
+						<div class="flex flex-wrap gap-1">
+							{#each splitTags(book.tags) as tag (tag)}
+								<span class="badge badge-outline badge-primary">{tag}</span>
+							{/each}
+						</div>
+					{:else}
+						<div>-</div>
+					{/if}
 				</div>
 			</div>
 

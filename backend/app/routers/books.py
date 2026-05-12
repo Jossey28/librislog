@@ -19,6 +19,7 @@ from app.schemas import (
     LibraryStats,
     StatusTransitionRequest,
     StatusTransitionResponse,
+    TagCloudEntry,
 )
 from app.services.cover_storage import (
     delete_cover_file,
@@ -93,7 +94,9 @@ def list_books(
     if q:
         pattern = f"%{q}%"
         statement = statement.where(
-            Book.title.ilike(pattern) | Book.author.ilike(pattern)  # type: ignore[union-attr]
+            Book.title.ilike(pattern)  # type: ignore[union-attr]
+            | Book.author.ilike(pattern)
+            | Book.tags.ilike(pattern)
         )
 
     if smart_sort and status is not None:
@@ -179,6 +182,33 @@ async def get_dashboard_quote(
         )
 
     return await get_or_fetch_dashboard_quote()
+
+
+@router.get("/tags/cloud", response_model=List[TagCloudEntry])
+def get_tag_cloud(
+    limit: int = Query(default=20, ge=1, le=100),
+    current_user: User = Depends(require_user),
+    session: Session = Depends(get_session),
+) -> List[TagCloudEntry]:
+    rows = session.exec(
+        select(Book.tags).where(
+            Book.user_id == current_user.id,
+            Book.tags.is_not(None),
+        )
+    ).all()
+
+    counts: dict[str, int] = {}
+    for raw_tags in rows:
+        if not raw_tags:
+            continue
+        for tag in raw_tags.split(","):
+            normalized = tag.strip()
+            if not normalized:
+                continue
+            counts[normalized] = counts.get(normalized, 0) + 1
+
+    sorted_items = sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:limit]
+    return [TagCloudEntry(tag=tag, count=count) for tag, count in sorted_items]
 
 
 @router.post("", response_model=BookRead, status_code=201)

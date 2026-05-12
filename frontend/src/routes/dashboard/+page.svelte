@@ -23,6 +23,7 @@
 	let quoteLoading = $state(false);
 	let quoteEnabled = $state(false);
 	let quote = $state<DashboardQuote | null>(null);
+	let tagCloud = $state<Array<{ tag: string; count: number }>>([]);
 	let searchQuery = $state('');
 	let searchResults = $state<Book[]>([]);
 	let searchLoading = $state(false);
@@ -86,6 +87,19 @@
 		}
 
 		await loadQuote();
+		await loadTagCloud();
+	}
+
+	async function loadTagCloud() {
+		try {
+			tagCloud = await api.books.tagCloud(30);
+		} catch {
+			tagCloud = [];
+		}
+	}
+
+	function tagCloudSize(count: number): number {
+		return Math.min(1.2, 0.8 + count * 0.08);
 	}
 
 	async function loadQuote() {
@@ -393,6 +407,29 @@
 			{/if}
 		</div>
 	</div>
+
+	{#if tagCloud.length > 0}
+		<div class="card bg-base-100 border border-base-200 shadow-sm">
+			<div class="card-body gap-4">
+				<div class="flex items-center justify-between">
+					<h2 class="card-title">{$_('dashboard.popularTags')}</h2>
+				</div>
+				<div class="flex flex-wrap gap-2">
+					{#each tagCloud as entry (entry.tag)}
+						<button
+							type="button"
+							class="badge badge-outline hover:badge-primary transition-colors cursor-pointer"
+							style={`font-size: ${tagCloudSize(entry.count)}rem;`}
+							onclick={() => goto(`/library?q=${encodeURIComponent(entry.tag)}`)}
+						>
+							{entry.tag}
+							<span class="ml-1 text-xs opacity-70">{entry.count}</span>
+						</button>
+					{/each}
+				</div>
+			</div>
+		</div>
+	{/if}
 </div>
 
 <BookDetailDialog bind:book={selectedBook} bind:open={detailOpen} onEdit={openEditFromDetail} onDelete={handleDelete} />

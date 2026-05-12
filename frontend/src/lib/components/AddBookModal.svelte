@@ -6,6 +6,7 @@
 	import ImportSearch from './ImportSearch.svelte';
 	import BarcodeScanner from './BarcodeScanner.svelte';
 	import CoverPicker from './CoverPicker.svelte';
+	import TagInput from './TagInput.svelte';
 
 	let {
 		open = $bindable(false),
@@ -29,7 +30,7 @@
 	let publisher = $state('');
 	let published_year = $state('');
 	let page_count = $state('');
-	let genre = $state('');
+	let tags = $state('');
 	let notes = $state('');
 	let rating = $state('');
 	let status = $state<ReadingStatus>('want_to_read');
@@ -43,7 +44,7 @@
 		publisher = '';
 		published_year = '';
 		page_count = '';
-		genre = '';
+		tags = '';
 		notes = '';
 		rating = '';
 		status = defaultStatus;
@@ -62,7 +63,7 @@
 				publisher: publisher || null,
 				published_year: published_year ? parseInt(published_year) : null,
 				page_count: page_count ? parseInt(page_count) : null,
-				genre: genre || null,
+				tags: tags || null,
 				notes: notes || null,
 				rating: rating ? parseInt(rating) : null,
 				reading_status: status,
@@ -140,10 +141,7 @@
 							<input type="number" class="input input-bordered input-sm" bind:value={rating} min="1" max="5" />
 						</label>
 					</div>
-					<label class="form-control">
-						<span class="label label-text">{$_('book.genre')}</span>
-						<input class="input input-bordered input-sm" bind:value={genre} />
-					</label>
+					<TagInput bind:value={tags} disabled={submitting} />
 					<label class="form-control">
 						<span class="label label-text">{$_('book.status')}</span>
 						<select class="select select-bordered select-sm" bind:value={status}>

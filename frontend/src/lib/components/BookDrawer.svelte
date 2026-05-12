@@ -6,6 +6,7 @@
 	import { formatDate, fromDateInputValue, toDateInputValue } from '$lib/date';
 	import StarRating from './StarRating.svelte';
 	import CoverPicker from './CoverPicker.svelte';
+	import TagInput from './TagInput.svelte';
 	import DateConflictDialog from './DateConflictDialog.svelte';
 
 	let {
@@ -35,7 +36,7 @@
 	let publisher = $state('');
 	let published_year = $state('');
 	let page_count = $state('');
-	let genre = $state('');
+	let tags = $state('');
 	let date_started = $state('');
 	let date_finished = $state('');
 	let cover_url = $state<string | null>(null);
@@ -50,7 +51,7 @@
 			publisher = book.publisher ?? '';
 			published_year = book.published_year !== null ? String(book.published_year) : '';
 			page_count = book.page_count !== null ? String(book.page_count) : '';
-			genre = book.genre ?? '';
+			tags = book.tags ?? '';
 			date_started = toDateInputValue(book.date_started);
 			date_finished = toDateInputValue(book.date_finished);
 			cover_url = book.cover_url ?? null;
@@ -67,7 +68,7 @@
 			publisher: publisher || null,
 			published_year: published_year ? parseInt(published_year, 10) : null,
 			page_count: page_count ? parseInt(page_count, 10) : null,
-			genre: genre || null,
+			tags: tags || null,
 			notes: notes || null,
 			rating,
 			cover_url: cover_url || null
@@ -234,10 +235,7 @@
 				</label>
 			</div>
 
-			<label class="form-control">
-				<span class="label label-text">{$_('book.genre')}</span>
-				<input class="input input-bordered input-sm" bind:value={genre} />
-			</label>
+			<TagInput bind:value={tags} disabled={saving} />
 
 			{#if book.isbn}
 				<p class="text-xs text-base-content/60">{$_('book.isbn')}: <span class="font-mono">{book.isbn}</span></p>

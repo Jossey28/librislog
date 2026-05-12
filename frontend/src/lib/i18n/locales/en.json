@@ -27,7 +27,8 @@
     "searchAllBooks": "Search all books",
     "noSearchResults": "No books found",
     "noCurrentlyReading": "You are not currently reading a book.",
-    "noNextToRead": "No books in your want-to-read list yet."
+    "noNextToRead": "No books in your want-to-read list yet.",
+    "popularTags": "Popular Tags"
   },
   "status": {
     "want_to_read": "Want to Read",
@@ -72,7 +73,9 @@
     "publisher": "Publisher",
     "year": "Year",
     "pages": "Pages",
-    "genre": "Genre",
+    "tags": "Tags",
+    "tagsPlaceholder": "Type a tag and press Enter or comma",
+    "tagsHint": "Press Enter or comma to add tags. Backspace removes the last tag.",
     "notes": "Notes",
     "dateStarted": "Date started",
     "dateFinished": "Date finished",

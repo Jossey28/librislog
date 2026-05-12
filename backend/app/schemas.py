@@ -15,7 +15,7 @@ class BookCreate(SQLModel):
     publisher: Optional[str] = None
     published_year: Optional[int] = None
     page_count: Optional[int] = None
-    genre: Optional[str] = None
+    tags: Optional[str] = None
     notes: Optional[str] = None
     rating: Optional[int] = Field(default=None, ge=1, le=5)
     reading_status: ReadingStatus = ReadingStatus.want_to_read
@@ -31,7 +31,7 @@ class BookUpdate(SQLModel):
     publisher: Optional[str] = None
     published_year: Optional[int] = None
     page_count: Optional[int] = None
-    genre: Optional[str] = None
+    tags: Optional[str] = None
     notes: Optional[str] = None
     rating: Optional[int] = Field(default=None, ge=1, le=5)
     reading_status: Optional[ReadingStatus] = None
@@ -49,7 +49,7 @@ class BookImportCandidate(SQLModel):
     published_year: Optional[int] = None
     page_count: Optional[int] = None
     language: Optional[str] = None
-    genre: Optional[str] = None
+    tags: Optional[str] = None
     source: str  # "open_library" | "google_books"
 
 
@@ -68,13 +68,18 @@ class BookRead(SQLModel):
     publisher: Optional[str]
     published_year: Optional[int]
     page_count: Optional[int]
-    genre: Optional[str]
+    tags: Optional[str]
     notes: Optional[str]
     rating: Optional[int]
     reading_status: ReadingStatus
     date_added: datetime
     date_started: Optional[datetime]
     date_finished: Optional[datetime]
+
+
+class TagCloudEntry(SQLModel):
+    tag: str
+    count: int
 
 
 class LibraryStats(SQLModel):

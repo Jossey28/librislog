@@ -58,7 +58,7 @@ def test_map_open_library_fields():
     assert result.page_count == 412
     assert result.language == "EN"
     assert result.publisher == "Ace Books"
-    assert "Science Fiction" in result.genre
+    assert "Science Fiction" in result.tags
     assert result.cover_url == "https://covers.openlibrary.org/b/id/11481354-L.jpg"
     assert result.source == "open_library"
 
@@ -72,14 +72,14 @@ def test_map_open_library_missing_optional_fields():
     assert result.cover_url is None
     assert result.language is None
     assert result.publisher is None
-    assert result.genre is None
+    assert result.tags is None
     assert result.source == "open_library"
 
 
-def test_map_open_library_genre_capped_at_three():
+def test_map_open_library_tags_capped_at_three():
     doc = {"title": "X", "subject": ["A", "B", "C", "D", "E"]}
     result = book_import.map_open_library(doc)
-    assert result.genre == "A, B, C"
+    assert result.tags == "A, B, C"
 
 
 # ── map_google_books unit tests ───────────────────────────────────────────────
@@ -93,7 +93,7 @@ def test_map_google_books_fields():
     assert result.published_year == 1991
     assert result.page_count == 255
     assert result.language == "EN"
-    assert result.genre == "Science Fiction"
+    assert result.tags == "Science Fiction"
     assert result.cover_url == "https://books.google.com/thumbnail.jpg"  # https upgraded
     assert result.source == "google_books"
 
@@ -241,7 +241,7 @@ def test_import_book_creates_entry(client: TestClient):
             "publisher": "Ace Books",
             "published_year": 1965,
             "page_count": 412,
-            "genre": "Science Fiction",
+            "tags": "Science Fiction",
             "source": "open_library",
         },
         "reading_status": "want_to_read",

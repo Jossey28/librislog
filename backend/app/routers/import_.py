@@ -110,7 +110,7 @@ async def import_book(
         publisher=c.publisher,
         published_year=c.published_year,
         page_count=c.page_count,
-        genre=c.genre,
+        tags=c.tags,
         reading_status=body.reading_status,
         user_id=current_user.id,
     )

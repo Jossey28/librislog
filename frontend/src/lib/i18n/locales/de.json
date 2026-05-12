@@ -27,7 +27,8 @@
     "searchAllBooks": "Alle Buecher durchsuchen",
     "noSearchResults": "Keine Buecher gefunden",
     "noCurrentlyReading": "Du liest aktuell kein Buch.",
-    "noNextToRead": "Noch keine Bücher in deiner Wunschliste."
+    "noNextToRead": "Noch keine Bücher in deiner Wunschliste.",
+    "popularTags": "Beliebte Tags"
   },
   "status": {
     "want_to_read": "Möchte ich lesen",
@@ -72,7 +73,9 @@
     "publisher": "Verlag",
     "year": "Jahr",
     "pages": "Seiten",
-    "genre": "Genre",
+    "tags": "Tags",
+    "tagsPlaceholder": "Tag eingeben und Enter oder Komma druecken",
+    "tagsHint": "Mit Enter oder Komma Tag hinzufuegen. Backspace entfernt den letzten Tag.",
     "notes": "Notizen",
     "dateStarted": "Begonnen am",
     "dateFinished": "Beendet am",

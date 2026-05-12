@@ -9,7 +9,7 @@ export interface Book {
 	publisher: string | null;
 	published_year: number | null;
 	page_count: number | null;
-	genre: string | null;
+	tags: string | null;
 	notes: string | null;
 	rating: number | null; // 1–5
 	reading_status: ReadingStatus;
@@ -27,8 +27,13 @@ export interface BookImportCandidate {
 	published_year: number | null;
 	page_count: number | null;
 	language: string | null;
-	genre: string | null;
+	tags: string | null;
 	source: string;
+}
+
+export interface TagCloudEntry {
+	tag: string;
+	count: number;
 }
 
 export type ImportSearchMode = 'auto' | 'google_only';

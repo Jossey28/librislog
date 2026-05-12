@@ -265,9 +265,9 @@ def map_open_library(doc: dict) -> BookImportCandidate:
     publishers: list[str] = doc.get("publisher") or []
     publisher = publishers[0] if publishers else None
 
-    # Genres: first 3 subjects joined
+    # Tags: first 3 subjects joined
     subjects: list[str] = doc.get("subject") or []
-    genre = ", ".join(subjects[:3]) if subjects else None
+    tags = ", ".join(subjects[:3]) if subjects else None
 
     # Language: Open Library returns list[str] of ISO 639-2 codes (e.g. ["eng"])
     languages: list[str] = doc.get("language") or []
@@ -282,7 +282,7 @@ def map_open_library(doc: dict) -> BookImportCandidate:
         published_year=doc.get("first_publish_year"),
         page_count=doc.get("number_of_pages_median"),
         language=language,
-        genre=genre,
+        tags=tags,
         source="open_library",
     )
 
@@ -464,9 +464,9 @@ def map_google_books(item: dict) -> BookImportCandidate:
         except (ValueError, IndexError):
             pass
 
-    # Genres
+    # Tags
     categories: list[str] = vi.get("categories") or []
-    genre = ", ".join(categories[:3]) if categories else None
+    tags = ", ".join(categories[:3]) if categories else None
 
     # Language: Google Books uses ISO 639-1 (e.g. "en")
     language = _normalize_language_code(vi.get("language"))
@@ -480,7 +480,7 @@ def map_google_books(item: dict) -> BookImportCandidate:
         published_year=published_year,
         page_count=vi.get("pageCount"),
         language=language,
-        genre=genre,
+        tags=tags,
         source="google_books",
     )
 

@@ -9,6 +9,7 @@ import type {
 	ImportSearchMode,
 	ReadingStatus,
 	SearchStage,
+	TagCloudEntry,
 	SortField,
 	SortOrder,
 	OidcConfig,
@@ -204,6 +205,12 @@ export const api = {
 
 		dashboardQuote(): Promise<DashboardQuote | null> {
 			return request<DashboardQuote | null>('/books/dashboard-quote');
+		},
+
+		tagCloud(limit = 20): Promise<TagCloudEntry[]> {
+			const qs = new URLSearchParams();
+			qs.set('limit', String(limit));
+			return request<TagCloudEntry[]>(`/books/tags/cloud?${qs.toString()}`);
 		},
 
 		list(params?: {
