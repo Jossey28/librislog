@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
 
-from app.auth import require_user_by_api_key
+from app.auth import require_user
 from app.config import settings
 from app.database import get_session
 from app.models import Book, User
@@ -24,7 +24,7 @@ router = APIRouter(prefix="/api/import", tags=["import"])
 async def search_books(
     q: str = Query(min_length=1, description="Title string or ISBN"),
     type: Literal["title", "isbn"] = Query(default="title"),
-    _user: User = Depends(require_user_by_api_key),
+    _user: User = Depends(require_user),
 ) -> List[BookImportCandidate]:
     """Search external APIs for books by title or ISBN."""
     logger.debug("Search request — q=%r type=%r", q, type)
@@ -44,7 +44,7 @@ async def search_books_stream(
     q: str = Query(min_length=1, description="Title string or ISBN"),
     type: Literal["title", "isbn"] = Query(default="title"),
     mode: Literal["auto", "google_only"] = Query(default="auto"),
-    _user: User = Depends(require_user_by_api_key),
+    _user: User = Depends(require_user),
 ) -> StreamingResponse:
     """Stream import search progress as Server-Sent Events (text/event-stream)."""
     logger.debug("Stream search request — q=%r type=%r", q, type)
@@ -73,7 +73,7 @@ async def search_books_stream(
 @router.post("", response_model=BookRead, status_code=201)
 async def import_book(
     body: BookImportRequest,
-    current_user: User = Depends(require_user_by_api_key),
+    current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> Book:
     """Persist an import candidate into the local database."""

@@ -2,23 +2,17 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
-	import { currentUser, setAuthKey } from '$lib/stores/auth';
+	import { currentUser, csrfToken } from '$lib/stores/auth';
 	import { _, setLocale } from '$lib/i18n';
 
 	let error = $state('');
 
 	onMount(async () => {
-		const params = new URLSearchParams(window.location.search);
-		const apiKey = params.get('api_key');
-		if (!apiKey) {
-			error = $_('oidc.callbackMissingKey');
-			return;
-		}
-
 		try {
-			setAuthKey(apiKey);
 			const me = await api.auth.me();
 			currentUser.set(me);
+			const csrf = await api.auth.csrf();
+			csrfToken.set(csrf.csrf_token);
 			const settings = await api.profile.getSettings();
 			setLocale((settings.language as 'en' | 'de') ?? 'en');
 			await goto('/');

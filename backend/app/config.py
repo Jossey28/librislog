@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     covers_dir: str = "./data/covers"
     api_key_encryption_key: str = "CHANGE_ME_TO_32PLUS_CHARS"
+    auth_cookie_name: str = "librislog_session"
+    auth_cookie_secure: bool = False
+    auth_cookie_samesite: str = "lax"
+    auth_cookie_domain: str = ""
     oidc_enabled: bool = False
     oidc_provider_id: str = "oidc"
     oidc_provider_name: str = "Single Sign-On"

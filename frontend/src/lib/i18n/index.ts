@@ -5,7 +5,6 @@ export const SUPPORTED_LOCALES = ['en', 'de'] as const;
 export type AppLocale = (typeof SUPPORTED_LOCALES)[number];
 
 const DEFAULT_LOCALE: AppLocale = 'en';
-const API_KEY_STORAGE = 'librislog.api_key';
 
 const envLocale = (import.meta.env.PUBLIC_DEFAULT_LOCALE as string | undefined)?.toLowerCase();
 const configuredDefaultLocale: AppLocale = isSupportedLocale(envLocale) ? envLocale : DEFAULT_LOCALE;
@@ -21,11 +20,6 @@ function isSupportedLocale(value: string | null | undefined): value is AppLocale
 	return !!value && (SUPPORTED_LOCALES as readonly string[]).includes(value);
 }
 
-function hasStoredApiKey(): boolean {
-	if (typeof sessionStorage === 'undefined') return false;
-	return !!sessionStorage.getItem(API_KEY_STORAGE);
-}
-
 export async function setupI18n() {
 	if (initialized) {
 		await waitLocale();
@@ -33,15 +27,13 @@ export async function setupI18n() {
 	}
 
 	let initialLocale = configuredDefaultLocale;
-	if (hasStoredApiKey()) {
-		try {
-			const settings = await api.profile.getSettings();
-			if (isSupportedLocale(settings.language)) {
-				initialLocale = settings.language;
-			}
-		} catch {
-			// unauthenticated or stale API key
+	try {
+		const settings = await api.profile.getSettings();
+		if (isSupportedLocale(settings.language)) {
+			initialLocale = settings.language;
 		}
+	} catch {
+		// unauthenticated route before cookie-based login
 	}
 
 	init({

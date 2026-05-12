@@ -21,7 +21,6 @@
 	let oidcLink = $state<OidcLinkStatus>({ linked: false, provider_name: null, oidc_email: null, oidc_name: null });
 	let oidcLoading = $state(false);
 	let oidcMessage = $state<{ type: 'success' | 'error'; text: string } | null>(null);
-	const nonPrimaryKeys = $derived(keys.filter((key) => !key.is_primary));
 
 	$effect(() => {
 		if ($currentUser) {
@@ -199,7 +198,7 @@
 				</div>
 			{/if}
 			<ul class="flex flex-col gap-2">
-				{#each nonPrimaryKeys as key}
+				{#each keys as key}
 					<li class="flex items-center justify-between border border-base-200 rounded p-2 text-sm">
 						<div class="min-w-0">
 							<p class="font-mono">{key.key_prefix}...</p>

@@ -35,7 +35,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-app.add_middleware(SessionMiddleware, secret_key=settings.api_key_encryption_key)
+def _clean_env_value(value: str) -> str:
+    return value.split("#", 1)[0].strip()
+
+
+cookie_domain_raw = _clean_env_value(settings.auth_cookie_domain)
+cookie_domain = cookie_domain_raw or None
+cookie_samesite = _clean_env_value(settings.auth_cookie_samesite).lower()
+if cookie_samesite not in {"lax", "strict", "none"}:
+    cookie_samesite = "lax"
+cookie_name = _clean_env_value(settings.auth_cookie_name) or "librislog_session"
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.api_key_encryption_key,
+    session_cookie=cookie_name,
+    same_site=cookie_samesite,
+    https_only=settings.auth_cookie_secure,
+    domain=cookie_domain,
+)
 
 app.include_router(books.router)
 app.include_router(import_.router)

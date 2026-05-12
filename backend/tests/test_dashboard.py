@@ -42,6 +42,7 @@ def test_book_stats_counts_all_statuses(client: TestClient):
 def test_book_stats_require_auth(client: TestClient):
     original = client.headers.get("X-API-Key")
     client.headers.pop("X-API-Key", None)
+    client.post("/api/auth/logout")
     try:
         resp = client.get("/api/books/stats")
     finally:

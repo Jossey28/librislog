@@ -1,4 +1,4 @@
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 
 from fastapi.responses import RedirectResponse
 from fastapi.testclient import TestClient
@@ -61,7 +61,7 @@ def test_oidc_callback_unlinked_redirects_to_login_warning(client: TestClient, m
     assert "not+linked" in response.headers["location"]
 
 
-def test_oidc_callback_linked_redirects_with_api_key(
+def test_oidc_callback_linked_redirects_with_cookie_session(
     client: TestClient,
     session: Session,
     monkeypatch,
@@ -88,9 +88,7 @@ def test_oidc_callback_linked_redirects_with_api_key(
     assert response.status_code == 302
     parsed = urlparse(response.headers["location"])
     assert parsed.path == "/auth/oidc/callback"
-    params = parse_qs(parsed.query)
-    assert "api_key" in params
-    assert params["api_key"][0].startswith("lk_")
+    assert parsed.query == ""
 
 
 def test_oidc_link_status_reports_unlinked(client: TestClient, monkeypatch):

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/api';
-	import { currentUser, setAuthKey } from '$lib/stores/auth';
+	import { currentUser, csrfToken } from '$lib/stores/auth';
 	import { _, locale, setLocale, SUPPORTED_LOCALES, type AppLocale } from '$lib/i18n';
 
 	let email = $state('');
@@ -42,8 +42,9 @@
 		loading = true;
 		try {
 			const result = await api.auth.login({ email, password });
-			setAuthKey(result.api_key);
 			currentUser.set(result.user);
+			const csrf = await api.auth.csrf();
+			csrfToken.set(csrf.csrf_token);
 			await api.profile.updateSettings({ language: selectedLanguage });
 			setLocale(selectedLanguage);
 			await goto('/');

@@ -6,7 +6,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, func, select
 
-from app.auth import require_user_by_api_key
+from app.auth import require_user
 from app.config import settings
 from app.database import get_session
 from app.models import Book, ReadingStatus, User
@@ -73,7 +73,7 @@ def list_books(
     ),
     order: Literal["asc", "desc"] = Query(default="desc"),
     smart_sort: bool = Query(default=True),
-    current_user: User = Depends(require_user_by_api_key),
+    current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> List[Book]:
     logger.debug(
@@ -127,7 +127,7 @@ def list_books(
 
 @router.get("/stats", response_model=LibraryStats)
 def get_library_stats(
-    current_user: User = Depends(require_user_by_api_key),
+    current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> LibraryStats:
     total_books = session.exec(
@@ -169,7 +169,7 @@ def get_library_stats(
 
 @router.get("/dashboard-quote", response_model=DashboardQuote | None)
 async def get_dashboard_quote(
-    current_user: User = Depends(require_user_by_api_key),
+    current_user: User = Depends(require_user),
 ) -> DashboardQuote | None:
     if not settings.dashboard_quote_enabled:
         return None
@@ -200,7 +200,7 @@ async def get_dashboard_quote(
 @router.post("", response_model=BookRead, status_code=201)
 async def create_book(
     book_in: BookCreate,
-    current_user: User = Depends(require_user_by_api_key),
+    current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> Book:
     logger.debug("create_book — title=%r", book_in.title)
@@ -227,7 +227,7 @@ async def create_book(
 @router.get("/{book_id}", response_model=BookRead)
 def get_book(
     book_id: int,
-    current_user: User = Depends(require_user_by_api_key),
+    current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> Book:
     logger.debug("get_book — id=%s", book_id)
@@ -242,7 +242,7 @@ def get_book(
 async def update_book(
     book_id: int,
     book_in: BookUpdate,
-    current_user: User = Depends(require_user_by_api_key),
+    current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> Book:
     logger.debug("update_book — id=%s fields=%s", book_id, list(book_in.model_dump(exclude_unset=True)))
@@ -291,7 +291,7 @@ async def update_book(
 def transition_status(
     book_id: int,
     transition: StatusTransitionRequest,
-    current_user: User = Depends(require_user_by_api_key),
+    current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> StatusTransitionResponse:
     logger.debug(
@@ -348,7 +348,7 @@ def transition_status(
 @router.delete("/{book_id}", status_code=204)
 def delete_book(
     book_id: int,
-    current_user: User = Depends(require_user_by_api_key),
+    current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> None:
     logger.debug("delete_book — id=%s", book_id)

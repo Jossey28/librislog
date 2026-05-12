@@ -1,21 +1,16 @@
-from datetime import datetime, timezone
-
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlmodel import Session, select
 
 from app.auth import (
+    clear_browser_session,
     ensure_password_complexity,
-    decrypt_api_key,
-    encrypt_api_key,
-    generate_api_key,
-    get_api_key_prefix,
     get_password_hash,
-    hash_api_key,
-    require_user_by_api_key,
+    require_user,
+    start_browser_session,
     verify_password,
 )
 from app.database import get_session
-from app.models import ApiKey, User, UserRole, UserSettings
+from app.models import User, UserRole, UserSettings
 from app.schemas import SetupRequest, UserLogin, UserRead
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -28,7 +23,7 @@ def setup_required(session: Session = Depends(get_session)) -> dict:
 
 
 @router.post("/setup")
-def setup(request: SetupRequest, session: Session = Depends(get_session)) -> dict:
+def setup(request: SetupRequest, http_request: Request, session: Session = Depends(get_session)) -> dict:
     admin_exists = session.exec(select(User).where(User.role == UserRole.admin).limit(1)).first()
     if admin_exists:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Setup already completed")
@@ -51,46 +46,36 @@ def setup(request: SetupRequest, session: Session = Depends(get_session)) -> dic
     session.refresh(user)
 
     session.add(UserSettings(user_id=user.id, language="en"))
-
-    main_key = generate_api_key()
-    session.add(
-        ApiKey(
-            user_id=user.id,
-            key_prefix=get_api_key_prefix(main_key),
-            key_hash=hash_api_key(main_key),
-            key_encrypted=encrypt_api_key(main_key),
-            is_primary=True,
-            description="Primary app key",
-        )
-    )
     session.commit()
-    return {"user": UserRead.model_validate(user), "api_key": main_key}
+
+    start_browser_session(http_request, user.id)
+    return {"user": UserRead.model_validate(user)}
 
 
 @router.post("/login")
-def login(credentials: UserLogin, session: Session = Depends(get_session)) -> dict:
+def login(credentials: UserLogin, http_request: Request, session: Session = Depends(get_session)) -> dict:
     user = session.exec(select(User).where(User.email == credentials.email)).first()
     if not user or not verify_password(credentials.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password")
 
-    primary_key = session.exec(
-        select(ApiKey).where(ApiKey.user_id == user.id, ApiKey.is_primary.is_(True), ApiKey.revoked_at.is_(None))
-    ).first()
-    if not primary_key or not primary_key.key_encrypted:
-        raise HTTPException(status_code=500, detail="Primary API key missing")
-
-    primary_key.last_used_at = datetime.now(timezone.utc)
-    session.add(primary_key)
-    session.commit()
-
-    return {"user": UserRead.model_validate(user), "api_key": decrypt_api_key(primary_key.key_encrypted)}
+    start_browser_session(http_request, user.id)
+    return {"user": UserRead.model_validate(user)}
 
 
 @router.post("/logout")
-def logout() -> dict:
+def logout(http_request: Request) -> dict:
+    clear_browser_session(http_request)
     return {"message": "Logged out"}
 
 
 @router.get("/me", response_model=UserRead)
-def me(current_user: User = Depends(require_user_by_api_key)) -> User:
+def me(current_user: User = Depends(require_user)) -> User:
     return current_user
+
+
+@router.get("/csrf")
+def csrf_token(request: Request) -> dict:
+    token = request.session.get("csrf_token")
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    return {"csrf_token": token}

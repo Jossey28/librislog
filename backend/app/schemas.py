@@ -159,7 +159,6 @@ class ApiKeyRead(SQLModel):
     id: int
     key_prefix: str
     description: Optional[str]
-    is_primary: bool
     created_at: datetime
     last_used_at: Optional[datetime]
 
@@ -201,4 +200,3 @@ class OidcLinkRead(SQLModel):
 
 class OidcLoginResponse(SQLModel):
     user: UserRead
-    api_key: str

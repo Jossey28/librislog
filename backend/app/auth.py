@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 import bcrypt
 from cryptography.fernet import Fernet
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from passlib.exc import UnknownHashError
 from passlib.context import CryptContext
 from sqlmodel import Session, select
@@ -119,7 +119,38 @@ def require_user_by_api_key(
     return user
 
 
-def require_admin(user: User = Depends(require_user_by_api_key)) -> User:
+def require_user(
+    request: Request,
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+    x_csrf_token: str | None = Header(default=None, alias="X-CSRF-Token"),
+    session: Session = Depends(get_session),
+) -> User:
+    if x_api_key:
+        return require_user_by_api_key(x_api_key=x_api_key, session=session)
+
+    user_id = request.session.get("user_id")
+    if user_id is not None:
+        user = session.get(User, user_id)
+        if user is not None:
+            if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+                csrf_token = request.session.get("csrf_token")
+                if not csrf_token or not x_csrf_token or x_csrf_token != csrf_token:
+                    raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid CSRF token")
+            return user
+
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+
+def require_admin(user: User = Depends(require_user)) -> User:
     if user.role != UserRole.admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin required")
     return user
+
+
+def start_browser_session(request: Request, user_id: int) -> None:
+    request.session["user_id"] = user_id
+    request.session["csrf_token"] = secrets.token_urlsafe(32)
+
+
+def clear_browser_session(request: Request) -> None:
+    request.session.clear()

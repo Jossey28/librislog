@@ -77,6 +77,10 @@ export interface User {
 	created_at: string;
 }
 
+export interface UserCreateResponse {
+	user: User;
+}
+
 export interface UserAdminUpdate {
 	firstname?: string;
 	lastname?: string;
@@ -94,7 +98,6 @@ export interface ApiKeyMeta {
 	id: number;
 	key_prefix: string;
 	description: string | null;
-	is_primary: boolean;
 	created_at: string;
 	last_used_at: string | null;
 }

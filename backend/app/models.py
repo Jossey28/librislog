@@ -64,7 +64,6 @@ class ApiKey(SQLModel, table=True):
     key_hash: str = Field(index=True, unique=True)
     key_encrypted: Optional[str] = None
     description: Optional[str] = None
-    is_primary: bool = Field(default=False, index=True)
     created_at: datetime = Field(default_factory=_utcnow)
     last_used_at: Optional[datetime] = None
     revoked_at: Optional[datetime] = None

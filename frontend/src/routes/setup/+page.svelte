@@ -4,7 +4,7 @@
 	import PasswordRequirements from '$lib/components/PasswordRequirements.svelte';
 	import { getPasswordChecks, passwordChecksPassed, passwordPattern } from '$lib/password';
 	import { isValidEmailFormat } from '$lib/validation';
-	import { currentUser, setAuthKey } from '$lib/stores/auth';
+	import { currentUser, csrfToken } from '$lib/stores/auth';
 	import { _, locale, setLocale, SUPPORTED_LOCALES, type AppLocale } from '$lib/i18n';
 
 	let firstname = $state('');
@@ -43,8 +43,9 @@
 		loading = true;
 		try {
 			const result = await api.auth.setup({ firstname, lastname, email, password: passwordToValidate });
-			setAuthKey(result.api_key);
 			currentUser.set(result.user);
+			const csrf = await api.auth.csrf();
+			csrfToken.set(csrf.csrf_token);
 			await api.profile.updateSettings({ language: selectedLanguage });
 			setLocale(selectedLanguage);
 			await goto('/');

@@ -5,11 +5,7 @@ from sqlmodel import Session, select
 
 from app.auth import (
     ensure_password_complexity,
-    encrypt_api_key,
-    generate_api_key,
-    get_api_key_prefix,
     get_password_hash,
-    hash_api_key,
     require_admin,
 )
 from app.database import get_session
@@ -49,19 +45,8 @@ def create_user(
     session.refresh(user)
 
     session.add(UserSettings(user_id=user.id, language="en"))
-    main_key = generate_api_key()
-    session.add(
-        ApiKey(
-            user_id=user.id,
-            key_prefix=get_api_key_prefix(main_key),
-            key_hash=hash_api_key(main_key),
-            key_encrypted=encrypt_api_key(main_key),
-            is_primary=True,
-            description="Primary app key",
-        )
-    )
     session.commit()
-    return {"user": UserRead.model_validate(user), "api_key": main_key}
+    return {"user": UserRead.model_validate(user)}
 
 
 @router.patch("/{user_id}", response_model=UserRead)

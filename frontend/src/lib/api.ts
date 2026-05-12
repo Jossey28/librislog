@@ -14,10 +14,11 @@ import type {
 	OidcConfig,
 	OidcLinkStatus,
 	User,
+	UserCreateResponse,
 	UserAdminUpdate,
 	UserSettings
 } from './types';
-import { apiKey } from './stores/auth';
+import { apiKey, csrfToken } from './stores/auth';
 import { get } from 'svelte/store';
 
 const BASE = '/api';
@@ -32,12 +33,19 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 		'Content-Type': 'application/json',
 		...authHeaders()
 	};
+
+	const method = (options?.method ?? 'GET').toUpperCase();
+	if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+		const csrf = get(csrfToken);
+		if (csrf) headers['X-CSRF-Token'] = csrf;
+	}
 	if (options?.headers) {
 		Object.assign(headers, options.headers as Record<string, string>);
 	}
 
 	const res = await fetch(`${BASE}${path}`, {
 		headers,
+		credentials: 'same-origin',
 		...options
 	});
 
@@ -70,15 +78,15 @@ export const api = {
 			lastname: string;
 			email: string;
 			password: string;
-		}): Promise<{ user: User; api_key: string }> {
-			return request<{ user: User; api_key: string }>('/auth/setup', {
+		}): Promise<UserCreateResponse> {
+			return request<UserCreateResponse>('/auth/setup', {
 				method: 'POST',
 				body: JSON.stringify(data)
 			});
 		},
 
-		login(data: { email: string; password: string }): Promise<{ user: User; api_key: string }> {
-			return request<{ user: User; api_key: string }>('/auth/login', {
+		login(data: { email: string; password: string }): Promise<UserCreateResponse> {
+			return request<UserCreateResponse>('/auth/login', {
 				method: 'POST',
 				body: JSON.stringify(data)
 			});
@@ -86,6 +94,10 @@ export const api = {
 
 		me(): Promise<User> {
 			return request<User>('/auth/me');
+		},
+
+		csrf(): Promise<{ csrf_token: string }> {
+			return request<{ csrf_token: string }>('/auth/csrf');
 		},
 
 		logout(): Promise<{ message: string }> {
@@ -140,8 +152,8 @@ export const api = {
 			email: string;
 			password: string;
 			role: 'admin' | 'user';
-		}): Promise<{ user: User; api_key: string }> {
-			return request<{ user: User; api_key: string }>('/users', {
+		}): Promise<UserCreateResponse> {
+			return request<UserCreateResponse>('/users', {
 				method: 'POST',
 				body: JSON.stringify(data)
 			});

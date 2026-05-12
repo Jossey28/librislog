@@ -6,6 +6,10 @@ describe('shouldShowActionToast', () => {
 		expect(shouldShowActionToast('Missing API key')).toBe(false);
 	});
 
+	it('suppresses expected not authenticated message', () => {
+		expect(shouldShowActionToast('Not authenticated')).toBe(false);
+	});
+
 	it('shows toast for other error messages', () => {
 		expect(shouldShowActionToast('HTTP 500')).toBe(true);
 		expect(shouldShowActionToast('Network error')).toBe(true);

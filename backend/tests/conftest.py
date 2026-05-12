@@ -46,7 +46,6 @@ def client_fixture(session: Session):
             key_prefix=get_api_key_prefix(key_plain),
             key_hash=hash_api_key(key_plain),
             key_encrypted=encrypt_api_key(key_plain),
-            is_primary=True,
             description="Test key",
         )
     )
@@ -91,7 +90,6 @@ def create_user_with_key_fixture(session: Session):
                 key_prefix=get_api_key_prefix(key_plain),
                 key_hash=hash_api_key(key_plain),
                 key_encrypted=encrypt_api_key(key_plain),
-                is_primary=True,
                 description="Primary app key",
             )
         )

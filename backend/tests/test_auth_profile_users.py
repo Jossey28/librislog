@@ -20,6 +20,13 @@ def test_auth_me_rejects_invalid_api_key(client: TestClient):
     assert resp.json()["detail"] == "Invalid API key"
 
 
+def test_auth_me_rejects_without_cookie_or_api_key(client: TestClient):
+    client.post("/api/auth/logout")
+    client.headers.pop("X-API-Key", None)
+    resp = client.get("/api/auth/me")
+    assert resp.status_code == 401
+
+
 def test_auth_login_returns_user_and_api_key(client: TestClient):
     login = client.post(
         "/api/auth/login",
@@ -28,11 +35,22 @@ def test_auth_login_returns_user_and_api_key(client: TestClient):
     assert login.status_code == 200
     payload = login.json()
     assert payload["user"]["email"] == "test@example.com"
-    assert payload["api_key"].startswith("lk_")
 
-    me = client.get("/api/auth/me", headers={"X-API-Key": payload["api_key"]})
+    me = client.get("/api/auth/me")
     assert me.status_code == 200
     assert me.json()["email"] == "test@example.com"
+
+
+def test_auth_logout_clears_cookie_session(client: TestClient):
+    before = client.get("/api/auth/me")
+    assert before.status_code == 200
+
+    out = client.post("/api/auth/logout")
+    assert out.status_code == 200
+
+    client.headers.pop("X-API-Key", None)
+    after = client.get("/api/auth/me")
+    assert after.status_code == 401
 
 
 def test_auth_login_rejects_wrong_password(client: TestClient):
@@ -79,17 +97,67 @@ def test_auth_setup_flow_when_no_admin(session: Session):
             assert setup.status_code == 200
             body = setup.json()
             assert body["user"]["role"] == "admin"
-            assert body["api_key"].startswith("lk_")
 
             after = raw_client.get("/api/auth/setup-required")
             assert after.status_code == 200
             assert after.json() == {"required": False}
 
-            me = raw_client.get("/api/auth/me", headers={"X-API-Key": body["api_key"]})
+            me = raw_client.get("/api/auth/me")
             assert me.status_code == 200
             assert me.json()["email"] == "first-admin@example.com"
     finally:
         app.dependency_overrides.clear()
+
+
+def test_auth_login_allows_access_without_api_key_header(client: TestClient):
+    client.post("/api/auth/logout")
+    login = client.post(
+        "/api/auth/login",
+        json={"email": "test@example.com", "password": "test-password"},
+    )
+    assert login.status_code == 200
+
+    client.headers.pop("X-API-Key", None)
+    me = client.get("/api/auth/me")
+    assert me.status_code == 200
+
+
+def test_cookie_auth_rejects_mutation_without_csrf_token(client: TestClient):
+    client.post("/api/auth/logout")
+    client.headers.pop("X-API-Key", None)
+
+    login = client.post(
+        "/api/auth/login",
+        json={"email": "test@example.com", "password": "test-password"},
+    )
+    assert login.status_code == 200
+
+    resp = client.patch("/api/profile", json={"firstname": "NoCsrf"})
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "Invalid CSRF token"
+
+
+def test_cookie_auth_allows_mutation_with_csrf_token(client: TestClient):
+    client.post("/api/auth/logout")
+    client.headers.pop("X-API-Key", None)
+
+    login = client.post(
+        "/api/auth/login",
+        json={"email": "test@example.com", "password": "test-password"},
+    )
+    assert login.status_code == 200
+
+    csrf = client.get("/api/auth/csrf")
+    assert csrf.status_code == 200
+    token = csrf.json()["csrf_token"]
+
+    resp = client.patch(
+        "/api/profile",
+        json={"firstname": "WithCsrf"},
+        headers={"X-CSRF-Token": token},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["firstname"] == "WithCsrf"
 
 
 def test_profile_patch_updates_fields(client: TestClient):
@@ -144,28 +212,15 @@ def test_profile_settings_get_and_update(client: TestClient):
 def test_profile_api_key_lifecycle(client: TestClient):
     listed = client.get("/api/profile/api-keys")
     assert listed.status_code == 200
-    initial = listed.json()
-    assert any(k["is_primary"] for k in initial)
 
     created = client.post("/api/profile/api-keys", json={"description": "CLI key"})
     assert created.status_code == 201
     created_data = created.json()
     assert created_data["key"].startswith("lk_")
     assert created_data["api_key"]["description"] == "CLI key"
-    assert created_data["api_key"]["is_primary"] is False
 
     delete_resp = client.delete(f"/api/profile/api-keys/{created_data['api_key']['id']}")
     assert delete_resp.status_code == 204
-
-
-def test_profile_cannot_delete_primary_api_key(client: TestClient):
-    listed = client.get("/api/profile/api-keys")
-    assert listed.status_code == 200
-    primary = next(k for k in listed.json() if k["is_primary"])
-
-    resp = client.delete(f"/api/profile/api-keys/{primary['id']}")
-    assert resp.status_code == 403
-
 
 def test_users_list_requires_admin(client: TestClient, create_user_with_key):
     _user, user_key = create_user_with_key(email="member@example.com", role=UserRole.user)
@@ -173,7 +228,7 @@ def test_users_list_requires_admin(client: TestClient, create_user_with_key):
     assert resp.status_code == 403
 
 
-def test_users_create_creates_user_settings_and_primary_key(client: TestClient, session: Session):
+def test_users_create_creates_user_settings(client: TestClient, session: Session):
     resp = client.post(
         "/api/users",
         json={
@@ -187,7 +242,6 @@ def test_users_create_creates_user_settings_and_primary_key(client: TestClient, 
     assert resp.status_code == 201
     body = resp.json()
     assert body["user"]["email"] == "new-user@example.com"
-    assert body["api_key"].startswith("lk_")
 
     user = session.exec(select(User).where(User.email == "new-user@example.com")).first()
     assert user is not None
@@ -195,13 +249,6 @@ def test_users_create_creates_user_settings_and_primary_key(client: TestClient, 
     settings = session.exec(select(UserSettings).where(UserSettings.user_id == user.id)).first()
     assert settings is not None
     assert settings.language == "en"
-
-    primary_key = session.exec(
-        select(ApiKey).where(ApiKey.user_id == user.id, ApiKey.is_primary.is_(True), ApiKey.revoked_at.is_(None))
-    ).first()
-    assert primary_key is not None
-    assert primary_key.key_encrypted is not None
-
 
 def test_users_create_rejects_duplicate_email(client: TestClient):
     resp = client.post(

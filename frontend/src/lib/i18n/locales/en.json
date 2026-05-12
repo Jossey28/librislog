@@ -213,7 +213,6 @@
     "linkStartFailed": "Could not start account linking",
     "unlinkSuccess": "Account unlinked",
     "unlinkFailed": "Could not unlink account",
-    "callbackMissingKey": "Missing login token from OIDC callback",
     "signingIn": "Signing you in...",
     "linkingAccount": "Linking account..."
   }

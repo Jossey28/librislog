@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/api';
-	import { currentUser, setAuthKey } from '$lib/stores/auth';
+	import { broadcastLogout, currentUser, csrfToken } from '$lib/stores/auth';
 	import { _ } from '$lib/i18n';
 
 	let open = $state(false);
@@ -16,8 +16,9 @@
 		} catch {
 			// local logout still proceeds when server logout fails
 		}
-		setAuthKey(null);
 		currentUser.set(null);
+		csrfToken.set(null);
+		broadcastLogout();
 		open = false;
 		await goto('/login');
 	}

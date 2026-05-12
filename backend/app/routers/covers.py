@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from app.config import settings
-from app.auth import require_user_by_api_key
+from app.auth import require_user
 from app.models import User
 from app.services.cover_storage import resolve_cover_path, save_uploaded_cover
 
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/covers", tags=["covers"])
 
 
 @router.post("/upload")
-async def upload_cover(file: UploadFile = File(...), user: User = Depends(require_user_by_api_key)) -> dict:
+async def upload_cover(file: UploadFile = File(...), user: User = Depends(require_user)) -> dict:
     """Accept a multipart image upload and return its local cover URL.
 
     Returns ``{"cover_url": "/api/covers/<filename>"}`` on success, or

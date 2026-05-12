@@ -10,7 +10,7 @@ import io
 import pytest
 from fastapi.testclient import TestClient
 
-from app.auth import require_user_by_api_key
+from app.auth import require_user
 from app.config import settings
 from app.main import app
 from app.models import User, UserRole
@@ -24,7 +24,7 @@ def covers_client(tmp_path, monkeypatch):
     def _fake_user() -> User:
         return User(id=1, firstname="Test", lastname="User", email="test@example.com", role=UserRole.user, hashed_password="x")
 
-    app.dependency_overrides[require_user_by_api_key] = _fake_user
+    app.dependency_overrides[require_user] = _fake_user
     with TestClient(app) as client:
         yield client, tmp_path
     app.dependency_overrides.clear()

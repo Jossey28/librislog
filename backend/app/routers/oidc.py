@@ -6,12 +6,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlmodel import Session, select
 
-from app.auth import (
-    decrypt_api_key,
-    require_user_by_api_key,
-)
+from app.auth import require_user
+from app.auth import start_browser_session
 from app.database import get_session
-from app.models import ApiKey, OidcLink, User
+from app.models import OidcLink, User
 from app.oidc import get_oidc_client, oidc_is_enabled
 from app.config import settings
 from app.schemas import OidcConfigRead, OidcLinkRead
@@ -32,8 +30,8 @@ def _frontend_warning_redirect(message: str) -> RedirectResponse:
     return RedirectResponse(url=f"/login?oidc_error={quote_plus(message)}", status_code=302)
 
 
-def _frontend_success_redirect(api_key: str) -> RedirectResponse:
-    return RedirectResponse(url=f"/auth/oidc/callback?api_key={quote_plus(api_key)}", status_code=302)
+def _frontend_success_redirect() -> RedirectResponse:
+    return RedirectResponse(url="/auth/oidc/callback", status_code=302)
 
 
 def _link_success_redirect() -> RedirectResponse:
@@ -107,23 +105,13 @@ async def oidc_callback(request: Request, session: Session = Depends(get_session
         logger.error("OIDC link points to missing user: link_id=%s user_id=%s", link.id, link.user_id)
         return _frontend_warning_redirect("Linked user account no longer exists")
 
-    primary_key = session.exec(
-        select(ApiKey).where(ApiKey.user_id == user.id, ApiKey.is_primary.is_(True), ApiKey.revoked_at.is_(None))
-    ).first()
-    if not primary_key or not primary_key.key_encrypted:
-        logger.error("OIDC login failed due to missing primary key: user_id=%s", user.id)
-        return _frontend_warning_redirect("Primary API key missing")
-
-    primary_key.last_used_at = datetime.now(timezone.utc)
-    session.add(primary_key)
-    session.commit()
-
-    return _frontend_success_redirect(decrypt_api_key(primary_key.key_encrypted))
+    start_browser_session(request, user.id)
+    return _frontend_success_redirect()
 
 
 @router.get("/link-status", response_model=OidcLinkRead)
 def oidc_link_status(
-    current_user: User = Depends(require_user_by_api_key),
+    current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> OidcLinkRead:
     if not oidc_is_enabled():
@@ -142,7 +130,7 @@ def oidc_link_status(
 
 
 @router.post("/link")
-async def oidc_link_start(request: Request, current_user: User = Depends(require_user_by_api_key)) -> dict:
+async def oidc_link_start(request: Request, current_user: User = Depends(require_user)) -> dict:
     if not oidc_is_enabled():
         raise HTTPException(status_code=404, detail="OIDC is not enabled")
 
@@ -230,7 +218,7 @@ async def oidc_link_callback(request: Request, session: Session = Depends(get_se
 
 @router.delete("/unlink", status_code=204)
 def oidc_unlink(
-    current_user: User = Depends(require_user_by_api_key),
+    current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> None:
     link = session.exec(select(OidcLink).where(OidcLink.user_id == current_user.id)).first()

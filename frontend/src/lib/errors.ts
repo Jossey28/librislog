@@ -1,3 +1,3 @@
 export function shouldShowActionToast(message: string): boolean {
-	return message !== 'Missing API key';
+	return message !== 'Missing API key' && message !== 'Not authenticated';
 }

@@ -213,7 +213,6 @@
     "linkStartFailed": "Konto-Verknuepfung konnte nicht gestartet werden",
     "unlinkSuccess": "Konto-Verknuepfung entfernt",
     "unlinkFailed": "Konto-Verknuepfung konnte nicht entfernt werden",
-    "callbackMissingKey": "Fehlendes Login-Token aus OIDC-Callback",
     "signingIn": "Anmeldung laeuft...",
     "linkingAccount": "Konto wird verknuepft..."
   }

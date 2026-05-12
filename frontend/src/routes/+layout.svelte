@@ -6,7 +6,7 @@
 	import Toaster from '$lib/components/Toaster.svelte';
 	import UserMenu from '$lib/components/UserMenu.svelte';
 	import { api } from '$lib/api';
-	import { currentUser, loadAuthFromStorage, setAuthKey } from '$lib/stores/auth';
+	import { currentUser, csrfToken, loadAuthFromStorage, initAuthSync } from '$lib/stores/auth';
 	import { _, setupI18n } from '$lib/i18n';
 
 	let { children } = $props();
@@ -26,7 +26,13 @@
 	import { setContext } from 'svelte';
 	setContext('openAddBook', () => (addBookOpen = true));
 
-	onMount(async () => {
+		onMount(async () => {
+		initAuthSync(() => {
+			currentUser.set(null);
+			csrfToken.set(null);
+			window.location.href = '/login';
+		});
+
 		loadAuthFromStorage();
 		await setupI18n();
 		i18nReady = true;
@@ -45,23 +51,50 @@
 			}
 
 			if (!setup.required && isSetupRoute) {
-				window.location.href = '/login';
-				return;
+				try {
+					const me = await api.auth.me();
+					currentUser.set(me);
+					const csrf = await api.auth.csrf();
+					csrfToken.set(csrf.csrf_token);
+					window.location.href = '/';
+					return;
+				} catch {
+					currentUser.set(null);
+					csrfToken.set(null);
+					window.location.href = '/login';
+					return;
+				}
+			}
+
+			if (!setup.required && isLoginRoute) {
+				try {
+					const me = await api.auth.me();
+					currentUser.set(me);
+					const csrf = await api.auth.csrf();
+					csrfToken.set(csrf.csrf_token);
+					window.location.href = '/';
+					return;
+				} catch {
+					currentUser.set(null);
+					csrfToken.set(null);
+				}
 			}
 
 			if (!setup.required && !publicAuthRoute) {
 				try {
 					const me = await api.auth.me();
 					currentUser.set(me);
+					const csrf = await api.auth.csrf();
+					csrfToken.set(csrf.csrf_token);
 				} catch {
-					setAuthKey(null);
+					csrfToken.set(null);
 					window.location.href = '/login';
 					return;
 				}
 			}
 		} catch {
 			if (!publicAuthRoute) {
-				setAuthKey(null);
+				csrfToken.set(null);
 				window.location.href = '/login';
 				return;
 			}
