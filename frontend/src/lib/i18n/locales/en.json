@@ -58,6 +58,7 @@
     "saving": "Saving...",
     "loadingEllipsis": "...",
     "starLabel": "{star} star",
+    "clickToRate": "Click a star to rate",
     "actionFailed": "{action} failed"
   },
   "book": {

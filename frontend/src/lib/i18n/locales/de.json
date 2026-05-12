@@ -58,6 +58,7 @@
     "saving": "Speichere...",
     "loadingEllipsis": "...",
     "starLabel": "{star} Stern",
+    "clickToRate": "Zum Bewerten auf einen Stern klicken",
     "actionFailed": "{action} fehlgeschlagen"
   },
   "book": {
