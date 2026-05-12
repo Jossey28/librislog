@@ -193,6 +193,9 @@
 	<div class="card bg-base-100 border border-base-200 shadow-sm">
 		<div class="card-body gap-3">
 			<h2 class="text-lg font-semibold">{$_('user.apiKeys')}</h2>
+			<p class="text-sm text-base-content/70">
+				<a href="/api-docs" class="link link-primary">{$_('settings.apiDocsTitle')}</a>
+			</p>
 			<div class="flex gap-2">
 				<input class="input input-bordered flex-1" bind:value={description} placeholder={$_('user.keyDescription')} />
 				<button class="btn btn-primary btn-sm" onclick={createKey}>{$_('user.addKey')}</button>

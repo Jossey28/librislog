@@ -15,7 +15,7 @@
 
 <div class="max-w-5xl mx-auto flex flex-col gap-6">
 	<div>
-		<h1 class="text-2xl font-bold">{$_('settings.title')}</h1>
+		<h1 class="text-2xl font-bold">{$_('settings.apiDocsTitle')}</h1>
 		<p class="text-sm text-base-content/70 mt-1">{$_('settings.apiDocsHelp')}</p>
 	</div>
 

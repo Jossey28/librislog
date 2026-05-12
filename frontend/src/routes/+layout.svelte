@@ -106,8 +106,7 @@
 	const NAV_ITEMS = $derived.by(() => {
 		const items = [
 			{ href: '/dashboard', labelKey: 'nav.dashboard', icon: '🏠' },
-			{ href: '/library', labelKey: 'nav.library', icon: '📚' },
-			{ href: '/settings', labelKey: 'app.settings', icon: '⚙️' }
+			{ href: '/library', labelKey: 'nav.library', icon: '📚' }
 		];
 		if ($currentUser?.role === 'admin') {
 			items.push({ href: '/admin', labelKey: 'admin.title', icon: '🛠️' });
@@ -126,8 +125,8 @@
 			return `${$_('app.title')} - ${$_('nav.library')}`;
 		}
 
-		if ($page.url.pathname.startsWith('/settings')) {
-			return `${$_('app.title')} - ${$_('settings.title')}`;
+		if ($page.url.pathname.startsWith('/api-docs')) {
+			return `${$_('app.title')} - ${$_('settings.apiDocsTitle')}`;
 		}
 
 		if ($page.url.pathname.startsWith('/admin')) {
