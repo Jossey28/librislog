@@ -118,8 +118,10 @@ export interface OidcLinkStatus {
 export type SearchStage =
 	| { stage: 'open_library'; status: 'searching' }
 	| { stage: 'open_library'; status: 'done'; count: number }
+	| { stage: 'open_library'; status: 'error'; reason: string }
 	| { stage: 'google_books'; status: 'searching' }
 	| { stage: 'google_books'; status: 'done'; count: number }
 	| { stage: 'google_books'; status: 'skipped'; reason: string }
+	| { stage: 'google_books'; status: 'error'; reason: string }
 	| { stage: 'complete'; results: BookImportCandidate[] }
 	| { stage: 'error'; message: string };

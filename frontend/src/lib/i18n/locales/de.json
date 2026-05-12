@@ -102,6 +102,7 @@
     "sourceSkipped": "Google Books übersprungen (kein API-Schlüssel konfiguriert)",
     "sourceOpenLibrarySearching": "Durchsuche Open Library...",
     "sourceGoogleSearching": "Durchsuche Google Books...",
+    "sourceBackendError": "{source}-Backendfehler (Backend-Logs pruefen)",
     "sourceError": "Suche fehlgeschlagen: {message}",
     "resultCount": "{source} - {count} Ergebnis{suffix}"
   },

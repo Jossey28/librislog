@@ -37,6 +37,21 @@ _COVER_SIZE_PREFERENCE = ["extraLarge", "large", "medium", "small", "thumbnail",
 _MIN_COVER_BYTES = 5_000
 
 
+class SourceBackendError(Exception):
+    def __init__(self, source: Literal["open_library", "google_books"], status_code: int | None = None):
+        self.source = source
+        self.status_code = status_code
+        super().__init__(f"{source} backend error")
+
+
+def _truncate_api_key(api_key: str) -> str:
+    if not api_key:
+        return "<empty>"
+    if len(api_key) <= 8:
+        return f"{api_key[:2]}...{api_key[-2:]}"
+    return f"{api_key[:4]}...{api_key[-4:]}"
+
+
 # ── Public API ────────────────────────────────────────────────────────────────
 
 async def search_with_progress(
@@ -77,16 +92,35 @@ async def search_with_progress(
                 logger.warning("Google-only search requested for %r but API key is not set", query)
                 yield {"stage": "google_books", "status": "skipped", "reason": "no_api_key"}
             else:
+                logger.debug(
+                    "Google Books invocation — mode=%s query=%r search_type=%r api_key=%s",
+                    mode,
+                    query,
+                    search_type,
+                    _truncate_api_key(api_key),
+                )
                 yield {"stage": "google_books", "status": "searching"}
-                gb_results = await _search_google_books(query, search_type, api_key, client)
-                logger.info("Google Books returned %d result(s) for %r", len(gb_results), query)
-                yield {"stage": "google_books", "status": "done", "count": len(gb_results)}
+                try:
+                    gb_results = await _search_google_books(query, search_type, api_key, client)
+                    logger.info("Google Books returned %d result(s) for %r", len(gb_results), query)
+                    yield {"stage": "google_books", "status": "done", "count": len(gb_results)}
+                except SourceBackendError as exc:
+                    logger.warning(
+                        "Google Books backend error for %r: status=%s", query, exc.status_code
+                    )
+                    yield {"stage": "google_books", "status": "error", "reason": "backend_error"}
             results = gb_results
         else:
             yield {"stage": "open_library", "status": "searching"}
-            ol_results = await _search_open_library(query, search_type, client)
-            logger.info("Open Library returned %d result(s) for %r", len(ol_results), query)
-            yield {"stage": "open_library", "status": "done", "count": len(ol_results)}
+            try:
+                ol_results = await _search_open_library(query, search_type, client)
+                logger.info("Open Library returned %d result(s) for %r", len(ol_results), query)
+                yield {"stage": "open_library", "status": "done", "count": len(ol_results)}
+            except SourceBackendError as exc:
+                logger.warning(
+                    "Open Library backend error for %r: status=%s", query, exc.status_code
+                )
+                yield {"stage": "open_library", "status": "error", "reason": "backend_error"}
 
             if not ol_results:
                 if not api_key:
@@ -97,10 +131,23 @@ async def search_with_progress(
                     yield {"stage": "google_books", "status": "skipped", "reason": "no_api_key"}
                 else:
                     logger.info("No Open Library results — falling back to Google Books")
+                    logger.debug(
+                        "Google Books invocation — mode=%s query=%r search_type=%r api_key=%s",
+                        mode,
+                        query,
+                        search_type,
+                        _truncate_api_key(api_key),
+                    )
                     yield {"stage": "google_books", "status": "searching"}
-                    gb_results = await _search_google_books(query, search_type, api_key, client)
-                    logger.info("Google Books returned %d result(s) for %r", len(gb_results), query)
-                    yield {"stage": "google_books", "status": "done", "count": len(gb_results)}
+                    try:
+                        gb_results = await _search_google_books(query, search_type, api_key, client)
+                        logger.info("Google Books returned %d result(s) for %r", len(gb_results), query)
+                        yield {"stage": "google_books", "status": "done", "count": len(gb_results)}
+                    except SourceBackendError as exc:
+                        logger.warning(
+                            "Google Books backend error for %r: status=%s", query, exc.status_code
+                        )
+                        yield {"stage": "google_books", "status": "error", "reason": "backend_error"}
 
             results = ol_results or gb_results
 
@@ -128,7 +175,11 @@ async def search(
     client = http_client or httpx.AsyncClient(timeout=10.0)
 
     try:
-        results = await _search_open_library(query, search_type, client)
+        try:
+            results = await _search_open_library(query, search_type, client)
+        except SourceBackendError as exc:
+            logger.warning("Open Library backend error for %r: status=%s", query, exc.status_code)
+            results = []
         logger.info("Open Library returned %d result(s) for %r", len(results), query)
 
         if not results:
@@ -141,7 +192,11 @@ async def search(
                 )
             else:
                 logger.info("No Open Library results — falling back to Google Books")
-                results = await _search_google_books(query, search_type, api_key, client)
+                try:
+                    results = await _search_google_books(query, search_type, api_key, client)
+                except SourceBackendError as exc:
+                    logger.warning("Google Books backend error for %r: status=%s", query, exc.status_code)
+                    results = []
                 logger.info("Google Books returned %d result(s) for %r", len(results), query)
 
         return results
@@ -179,10 +234,10 @@ async def _search_open_library(
         resp.raise_for_status()
     except httpx.HTTPStatusError as exc:
         logger.warning("Open Library HTTP error: %s %s", exc.response.status_code, exc.response.text[:200])
-        return []
+        raise SourceBackendError("open_library", exc.response.status_code) from exc
     except httpx.HTTPError as exc:
         logger.warning("Open Library request failed: %s", exc)
-        return []
+        raise SourceBackendError("open_library") from exc
 
     docs = resp.json().get("docs", [])
     logger.debug("Open Library docs in response: %d", len(docs))
@@ -249,6 +304,11 @@ async def _search_google_books(
     if api_key:
         params["key"] = api_key
 
+    logger.debug(
+        "Using Google Books API key: %s",
+        _truncate_api_key(api_key),
+    )
+
     logger.debug("Google Books request — url=%s params=%s",
                  GOOGLE_BOOKS_SEARCH_URL,
                  {k: v for k, v in params.items() if k != "key"})
@@ -261,7 +321,7 @@ async def _search_google_books(
                          resp.status_code, len(resp.content), attempt + 1)
         except httpx.HTTPError as exc:
             logger.warning("Google Books request failed (attempt %d): %s", attempt + 1, exc)
-            return []
+            raise SourceBackendError("google_books") from exc
 
         if resp.status_code in _RETRYABLE_STATUSES and attempt < _MAX_RETRIES:
             delay = _RETRY_BASE_DELAY * (2 ** attempt) + random.uniform(0, 0.25)
@@ -280,7 +340,7 @@ async def _search_google_books(
     if not resp.is_success:
         logger.warning("Google Books HTTP error: %s — body: %s",
                        resp.status_code, resp.text[:500])
-        return []
+        raise SourceBackendError("google_books", resp.status_code)
 
     body = resp.json()
     items = body.get("items") or []

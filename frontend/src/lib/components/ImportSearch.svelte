@@ -53,6 +53,7 @@
 	function stageLabel(s: SearchStage): string {
 		if (s.stage === 'open_library') {
 			if (s.status === 'searching') return $_('import.sourceOpenLibrarySearching');
+			if ('reason' in s) return $_('import.sourceBackendError', { values: { source: 'Open Library' } });
 			return $_('import.resultCount', {
 				values: { source: 'Open Library', count: s.count, suffix: s.count === 1 ? '' : 's' }
 			});
@@ -60,6 +61,7 @@
 		if (s.stage === 'google_books') {
 			if (s.status === 'searching') return $_('import.sourceGoogleSearching');
 			if (s.status === 'skipped') return $_('import.sourceSkipped');
+			if ('reason' in s) return $_('import.sourceBackendError', { values: { source: 'Google Books' } });
 			return $_('import.resultCount', {
 				values: { source: 'Google Books', count: s.count, suffix: s.count === 1 ? '' : 's' }
 			});
@@ -72,6 +74,7 @@
 		if (s.stage === 'open_library' || s.stage === 'google_books') {
 			if (s.status === 'searching') return '◌';
 			if (s.status === 'skipped') return '—';
+			if ('reason' in s) return '!';
 			return '✓';
 		}
 		if (s.stage === 'error') return '✗';
@@ -81,13 +84,16 @@
 	function stageClass(s: SearchStage): string {
 		if (s.stage === 'error') return 'text-error';
 		if (s.stage === 'google_books' && s.status === 'skipped') return 'text-base-content/40';
-		if (
-			(s.stage === 'open_library' || s.stage === 'google_books') &&
-			s.status === 'searching'
-		)
-			return 'text-base-content/60 animate-pulse';
-		return 'text-base-content/70';
+	if (
+		(s.stage === 'open_library' || s.stage === 'google_books') &&
+		s.status === 'searching'
+	)
+		return 'text-base-content/60 animate-pulse';
+	if ((s.stage === 'open_library' || s.stage === 'google_books') && 'reason' in s) {
+		return 'text-warning';
 	}
+	return 'text-base-content/70';
+}
 
 	function normalize(value: string | null | undefined): string {
 		return (value ?? '').trim().toLowerCase();
