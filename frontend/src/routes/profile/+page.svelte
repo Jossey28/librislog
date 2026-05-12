@@ -140,20 +140,31 @@
 	<h1 class="text-2xl font-bold">{$_('user.profile')}</h1>
 
 	<div class="card bg-base-100 border border-base-200 shadow-sm">
-		<div class="card-body gap-3">
+		<form class="card-body gap-3" onsubmit={(e) => { e.preventDefault(); saveProfile(); }}>
 			<h2 class="text-lg font-semibold">{$_('user.profile')}</h2>
 			{#if profileMessage}
 				<div class={`alert ${profileMessage.type === 'success' ? 'alert-success' : 'alert-error'} text-sm`}>
 					<span>{profileMessage.text}</span>
 				</div>
 			{/if}
-			<input class="input input-bordered" bind:value={firstname} placeholder={$_('auth.firstname')} />
-			<input class="input input-bordered" bind:value={lastname} placeholder={$_('auth.lastname')} />
+			<input
+				class="input input-bordered"
+				bind:value={firstname}
+				placeholder={$_('auth.firstname')}
+				autocomplete="given-name"
+			/>
+			<input
+				class="input input-bordered"
+				bind:value={lastname}
+				placeholder={$_('auth.lastname')}
+				autocomplete="family-name"
+			/>
 			<input
 				class="input input-bordered validator"
 				type={showPassword ? 'text' : 'password'}
 				bind:value={password}
 				placeholder={$_('user.newPassword')}
+				autocomplete="new-password"
 				minlength="8"
 				pattern={passwordPattern}
 				title={$_('password.requirementsTitle')}
@@ -163,8 +174,8 @@
 				<span class="label-text text-xs">{$_('common.showPassword')}</span>
 			</label>
 			<PasswordRequirements {password} />
-			<button class="btn btn-primary btn-sm self-start" onclick={saveProfile}>{$_('common.save')}</button>
-		</div>
+			<button type="submit" class="btn btn-primary btn-sm self-start">{$_('common.save')}</button>
+		</form>
 	</div>
 
 	<div class="card bg-base-100 border border-base-200 shadow-sm">

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { api } from '$lib/api';
+	import { currentUser, csrfToken } from '$lib/stores/auth';
 	import { _ } from '$lib/i18n';
 
 	let error = $state('');
@@ -10,6 +12,18 @@
 		const err = params.get('error');
 		if (err) {
 			error = err;
+			return;
+		}
+
+		try {
+			const me = await api.auth.me();
+			currentUser.set(me);
+			const csrf = await api.auth.csrf();
+			csrfToken.set(csrf.csrf_token);
+		} catch {
+			currentUser.set(null);
+			csrfToken.set(null);
+			await goto('/login');
 			return;
 		}
 

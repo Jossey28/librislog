@@ -86,11 +86,25 @@
 			<form class="flex flex-col gap-3" onsubmit={(e) => { e.preventDefault(); submit(); }}>
 				<label class="form-control">
 					<span class="label label-text">{$_('auth.email')}</span>
-					<input type="email" class="input input-bordered" bind:value={email} required disabled={loading} />
+					<input
+						type="email"
+						class="input input-bordered"
+						bind:value={email}
+						autocomplete="username"
+						required
+						disabled={loading}
+					/>
 				</label>
 				<label class="form-control">
 					<span class="label label-text">{$_('auth.password')}</span>
-					<input type="password" class="input input-bordered" bind:value={password} required disabled={loading} />
+					<input
+						type="password"
+						class="input input-bordered"
+						bind:value={password}
+						autocomplete="current-password"
+						required
+						disabled={loading}
+					/>
 				</label>
 				<button type="submit" class="btn btn-primary" disabled={loading}>
 					{loading ? $_('common.loadingEllipsis') : $_('auth.login')}

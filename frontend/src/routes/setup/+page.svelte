@@ -75,15 +75,34 @@
 			<form class="flex flex-col gap-3" onsubmit={(e) => { e.preventDefault(); submit(); }}>
 				<label class="form-control">
 					<span class="label label-text">{$_('auth.firstname')} *</span>
-					<input class="input input-bordered" placeholder={$_('auth.firstname')} bind:value={firstname} required />
+					<input
+						class="input input-bordered"
+						placeholder={$_('auth.firstname')}
+						bind:value={firstname}
+						autocomplete="given-name"
+						required
+					/>
 				</label>
 				<label class="form-control">
 					<span class="label label-text">{$_('auth.lastname')} *</span>
-					<input class="input input-bordered" placeholder={$_('auth.lastname')} bind:value={lastname} required />
+					<input
+						class="input input-bordered"
+						placeholder={$_('auth.lastname')}
+						bind:value={lastname}
+						autocomplete="family-name"
+						required
+					/>
 				</label>
 				<label class="form-control">
 					<span class="label label-text">{$_('auth.email')} *</span>
-					<input type="email" class="input input-bordered" placeholder={$_('auth.email')} bind:value={email} required />
+					<input
+						type="email"
+						class="input input-bordered"
+						placeholder={$_('auth.email')}
+						bind:value={email}
+						autocomplete="username"
+						required
+					/>
 				</label>
 				<label class="form-control">
 					<span class="label label-text">{$_('auth.password')} *</span>
@@ -92,6 +111,7 @@
 					class="input input-bordered validator"
 					placeholder={$_('auth.password')}
 					bind:value={password}
+					autocomplete="new-password"
 					required
 					minlength="8"
 					pattern={passwordPattern}
