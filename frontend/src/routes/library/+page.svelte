@@ -35,6 +35,12 @@
 	let activeStatus = $derived<ReadingStatus>(
 		($page.url.searchParams.get('status') as ReadingStatus) ?? 'want_to_read'
 	);
+	let requestedBookId = $derived.by(() => {
+		const raw = $page.url.searchParams.get('bookId');
+		if (!raw) return null;
+		const parsed = Number.parseInt(raw, 10);
+		return Number.isNaN(parsed) ? null : parsed;
+	});
 
 	let books = $state<Book[]>([]);
 	let loading = $state(false);
@@ -89,6 +95,16 @@
 		void sort;
 		void order;
 		fetchBooks();
+	});
+
+	$effect(() => {
+		const bookId = requestedBookId;
+		if (!bookId) return;
+		const match = books.find((b) => b.id === bookId);
+		if (!match) return;
+		selectedBook = match;
+		detailOpen = true;
+		drawerOpen = false;
 	});
 
 	function openDetailView(book: Book) {

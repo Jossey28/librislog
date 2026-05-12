@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import type { Book, DashboardQuote, LibraryStats } from '$lib/types';
 	import { api } from '$lib/api';
@@ -22,10 +23,32 @@
 	let quoteLoading = $state(false);
 	let quoteEnabled = $state(false);
 	let quote = $state<DashboardQuote | null>(null);
+	let searchQuery = $state('');
+	let searchResults = $state<Book[]>([]);
+	let searchLoading = $state(false);
+	let searchToken = 0;
+	let searchTimer: ReturnType<typeof setTimeout> | null = null;
+	let highlightedIndex = $state(-1);
+	const searchListboxId = 'dashboard-search-results';
+	const showSearchDropdown = $derived(searchQuery.trim().length > 0);
 
 	let selectedBook = $state<Book | null>(null);
 	let detailOpen = $state(false);
 	let drawerOpen = $state(false);
+
+	const STATUS_LABEL_KEYS: Record<string, string> = {
+		want_to_read: 'status.want_to_read',
+		currently_reading: 'status.currently_reading',
+		read: 'status.read',
+		did_not_finish: 'status.did_not_finish'
+	};
+
+	const STATUS_BADGE: Record<string, string> = {
+		want_to_read: 'badge-info',
+		currently_reading: 'badge-warning',
+		read: 'badge-success',
+		did_not_finish: 'badge-error'
+	};
 
 	onMount(() => {
 		void loadDashboard();
@@ -111,6 +134,107 @@
 		nextToRead = nextToRead.filter((book) => book.id !== id);
 		void loadDashboard();
 	}
+
+	async function runSearch(query: string, token: number) {
+		searchLoading = true;
+		try {
+			const results = await api.books.list({
+				q: query,
+				smart_sort: false,
+				sort: 'date_added',
+				order: 'desc'
+			});
+			if (token !== searchToken) return;
+			searchResults = results;
+		} catch {
+			if (token !== searchToken) return;
+			searchResults = [];
+		} finally {
+			if (token === searchToken) {
+				searchLoading = false;
+			}
+		}
+	}
+
+	$effect(() => {
+		const trimmed = searchQuery.trim();
+		if (searchTimer) {
+			clearTimeout(searchTimer);
+			searchTimer = null;
+		}
+
+		if (!trimmed) {
+			searchLoading = false;
+			searchResults = [];
+			highlightedIndex = -1;
+			return;
+		}
+
+		const token = ++searchToken;
+		searchTimer = setTimeout(() => {
+			void runSearch(trimmed, token);
+		}, 300);
+
+		return () => {
+			if (searchTimer) {
+				clearTimeout(searchTimer);
+				searchTimer = null;
+			}
+		};
+	});
+
+	async function openFromSearch(book: Book) {
+		searchQuery = '';
+		searchResults = [];
+		searchLoading = false;
+		highlightedIndex = -1;
+		await goto(`/library?status=${book.reading_status}&bookId=${book.id}`);
+	}
+
+	$effect(() => {
+		if (!searchQuery.trim() || searchLoading || searchResults.length === 0) {
+			highlightedIndex = -1;
+			return;
+		}
+		if (highlightedIndex < 0 || highlightedIndex >= searchResults.length) {
+			highlightedIndex = 0;
+		}
+	});
+
+	function onSearchKeydown(event: KeyboardEvent) {
+		if (!searchQuery.trim() || searchLoading || searchResults.length === 0) {
+			if (event.key === 'Escape') {
+				searchQuery = '';
+			}
+			return;
+		}
+
+		if (event.key === 'ArrowDown') {
+			event.preventDefault();
+			highlightedIndex = (highlightedIndex + 1 + searchResults.length) % searchResults.length;
+			return;
+		}
+
+		if (event.key === 'ArrowUp') {
+			event.preventDefault();
+			highlightedIndex = (highlightedIndex - 1 + searchResults.length) % searchResults.length;
+			return;
+		}
+
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			const selected = searchResults[Math.max(0, highlightedIndex)];
+			if (selected) {
+				void openFromSearch(selected);
+			}
+			return;
+		}
+
+		if (event.key === 'Escape') {
+			event.preventDefault();
+			searchQuery = '';
+		}
+	}
 </script>
 
 <div class="flex flex-col gap-6">
@@ -119,6 +243,74 @@
 			<div class="max-w-2xl">
 				<h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight">{$_('dashboard.title')}</h1>
 				<p class="text-base-content/70 mt-2">{$_('dashboard.subtitle')}</p>
+			</div>
+		</div>
+	</div>
+
+	<div class="card bg-base-100 border border-base-200 shadow-sm">
+		<div class="card-body gap-3">
+			<h2 class="card-title text-base">{$_('dashboard.searchAllBooks')}</h2>
+			<div class="relative w-full">
+				<input
+					type="text"
+					class="input input-bordered w-full"
+					placeholder={$_('common.searchBooks')}
+					bind:value={searchQuery}
+					onkeydown={onSearchKeydown}
+					role="combobox"
+					aria-autocomplete="list"
+					aria-expanded={showSearchDropdown ? 'true' : 'false'}
+					aria-controls={searchListboxId}
+					aria-activedescendant={
+						showSearchDropdown && highlightedIndex >= 0 ? `dashboard-search-option-${searchResults[highlightedIndex]?.id ?? ''}` : undefined
+					}
+				/>
+
+				{#if showSearchDropdown}
+					<div class="absolute left-0 right-0 top-full mt-2 rounded-lg border border-base-200 bg-base-100 overflow-hidden shadow-lg z-20">
+					{#if searchLoading}
+						<div class="p-3 text-sm text-base-content/60 flex items-center gap-2">
+							<span class="loading loading-spinner loading-xs"></span>
+							{$_('common.search')}
+						</div>
+					{:else if searchResults.length === 0}
+						<div class="p-3 text-sm text-base-content/60">{$_('dashboard.noSearchResults')}</div>
+					{:else}
+						<ul id={searchListboxId} role="listbox" class="max-h-80 overflow-y-auto">
+							{#each searchResults as book, i (book.id)}
+								<li role="presentation">
+									<button
+										type="button"
+										id={`dashboard-search-option-${book.id}`}
+										role="option"
+										aria-selected={highlightedIndex === i}
+										class="w-full text-left p-3 transition-colors flex items-start gap-3 cursor-pointer {highlightedIndex === i ? 'bg-base-200/70' : 'hover:bg-base-200/60'}"
+										onclick={() => openFromSearch(book)}
+										onmouseenter={() => (highlightedIndex = i)}
+									>
+										{#if book.cover_url}
+											<img
+												src={book.cover_url}
+												alt={$_('book.coverOf', { values: { title: book.title } })}
+												class="w-10 h-14 rounded object-cover shrink-0"
+											/>
+										{/if}
+										<div class="min-w-0 flex-1">
+											<p class="font-medium text-sm line-clamp-2">{book.title}</p>
+											{#if book.author}
+												<p class="text-xs text-base-content/60 truncate">{book.author}</p>
+											{/if}
+											<span class="badge badge-xs mt-1 {STATUS_BADGE[book.reading_status]}">
+												{$_(STATUS_LABEL_KEYS[book.reading_status])}
+											</span>
+										</div>
+									</button>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+					</div>
+				{/if}
 			</div>
 		</div>
 	</div>

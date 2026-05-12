@@ -24,6 +24,8 @@
     "currentlyReading": "Currently Reading",
     "nextToRead": "Next to Read",
     "viewAll": "View all",
+    "searchAllBooks": "Search all books",
+    "noSearchResults": "No books found",
     "noCurrentlyReading": "You are not currently reading a book.",
     "noNextToRead": "No books in your want-to-read list yet."
   },
