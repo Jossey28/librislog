@@ -20,6 +20,7 @@ from app.schemas import (
     LibraryStats,
     StatusTransitionRequest,
     StatusTransitionResponse,
+    SuggestionList,
     TagCloudEntry,
 )
 from app.services.cover_storage import (
@@ -214,6 +215,76 @@ def get_tag_cloud(
         .limit(limit)
     ).all()
     return [TagCloudEntry(tag=name, count=count) for name, count in rows]
+
+
+def _suggest_field(
+    session: Session,
+    user_id: int,
+    column: str,
+    q: str,
+    limit: int,
+) -> list[str]:
+    if not q.strip():
+        return []
+    pattern = f"%{q}%"
+    col = getattr(Book, column)
+    rows = session.exec(
+        select(col)
+        .where(
+            Book.user_id == user_id,
+            col.isnot(None),
+            col.ilike(pattern),
+        )
+        .distinct()
+        .order_by(col)
+        .limit(limit)
+    ).all()
+    return list(rows)
+
+
+@router.get("/suggestions/authors", response_model=SuggestionList)
+def suggest_authors(
+    q: str = Query(default="", max_length=100),
+    limit: int = Query(default=10, ge=1, le=50),
+    current_user: User = Depends(require_user),
+    session: Session = Depends(get_session),
+) -> SuggestionList:
+    suggestions = _suggest_field(session, current_user.id, "author", q, limit)
+    return SuggestionList(suggestions=suggestions)
+
+
+@router.get("/suggestions/publishers", response_model=SuggestionList)
+def suggest_publishers(
+    q: str = Query(default="", max_length=100),
+    limit: int = Query(default=10, ge=1, le=50),
+    current_user: User = Depends(require_user),
+    session: Session = Depends(get_session),
+) -> SuggestionList:
+    suggestions = _suggest_field(session, current_user.id, "publisher", q, limit)
+    return SuggestionList(suggestions=suggestions)
+
+
+@router.get("/suggestions/tags", response_model=SuggestionList)
+def suggest_tags(
+    q: str = Query(default="", max_length=100),
+    limit: int = Query(default=10, ge=1, le=50),
+    current_user: User = Depends(require_user),
+    session: Session = Depends(get_session),
+) -> SuggestionList:
+    if not q.strip():
+        return SuggestionList(suggestions=[])
+    pattern = f"%{q}%"
+    rows = session.exec(
+        select(Tag.name)
+        .where(
+            Tag.user_id == current_user.id,
+            Tag.name.ilike(pattern),
+        )
+        .distinct()
+        .order_by(Tag.name)
+        .limit(limit)
+    ).all()
+    return SuggestionList(suggestions=list(rows))
 
 
 @router.post("", response_model=BookRead, status_code=201)

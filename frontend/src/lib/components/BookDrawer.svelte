@@ -6,6 +6,7 @@
 	import { formatDate, fromDateInputValue, toDateInputValue } from '$lib/date';
 	import StarRating from './StarRating.svelte';
 	import CoverPicker from './CoverPicker.svelte';
+	import SuggestionInput from './SuggestionInput.svelte';
 	import TagInput from './TagInput.svelte';
 	import DateConflictDialog from './DateConflictDialog.svelte';
 
@@ -220,10 +221,12 @@
 				<input class="input input-bordered input-sm" bind:value={title} required />
 			</label>
 
-			<label class="form-control">
-				<span class="label label-text">{$_('book.author')}</span>
-				<input class="input input-bordered input-sm" bind:value={author} />
-			</label>
+			<SuggestionInput
+				bind:value={author}
+				label={$_('book.author')}
+				placeholder={$_('book.author')}
+				fetchSuggestions={(q) => api.books.suggestions.authors(q)}
+			/>
 
 			<label class="form-control">
 				<span class="label label-text">{$_('book.isbn')}</span>
@@ -231,10 +234,12 @@
 			</label>
 
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-				<label class="form-control sm:col-span-2">
-					<span class="label label-text">{$_('book.publisher')}</span>
-					<input class="input input-bordered input-sm" bind:value={publisher} />
-				</label>
+				<SuggestionInput
+					bind:value={publisher}
+					label={$_('book.publisher')}
+					placeholder={$_('book.publisher')}
+					fetchSuggestions={(q) => api.books.suggestions.publishers(q)}
+				/>
 
 				<label class="form-control">
 					<span class="label label-text">{$_('book.year')}</span>
@@ -247,7 +252,7 @@
 				</label>
 			</div>
 
-			<TagInput bind:value={tags} disabled={saving} />
+			<TagInput bind:value={tags} disabled={saving} fetchSuggestions={(q) => api.books.suggestions.tags(q)} />
 
 			<label class="form-control">
 				<span class="label label-text">{$_('book.status')}</span>

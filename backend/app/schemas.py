@@ -82,6 +82,10 @@ class TagCloudEntry(SQLModel):
     count: int
 
 
+class SuggestionList(SQLModel):
+    suggestions: list[str]
+
+
 class LibraryStats(SQLModel):
     total_books: int
     books_read: int

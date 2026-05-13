@@ -199,6 +199,24 @@ export const api = {
 	},
 
 	books: {
+		suggestions: {
+			async authors(q: string, limit = 10): Promise<string[]> {
+				const qs = new URLSearchParams({ q, limit: String(limit) });
+				const data = await request<{ suggestions: string[] }>(`/books/suggestions/authors?${qs}`);
+				return data.suggestions;
+			},
+			async publishers(q: string, limit = 10): Promise<string[]> {
+				const qs = new URLSearchParams({ q, limit: String(limit) });
+				const data = await request<{ suggestions: string[] }>(`/books/suggestions/publishers?${qs}`);
+				return data.suggestions;
+			},
+			async tags(q: string, limit = 10): Promise<string[]> {
+				const qs = new URLSearchParams({ q, limit: String(limit) });
+				const data = await request<{ suggestions: string[] }>(`/books/suggestions/tags?${qs}`);
+				return data.suggestions;
+			}
+		},
+
 		stats(): Promise<LibraryStats> {
 			return request<LibraryStats>('/books/stats');
 		},

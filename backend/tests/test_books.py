@@ -561,3 +561,72 @@ def test_health(client: TestClient):
     resp = client.get("/api/health")
     assert resp.status_code == 200
     assert resp.json() == {"status": "ok"}
+
+
+# ── suggestions ────────────────────────────────────────────────────────────────
+
+def test_suggest_authors_returns_matching(client: TestClient):
+    _create_book(client, title="A", author="Frank Herbert")
+    _create_book(client, title="B", author="Franklin Bob")
+    _create_book(client, title="C", author="Isaac Asimov")
+    resp = client.get("/api/books/suggestions/authors?q=frank")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["suggestions"] == ["Frank Herbert", "Franklin Bob"]
+
+
+def test_suggest_authors_empty_query_returns_empty(client: TestClient):
+    _create_book(client, title="A", author="Frank Herbert")
+    resp = client.get("/api/books/suggestions/authors?q=")
+    assert resp.status_code == 200
+    assert resp.json()["suggestions"] == []
+
+
+def test_suggest_authors_no_match_returns_empty(client: TestClient):
+    _create_book(client, title="A", author="Frank Herbert")
+    resp = client.get("/api/books/suggestions/authors?q=zzzzz")
+    assert resp.status_code == 200
+    assert resp.json()["suggestions"] == []
+
+
+def test_suggest_authors_deduplication(client: TestClient):
+    _create_book(client, title="A", author="Frank Herbert")
+    _create_book(client, title="B", author="Frank Herbert")
+    resp = client.get("/api/books/suggestions/authors?q=herbert")
+    assert resp.status_code == 200
+    assert resp.json()["suggestions"] == ["Frank Herbert"]
+
+
+def test_suggest_publishers_returns_matching(client: TestClient):
+    _create_book(client, title="A", publisher="Ace Books")
+    _create_book(client, title="B", publisher="Bantam Books")
+    resp = client.get("/api/books/suggestions/publishers?q=bantam")
+    assert resp.status_code == 200
+    assert resp.json()["suggestions"] == ["Bantam Books"]
+
+
+def test_suggest_tags_returns_matching(client: TestClient):
+    _create_book(client, title="A", tags="Science Fiction")
+    _create_book(client, title="B", tags="Fantasy")
+    resp = client.get("/api/books/suggestions/tags?q=fant")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "Fantasy" in data["suggestions"]
+
+
+def test_suggest_user_isolation(client, create_user_with_key):
+    _create_book(client, title="User1 Book", author="Frank Herbert")
+
+    user2, key2 = create_user_with_key(email="other@example.com")
+    c2 = TestClient(client.app)
+    c2.headers.update({"X-API-Key": key2})
+    resp2 = c2.post("/api/books", json={"title": "User2 Book", "author": "Isaac Asimov"})
+    assert resp2.status_code == 201
+
+    resp = client.get("/api/books/suggestions/authors?q=frank")
+    assert resp.status_code == 200
+    assert resp.json()["suggestions"] == ["Frank Herbert"]
+
+    resp2 = c2.get("/api/books/suggestions/authors?q=frank")
+    assert resp2.status_code == 200
+    assert resp2.json()["suggestions"] == []
