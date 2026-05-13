@@ -3,6 +3,7 @@ from typing import Optional
 from datetime import datetime, timezone
 
 import sqlalchemy as sa
+from sqlalchemy import Column, DateTime
 from sqlmodel import Field, SQLModel
 
 
@@ -35,9 +36,18 @@ class Book(SQLModel, table=True):
     rating: Optional[int] = Field(default=None, ge=1, le=5)
     reading_status: ReadingStatus = Field(default=ReadingStatus.want_to_read, index=True)
     user_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
-    date_added: datetime = Field(default_factory=_utcnow, index=True)
-    date_started: Optional[datetime] = Field(default=None, index=True)
-    date_finished: Optional[datetime] = Field(default=None, index=True)
+    date_added: datetime = Field(
+        default_factory=_utcnow,
+        sa_column=Column(DateTime(timezone=True), default=_utcnow, index=True)
+    )
+    date_started: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), index=True)
+    )
+    date_finished: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), index=True)
+    )
 
 
 class Tag(SQLModel, table=True):
@@ -47,7 +57,10 @@ class Tag(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     name: str = Field(index=True)
-    created_at: datetime = Field(default_factory=_utcnow)
+    created_at: datetime = Field(
+        default_factory=_utcnow,
+        sa_column=Column(DateTime(timezone=True), default=_utcnow)
+    )
 
 
 class BookTag(SQLModel, table=True):
@@ -64,8 +77,14 @@ class User(SQLModel, table=True):
     email: str = Field(index=True, unique=True)
     role: UserRole = Field(default=UserRole.user, index=True)
     hashed_password: str
-    created_at: datetime = Field(default_factory=_utcnow)
-    updated_at: datetime = Field(default_factory=_utcnow)
+    created_at: datetime = Field(
+        default_factory=_utcnow,
+        sa_column=Column(DateTime(timezone=True), default=_utcnow)
+    )
+    updated_at: datetime = Field(
+        default_factory=_utcnow,
+        sa_column=Column(DateTime(timezone=True), default=_utcnow)
+    )
 
 
 class UserSettings(SQLModel, table=True):
@@ -81,9 +100,18 @@ class ApiKey(SQLModel, table=True):
     key_hash: str = Field(index=True, unique=True)
     key_encrypted: Optional[str] = None
     description: Optional[str] = None
-    created_at: datetime = Field(default_factory=_utcnow)
-    last_used_at: Optional[datetime] = None
-    revoked_at: Optional[datetime] = None
+    created_at: datetime = Field(
+        default_factory=_utcnow,
+        sa_column=Column(DateTime(timezone=True), default=_utcnow)
+    )
+    last_used_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), default=None)
+    )
+    revoked_at: Optional[datetime] = Field(
+        default=None,
+        sa_column=Column(DateTime(timezone=True), default=None)
+    )
 
 
 class ReadingProgress(SQLModel, table=True):
@@ -93,8 +121,14 @@ class ReadingProgress(SQLModel, table=True):
     book_id: int = Field(foreign_key="book.id", index=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     page: int = Field(ge=0)
-    created_at: datetime = Field(default_factory=_utcnow)
-    updated_at: datetime = Field(default_factory=_utcnow)
+    created_at: datetime = Field(
+        default_factory=_utcnow,
+        sa_column=Column(DateTime(timezone=True), default=_utcnow)
+    )
+    updated_at: datetime = Field(
+        default_factory=_utcnow,
+        sa_column=Column(DateTime(timezone=True), default=_utcnow)
+    )
 
 
 class OidcLink(SQLModel, table=True):
@@ -104,4 +138,7 @@ class OidcLink(SQLModel, table=True):
     oidc_sub: str = Field(index=True, unique=True)
     oidc_email: Optional[str] = Field(default=None)
     oidc_name: Optional[str] = Field(default=None)
-    linked_at: datetime = Field(default_factory=_utcnow)
+    linked_at: datetime = Field(
+        default_factory=_utcnow,
+        sa_column=Column(DateTime(timezone=True), default=_utcnow)
+    )
