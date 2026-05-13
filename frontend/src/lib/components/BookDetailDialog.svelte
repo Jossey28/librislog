@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { Book, ReadingProgressEntry } from '$lib/types';
 	import { _ } from '$lib/i18n';
-	import { formatDate } from '$lib/date';
+	import { formatDate, formatDateTime } from '$lib/date';
 	import { api } from '$lib/api';
 	import { toasts } from '$lib/toasts';
 	import StarRating from './StarRating.svelte';
@@ -26,6 +26,7 @@
 	let progressLoading = $state(false);
 	let logModalOpen = $state(false);
 	let deletingEntry = $state<number | null>(null);
+	let pendingDeleteEntry = $state<number | null>(null);
 
 	const STATUS_LABEL_KEYS: Record<string, string> = {
 		want_to_read: 'status.want_to_read',
@@ -115,9 +116,11 @@
 	}
 
 	function handleProgressLogDelete(entryId: number) {
-		if (confirm($_('book.deleteEntryConfirm'))) {
-			void deleteLogEntry(entryId);
-		}
+		pendingDeleteEntry = entryId;
+	}
+
+	function cancelDeleteEntry() {
+		pendingDeleteEntry = null;
 	}
 
 	function openEdit() {
@@ -491,17 +494,35 @@
 							<tbody>
 								{#each progressEntries as entry (entry.id)}
 									<tr>
-										<td class="text-xs">{formatDate(entry.created_at)}</td>
+										<td class="text-xs">{formatDateTime(entry.created_at)}</td>
 										<td class="font-mono text-sm">{entry.page}</td>
 										<td class="text-right">
-											<button
-												type="button"
-												class="btn btn-ghost btn-xs text-error"
-												disabled={deletingEntry === entry.id}
-												onclick={() => handleProgressLogDelete(entry.id)}
-											>
-												{deletingEntry === entry.id ? '...' : $_('book.deleteEntry')}
-											</button>
+											{#if pendingDeleteEntry === entry.id}
+												<span class="text-xs text-base-content/60 mr-2">{$_('book.deleteEntryConfirm')}</span>
+												<button
+													type="button"
+													class="btn btn-error btn-xs"
+													disabled={deletingEntry === entry.id}
+													onclick={() => { pendingDeleteEntry = null; void deleteLogEntry(entry.id); }}
+												>
+													{deletingEntry === entry.id ? '...' : $_('common.confirm')}
+												</button>
+												<button
+													type="button"
+													class="btn btn-ghost btn-xs"
+													disabled={deletingEntry === entry.id}
+													onclick={cancelDeleteEntry}
+												>{$_('common.cancel')}</button>
+											{:else}
+												<button
+													type="button"
+													class="btn btn-ghost btn-xs text-error"
+													disabled={deletingEntry !== null}
+													onclick={() => handleProgressLogDelete(entry.id)}
+												>
+													{$_('book.deleteEntry')}
+												</button>
+											{/if}
 										</td>
 									</tr>
 								{/each}

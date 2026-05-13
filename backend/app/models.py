@@ -3,8 +3,23 @@ from typing import Optional
 from datetime import datetime, timezone
 
 import sqlalchemy as sa
-from sqlalchemy import Column, DateTime
+from sqlalchemy import Column, DateTime, TypeDecorator
 from sqlmodel import Field, SQLModel
+
+
+class UtcDateTime(TypeDecorator):
+    impl = DateTime
+    cache_ok = True
+
+    def process_bind_param(self, value, dialect):
+        if value is not None and value.tzinfo is not None:
+            value = value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            value = value.replace(tzinfo=timezone.utc)
+        return value
 
 
 class ReadingStatus(str, Enum):
@@ -38,15 +53,15 @@ class Book(SQLModel, table=True):
     user_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)
     date_added: datetime = Field(
         default_factory=_utcnow,
-        sa_column=Column(DateTime(timezone=True), default=_utcnow, index=True)
+        sa_column=Column(UtcDateTime, default=_utcnow, index=True)
     )
     date_started: Optional[datetime] = Field(
         default=None,
-        sa_column=Column(DateTime(timezone=True), index=True)
+        sa_column=Column(UtcDateTime, index=True)
     )
     date_finished: Optional[datetime] = Field(
         default=None,
-        sa_column=Column(DateTime(timezone=True), index=True)
+        sa_column=Column(UtcDateTime, index=True)
     )
 
 
@@ -59,7 +74,7 @@ class Tag(SQLModel, table=True):
     name: str = Field(index=True)
     created_at: datetime = Field(
         default_factory=_utcnow,
-        sa_column=Column(DateTime(timezone=True), default=_utcnow)
+        sa_column=Column(UtcDateTime, default=_utcnow)
     )
 
 
@@ -79,11 +94,11 @@ class User(SQLModel, table=True):
     hashed_password: str
     created_at: datetime = Field(
         default_factory=_utcnow,
-        sa_column=Column(DateTime(timezone=True), default=_utcnow)
+        sa_column=Column(UtcDateTime, default=_utcnow)
     )
     updated_at: datetime = Field(
         default_factory=_utcnow,
-        sa_column=Column(DateTime(timezone=True), default=_utcnow)
+        sa_column=Column(UtcDateTime, default=_utcnow)
     )
 
 
@@ -102,15 +117,15 @@ class ApiKey(SQLModel, table=True):
     description: Optional[str] = None
     created_at: datetime = Field(
         default_factory=_utcnow,
-        sa_column=Column(DateTime(timezone=True), default=_utcnow)
+        sa_column=Column(UtcDateTime, default=_utcnow)
     )
     last_used_at: Optional[datetime] = Field(
         default=None,
-        sa_column=Column(DateTime(timezone=True), default=None)
+        sa_column=Column(UtcDateTime, default=None)
     )
     revoked_at: Optional[datetime] = Field(
         default=None,
-        sa_column=Column(DateTime(timezone=True), default=None)
+        sa_column=Column(UtcDateTime, default=None)
     )
 
 
@@ -123,11 +138,11 @@ class ReadingProgress(SQLModel, table=True):
     page: int = Field(ge=0)
     created_at: datetime = Field(
         default_factory=_utcnow,
-        sa_column=Column(DateTime(timezone=True), default=_utcnow)
+        sa_column=Column(UtcDateTime, default=_utcnow)
     )
     updated_at: datetime = Field(
         default_factory=_utcnow,
-        sa_column=Column(DateTime(timezone=True), default=_utcnow)
+        sa_column=Column(UtcDateTime, default=_utcnow)
     )
 
 
@@ -140,5 +155,5 @@ class OidcLink(SQLModel, table=True):
     oidc_name: Optional[str] = Field(default=None)
     linked_at: datetime = Field(
         default_factory=_utcnow,
-        sa_column=Column(DateTime(timezone=True), default=_utcnow)
+        sa_column=Column(UtcDateTime, default=_utcnow)
     )

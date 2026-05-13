@@ -278,7 +278,7 @@ def test_transition_status_returns_conflict_when_date_started_exists(client: Tes
     assert data["book"]["reading_status"] == "want_to_read"
     assert data["date_conflict"] == {
         "field": "date_started",
-        "existing_date": "2024-01-10T00:00:00",
+        "existing_date": "2024-01-10T00:00:00Z",
         "suggested_date": "2026-05-11T10:30:00Z",
     }
 
@@ -301,7 +301,7 @@ def test_transition_status_can_keep_existing_date_started(client: TestClient, mo
     assert resp.status_code == 200
     data = resp.json()
     assert data["book"]["reading_status"] == "currently_reading"
-    assert data["book"]["date_started"] == "2024-01-10T00:00:00"
+    assert data["book"]["date_started"] == "2024-01-10T00:00:00Z"
     assert data["date_conflict"] is None
 
 
@@ -345,7 +345,7 @@ def test_transition_status_returns_conflict_when_date_finished_exists(client: Te
     assert data["book"]["reading_status"] == "currently_reading"
     assert data["date_conflict"] == {
         "field": "date_finished",
-        "existing_date": "2024-02-02T00:00:00",
+        "existing_date": "2024-02-02T00:00:00Z",
         "suggested_date": "2026-05-11T10:30:00Z",
     }
 
