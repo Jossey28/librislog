@@ -4,6 +4,7 @@ from typing import List, Literal, Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, func, or_, select
 
 from app.auth import require_user
@@ -65,6 +66,13 @@ def _apply_status_transition_dates(
 def _is_external_url(url: str | None) -> bool:
     """Return True if the URL is an external HTTP(S) URL (not a local /api/covers/ path)."""
     return bool(url and (url.startswith("http://") or url.startswith("https://")))
+
+
+def _raise_integrity_conflict(exc: IntegrityError) -> None:
+    message = str(exc.orig).lower() if exc.orig else str(exc).lower()
+    if "book.isbn" in message and "unique" in message:
+        raise HTTPException(status_code=409, detail="error.isbnAlreadyExists") from exc
+    raise
 
 
 @router.get("", response_model=List[BookRead])
@@ -233,9 +241,17 @@ async def create_book(
     book_data["user_id"] = current_user.id
     book = Book.model_validate(book_data)
     session.add(book)
-    session.flush()
+    try:
+        session.flush()
+    except IntegrityError as exc:
+        session.rollback()
+        _raise_integrity_conflict(exc)
     sync_book_tags(session, current_user.id, book.id or 0, book_in.tags)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError as exc:
+        session.rollback()
+        _raise_integrity_conflict(exc)
     session.refresh(book)
     logger.info("Created book: %r (id=%s)", book.title, book.id)
     return build_book_read(session, book)
@@ -303,10 +319,19 @@ async def update_book(
 
     book.sqlmodel_update(update_data)
     session.add(book)
+    try:
+        session.flush()
+    except IntegrityError as exc:
+        session.rollback()
+        _raise_integrity_conflict(exc)
     if tags_provided:
         sync_book_tags(session, current_user.id, book.id, tags_raw)
         cleanup_orphan_tags(session, current_user.id)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError as exc:
+        session.rollback()
+        _raise_integrity_conflict(exc)
     session.refresh(book)
     logger.info("Updated book: %r (id=%s) — changed %s", book.title, book.id, list(update_data))
     return build_book_read(session, book)

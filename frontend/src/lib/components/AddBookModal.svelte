@@ -73,7 +73,13 @@
 			open = false;
 			reset();
 		} catch (e: unknown) {
-			toasts.add(e instanceof Error ? e.message : $_('addModal.failedAdd'), 'error');
+			const message =
+				e instanceof Error && e.message === 'error.isbnAlreadyExists'
+					? $_('error.isbnAlreadyExists')
+					: e instanceof Error
+						? e.message
+						: $_('addModal.failedAdd');
+			toasts.add(message, 'error');
 		} finally {
 			submitting = false;
 		}

@@ -217,7 +217,13 @@
 			markAsImported(book);
 			onImport?.(book);
 		} catch (e: unknown) {
-			toasts.add(e instanceof Error ? e.message : $_('import.importFailed'), 'error');
+			const message =
+				e instanceof Error && e.message === 'error.isbnAlreadyExists'
+					? $_('error.isbnAlreadyExists')
+					: e instanceof Error
+						? e.message
+						: $_('import.importFailed');
+			toasts.add(message, 'error');
 		} finally {
 			importing = null;
 		}

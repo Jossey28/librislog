@@ -30,6 +30,7 @@
 	// Editable fields
 	let title = $state('');
 	let author = $state('');
+	let isbn = $state('');
 	let notes = $state('');
 	let rating = $state<number | null>(null);
 	let reading_status = $state<ReadingStatus>('want_to_read');
@@ -45,6 +46,7 @@
 		if (book) {
 			title = book.title;
 			author = book.author ?? '';
+			isbn = book.isbn ?? '';
 			notes = book.notes ?? '';
 			rating = book.rating;
 			reading_status = book.reading_status;
@@ -65,6 +67,7 @@
 		const payload: Partial<Book> = {
 			title,
 			author: author || null,
+			isbn: isbn || null,
 			publisher: publisher || null,
 			published_year: published_year ? parseInt(published_year, 10) : null,
 			page_count: page_count ? parseInt(page_count, 10) : null,
@@ -161,10 +164,14 @@
 			onSave?.(updated);
 			open = false;
 		} catch (e: unknown) {
+			const message =
+				e instanceof Error && e.message === 'error.isbnAlreadyExists'
+					? $_('error.isbnAlreadyExists')
+					: e instanceof Error
+						? e.message
+						: $_('common.actionFailed', { values: { action: $_('common.save') } });
 			toasts.add(
-				e instanceof Error
-					? e.message
-					: $_('common.actionFailed', { values: { action: $_('common.save') } }),
+				message,
 				'error'
 			);
 		} finally {
@@ -218,6 +225,11 @@
 				<input class="input input-bordered input-sm" bind:value={author} />
 			</label>
 
+			<label class="form-control">
+				<span class="label label-text">{$_('book.isbn')}</span>
+				<input class="input input-bordered input-sm" bind:value={isbn} />
+			</label>
+
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
 				<label class="form-control sm:col-span-2">
 					<span class="label label-text">{$_('book.publisher')}</span>
@@ -236,10 +248,6 @@
 			</div>
 
 			<TagInput bind:value={tags} disabled={saving} />
-
-			{#if book.isbn}
-				<p class="text-xs text-base-content/60">{$_('book.isbn')}: <span class="font-mono">{book.isbn}</span></p>
-			{/if}
 
 			<label class="form-control">
 				<span class="label label-text">{$_('book.status')}</span>

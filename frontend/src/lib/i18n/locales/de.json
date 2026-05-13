@@ -211,6 +211,9 @@
     "strongEnough": "Ausreichend stark",
     "notReady": "Noch nicht ausreichend"
   },
+  "error": {
+    "isbnAlreadyExists": "Diese ISBN wird bereits von einem anderen Buch verwendet."
+  },
   "oidc": {
     "orContinueWith": "oder weiter mit",
     "loginWithProvider": "Weiter mit {provider}",

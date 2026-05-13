@@ -4,6 +4,7 @@ from typing import List, Literal
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.exc import IntegrityError
 from fastapi.responses import StreamingResponse
 from sqlmodel import Session, select
 
@@ -19,6 +20,13 @@ from app.services.tags import build_book_read, sync_book_tags
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/import", tags=["import"])
+
+
+def _raise_integrity_conflict(exc: IntegrityError) -> None:
+    message = str(exc.orig).lower() if exc.orig else str(exc).lower()
+    if "book.isbn" in message and "unique" in message:
+        raise HTTPException(status_code=409, detail="error.isbnAlreadyExists") from exc
+    raise
 
 
 @router.get("/search", response_model=List[BookImportCandidate])
@@ -115,9 +123,17 @@ async def import_book(
         user_id=current_user.id,
     )
     session.add(book)
-    session.flush()
+    try:
+        session.flush()
+    except IntegrityError as exc:
+        session.rollback()
+        _raise_integrity_conflict(exc)
     sync_book_tags(session, current_user.id, book.id or 0, c.tags)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError as exc:
+        session.rollback()
+        _raise_integrity_conflict(exc)
     session.refresh(book)
     logger.info("Imported book: %r (isbn=%s id=%s)", book.title, book.isbn, book.id)
     return build_book_read(session, book)
