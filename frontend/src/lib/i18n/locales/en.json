@@ -222,7 +222,9 @@
     "notReady": "Not ready"
   },
   "error": {
-    "isbnAlreadyExists": "This ISBN is already used by another book."
+    "isbnAlreadyExists": "This ISBN is already used by another book.",
+    "dateInFuture": "Date cannot be in the future.",
+    "dateStartedAfterFinished": "Start date cannot be after finish date."
   },
   "oidc": {
     "orContinueWith": "or continue with",

@@ -69,6 +69,25 @@ def _is_external_url(url: str | None) -> bool:
     return bool(url and (url.startswith("http://") or url.startswith("https://")))
 
 
+def _validate_dates(data: dict) -> None:
+    now = datetime.now(timezone.utc)
+    for field in ("date_started", "date_finished"):
+        val = data.get(field)
+        if val is not None:
+            if val.tzinfo is None:
+                val = val.replace(tzinfo=timezone.utc)
+            if val > now:
+                raise HTTPException(status_code=422, detail="error.dateInFuture")
+    ds = data.get("date_started")
+    df = data.get("date_finished")
+    if ds is not None and df is not None and ds.tzinfo is None:
+        ds = ds.replace(tzinfo=timezone.utc)
+    if df is not None and df.tzinfo is None:
+        df = df.replace(tzinfo=timezone.utc)
+    if ds is not None and df is not None and ds > df:
+        raise HTTPException(status_code=422, detail="error.dateStartedAfterFinished")
+
+
 def _raise_integrity_conflict(exc: IntegrityError) -> None:
     message = str(exc.orig).lower() if exc.orig else str(exc).lower()
     if "book.isbn" in message and "unique" in message:
@@ -310,6 +329,7 @@ async def create_book(
     book_data["cover_url"] = cover_url
     book_data.pop("tags", None)
     book_data["user_id"] = current_user.id
+    _validate_dates(book_data)
     book = Book.model_validate(book_data)
     session.add(book)
     try:
@@ -387,6 +407,7 @@ async def update_book(
                 delete_cover_file(old_filename, settings.covers_dir)
 
     _apply_status_transition_dates(book, target_status, update_data)
+    _validate_dates(update_data)
 
     book.sqlmodel_update(update_data)
     session.add(book)
@@ -459,6 +480,7 @@ def transition_status(
         update_data["date_finished"] = transition.force_date_finished
 
     _apply_status_transition_dates(book, transition.new_status, update_data)
+    _validate_dates(update_data)
     book.sqlmodel_update(update_data)
     session.add(book)
     session.commit()

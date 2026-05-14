@@ -20,6 +20,7 @@
 		onSave?: (book: Book) => void;
 	} = $props();
 
+	let today = $state(new Date().toISOString().slice(0, 10));
 	let saving = $state(false);
 	let dateConflictOpen = $state(false);
 	let conflictField = $state<'date_started' | 'date_finished'>('date_started');
@@ -121,6 +122,12 @@
 
 	async function save() {
 		if (!book) return;
+		const ds = date_started.trim();
+		const df = date_finished.trim();
+		if (ds && df && ds > df) {
+			toasts.add($_('error.dateStartedAfterFinished'), 'error');
+			return;
+		}
 		saving = true;
 		try {
 			const statusChanged = reading_status !== book.reading_status;
@@ -168,6 +175,10 @@
 			const message =
 				e instanceof Error && e.message === 'error.isbnAlreadyExists'
 					? $_('error.isbnAlreadyExists')
+					: e instanceof Error && e.message === 'error.dateInFuture'
+						? $_('error.dateInFuture')
+					: e instanceof Error && e.message === 'error.dateStartedAfterFinished'
+						? $_('error.dateStartedAfterFinished')
 					: e instanceof Error
 						? e.message
 						: $_('common.actionFailed', { values: { action: $_('common.save') } });
@@ -270,12 +281,12 @@
 
 			<label class="form-control">
 				<span class="label label-text">{$_('book.dateStarted')}</span>
-				<input type="date" class="input input-bordered input-sm" bind:value={date_started} />
+				<input type="date" class="input input-bordered input-sm" bind:value={date_started} max={today} />
 			</label>
 
 			<label class="form-control">
 				<span class="label label-text">{$_('book.dateFinished')}</span>
-				<input type="date" class="input input-bordered input-sm" bind:value={date_finished} />
+				<input type="date" class="input input-bordered input-sm" bind:value={date_finished} max={today} />
 			</label>
 
 			<label class="form-control">

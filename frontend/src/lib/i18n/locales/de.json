@@ -222,7 +222,9 @@
     "notReady": "Noch nicht ausreichend"
   },
   "error": {
-    "isbnAlreadyExists": "Diese ISBN wird bereits von einem anderen Buch verwendet."
+    "isbnAlreadyExists": "Diese ISBN wird bereits von einem anderen Buch verwendet.",
+    "dateInFuture": "Datum darf nicht in der Zukunft liegen.",
+    "dateStartedAfterFinished": "Startdatum darf nicht nach dem Enddatum liegen."
   },
   "oidc": {
     "orContinueWith": "oder weiter mit",

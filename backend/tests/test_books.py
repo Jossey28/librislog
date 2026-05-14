@@ -367,13 +367,13 @@ def test_transition_status_can_override_existing_date_finished(client: TestClien
         f"/api/books/{book['id']}/transition-status",
         json={
             "new_status": "read",
-            "force_date_finished": "2026-06-01T08:15:00Z",
+            "force_date_finished": "2026-05-01T08:15:00Z",
         },
     )
     assert resp.status_code == 200
     data = resp.json()
     assert data["book"]["reading_status"] == "read"
-    assert data["book"]["date_finished"].startswith("2026-06-01T08:15:00")
+    assert data["book"]["date_finished"].startswith("2026-05-01T08:15:00")
     assert data["date_conflict"] is None
 
 
