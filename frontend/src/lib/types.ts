@@ -45,10 +45,12 @@ export interface StatusTransitionRequest {
 	new_status: ReadingStatus;
 	force_date_started?: string | null;
 	force_date_finished?: string | null;
+	skip_auto_date_started?: boolean;
+	clear_date_started?: boolean;
 }
 
 export interface DateConflict {
-	field: 'date_started' | 'date_finished';
+	field: 'date_started' | 'date_finished' | 'started_after_finished';
 	existing_date: string;
 	suggested_date: string;
 }

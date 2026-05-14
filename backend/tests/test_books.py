@@ -377,6 +377,178 @@ def test_transition_status_can_override_existing_date_finished(client: TestClien
     assert data["date_conflict"] is None
 
 
+def test_transition_status_conflict_when_started_after_finished(client: TestClient, monkeypatch):
+    book = _create_book(
+        client,
+        title="StartedAfterFinished Conflict",
+        reading_status="read",
+        date_started=None,
+        date_finished="2024-02-02",
+    )
+    monkeypatch.setattr(
+        books_router,
+        "_utcnow",
+        lambda: datetime(2026, 5, 11, 10, 30, tzinfo=timezone.utc),
+    )
+
+    resp = client.post(
+        f"/api/books/{book['id']}/transition-status",
+        json={"new_status": "currently_reading"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["book"]["reading_status"] == "read"
+    assert data["date_conflict"] == {
+        "field": "started_after_finished",
+        "existing_date": "2024-02-02T00:00:00Z",
+        "suggested_date": "2026-05-11T10:30:00Z",
+    }
+
+
+def test_transition_status_option_a_clear_finished_and_start(client: TestClient, monkeypatch):
+    book = _create_book(
+        client,
+        title="OptionA",
+        reading_status="read",
+        date_started=None,
+        date_finished="2024-02-02",
+    )
+
+    resp = client.post(
+        f"/api/books/{book['id']}/transition-status",
+        json={
+            "new_status": "currently_reading",
+            "force_date_started": "2026-05-11T10:30:00Z",
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["book"]["reading_status"] == "currently_reading"
+    assert data["book"]["date_started"] == "2026-05-11T10:30:00Z"
+    assert data["book"]["date_finished"] is None
+    assert data["date_conflict"] is None
+
+
+def test_transition_status_option_b_skip_auto_date_started(client: TestClient, monkeypatch):
+    book = _create_book(
+        client,
+        title="OptionB",
+        reading_status="read",
+        date_started=None,
+        date_finished="2024-02-02",
+    )
+
+    resp = client.post(
+        f"/api/books/{book['id']}/transition-status",
+        json={
+            "new_status": "currently_reading",
+            "skip_auto_date_started": True,
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["book"]["reading_status"] == "currently_reading"
+    assert data["book"]["date_started"] is None
+    assert data["book"]["date_finished"] == "2024-02-02T00:00:00Z"
+    assert data["date_conflict"] is None
+
+
+# ── chained conflict: date_started conflict → started_after_finished conflict ──
+
+
+def test_transition_status_chained_detects_started_after_finished(client: TestClient, monkeypatch):
+    """Book has both dates set; first call gets date_started conflict,
+    second with force_date_started gets started_after_finished conflict."""
+    book = _create_book(
+        client,
+        title="Chained conflict",
+        reading_status="read",
+        date_started="2024-01-01",
+        date_finished="2024-02-02",
+    )
+    monkeypatch.setattr(
+        books_router,
+        "_utcnow",
+        lambda: datetime(2026, 5, 11, 10, 30, tzinfo=timezone.utc),
+    )
+
+    # Step 1: trigger date_started conflict
+    resp = client.post(
+        f"/api/books/{book['id']}/transition-status",
+        json={"new_status": "currently_reading"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["date_conflict"]["field"] == "date_started"
+
+    # Step 2: resolve date_started with force_date_started → should get started_after_finished
+    resp = client.post(
+        f"/api/books/{book['id']}/transition-status",
+        json={
+            "new_status": "currently_reading",
+            "force_date_started": "2026-05-11T10:30:00Z",
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["book"]["reading_status"] == "read"
+    assert data["date_conflict"] == {
+        "field": "started_after_finished",
+        "existing_date": "2024-02-02T00:00:00Z",
+        "suggested_date": "2026-05-11T10:30:00Z",
+    }
+
+
+def test_transition_status_chained_option_a_clear_finished(client: TestClient, monkeypatch):
+    """Resolve started_after_finished with force_date_started + skip → clears date_finished."""
+    book = _create_book(
+        client,
+        title="Chained A",
+        reading_status="read",
+        date_started="2024-01-01",
+        date_finished="2024-02-02",
+    )
+
+    resp = client.post(
+        f"/api/books/{book['id']}/transition-status",
+        json={
+            "new_status": "currently_reading",
+            "force_date_started": "2026-05-11T10:30:00Z",
+            "skip_auto_date_started": True,
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["book"]["reading_status"] == "currently_reading"
+    assert data["book"]["date_started"] == "2026-05-11T10:30:00Z"
+    assert data["book"]["date_finished"] is None
+    assert data["date_conflict"] is None
+
+
+def test_transition_status_chained_option_b_keep_finished(client: TestClient, monkeypatch):
+    """Resolve started_after_finished with skip_auto_date_started → clears date_started, keeps date_finished."""
+    book = _create_book(
+        client,
+        title="Chained B",
+        reading_status="read",
+        date_started="2024-01-01",
+        date_finished="2024-02-02",
+    )
+
+    resp = client.post(
+        f"/api/books/{book['id']}/transition-status",
+        json={
+            "new_status": "currently_reading",
+            "skip_auto_date_started": True,
+        },
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["book"]["reading_status"] == "currently_reading"
+    assert data["book"]["date_started"] is None
+    assert data["book"]["date_finished"] == "2024-02-02T00:00:00Z"
+    assert data["date_conflict"] is None
+
+
 def test_update_book_rating(client: TestClient):
     book = _create_book(client)
     resp = client.patch(f"/api/books/{book['id']}", json={"rating": 4})

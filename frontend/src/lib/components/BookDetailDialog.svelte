@@ -158,7 +158,7 @@
 		}).reverse();
 	});
 
-	const svgWidth = 300;
+	const svgWidth = 380;
 	const svgHeight = 120;
 	const svgPadding = { top: 10, right: 10, bottom: 25, left: 35 };
 	const svgPlotWidth = svgWidth - svgPadding.left - svgPadding.right;
@@ -166,7 +166,9 @@
 
 	const chartPoints = $derived.by(() => {
 		if (uniqueDays.length < 1) return null;
-		const rawStart = book?.date_started ?? book?.date_added;
+		const oldestEntry = uniqueDays[0];
+		const useStartDate = !!book?.date_started && book.date_started.slice(0, 10) < oldestEntry.created_at.slice(0, 10);
+		const rawStart = useStartDate ? book.date_started : (book?.date_added ?? null);
 		const startDate = rawStart?.slice(0, 10);
 		const virtualEntry: ReadingProgressEntry = {
 			id: 0,

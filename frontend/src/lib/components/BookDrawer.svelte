@@ -23,11 +23,12 @@
 	let today = $state(new Date().toISOString().slice(0, 10));
 	let saving = $state(false);
 	let dateConflictOpen = $state(false);
-	let conflictField = $state<'date_started' | 'date_finished'>('date_started');
+	let conflictField = $state<'date_started' | 'date_finished' | 'started_after_finished'>('date_started');
 	let conflictExistingDate = $state('');
 	let conflictSuggestedDate = $state('');
 	let pendingStatus = $state<ReadingStatus | null>(null);
 	let pendingPayload = $state<Partial<Book> | null>(null);
+	let pendingProgressBook = $state<Book | null>(null);
 
 	// Editable fields
 	let title = $state('');
@@ -90,13 +91,19 @@
 	async function applyPendingTransition(params: {
 		forceDateStarted?: string | null;
 		forceDateFinished?: string | null;
+		skipAutoDateStarted?: boolean;
+		clearDateStarted?: boolean;
 	}) {
 		if (!book || !pendingStatus) return;
+
+		const dateFinishedWasNull = !book.date_finished;
 
 		const transition = await api.books.transitionStatus(book.id, {
 			new_status: pendingStatus,
 			force_date_started: params.forceDateStarted,
-			force_date_finished: params.forceDateFinished
+			force_date_finished: params.forceDateFinished,
+			skip_auto_date_started: params.skipAutoDateStarted,
+			clear_date_started: params.clearDateStarted
 		});
 
 		if (transition.date_conflict) {
@@ -109,10 +116,18 @@
 
 		let updated = transition.book;
 		if (pendingPayload && Object.keys(pendingPayload).length > 0) {
-			updated = await api.books.update(book.id, pendingPayload);
+			const { date_started: _, date_finished: __, ...cleanPayload } = pendingPayload;
+			updated = await api.books.update(book.id, cleanPayload);
 		}
 
 		book = updated;
+		if (dateFinishedWasNull && updated.date_finished && updated.page_count) {
+			pendingProgressBook = updated;
+			dateConflictOpen = false;
+			pendingStatus = null;
+			pendingPayload = null;
+			return;
+		}
 		onSave?.(updated);
 		open = false;
 		dateConflictOpen = false;
@@ -130,6 +145,7 @@
 		}
 		saving = true;
 		try {
+			const dateFinishedWasNull = !book.date_finished;
 			const statusChanged = reading_status !== book.reading_status;
 			const dateStartedChanged =
 				fromDateInputValue(date_started) !== (book.date_started ?? null);
@@ -154,9 +170,16 @@
 
 				let updated = transition.book;
 				if (pendingPayload && Object.keys(pendingPayload).length > 0) {
-					updated = await api.books.update(book.id, pendingPayload);
+					const { date_started: _, date_finished: __, ...cleanPayload } = pendingPayload;
+					updated = await api.books.update(book.id, cleanPayload);
 				}
 				book = updated;
+				if (dateFinishedWasNull && updated.date_finished && updated.page_count) {
+					pendingProgressBook = updated;
+					pendingStatus = null;
+					pendingPayload = null;
+					return;
+				}
 				onSave?.(updated);
 				open = false;
 				pendingStatus = null;
@@ -169,6 +192,10 @@
 				reading_status
 			});
 			book = updated;
+			if (dateFinishedWasNull && updated.date_finished && updated.page_count) {
+				pendingProgressBook = updated;
+				return;
+			}
 			onSave?.(updated);
 			open = false;
 		} catch (e: unknown) {
@@ -324,17 +351,76 @@
 		}}
 		onKeep={() => {
 			dateConflictOpen = false;
-			void applyPendingTransition({
-				forceDateStarted: conflictField === 'date_started' ? conflictExistingDate : undefined,
-				forceDateFinished: conflictField === 'date_finished' ? conflictExistingDate : undefined
-			});
+			void applyPendingTransition(
+				conflictField === 'started_after_finished'
+					? { skipAutoDateStarted: true, clearDateStarted: true }
+					: {
+							forceDateStarted: conflictField === 'date_started' ? conflictExistingDate : undefined,
+							forceDateFinished: conflictField === 'date_finished' ? conflictExistingDate : undefined
+						}
+			);
 		}}
 		onUseSuggested={() => {
 			dateConflictOpen = false;
-			void applyPendingTransition({
-				forceDateStarted: conflictField === 'date_started' ? conflictSuggestedDate : undefined,
-				forceDateFinished: conflictField === 'date_finished' ? conflictSuggestedDate : undefined
-			});
+			void applyPendingTransition(
+				conflictField === 'started_after_finished'
+					? { forceDateStarted: conflictSuggestedDate, skipAutoDateStarted: true }
+					: {
+							forceDateStarted: conflictField === 'date_started' ? conflictSuggestedDate : undefined,
+							forceDateFinished: conflictField === 'date_finished' ? conflictSuggestedDate : undefined
+						}
+			);
 		}}
 	/>
+
+	{#if pendingProgressBook}
+		{@const pbook = pendingProgressBook}
+		<div class="modal modal-open">
+			<div class="modal-box max-w-sm">
+				<h3 class="text-lg font-bold">{$_('book.progressPromptTitle')}</h3>
+				<p class="text-sm text-base-content/70 mt-2">
+					{$_('book.progressPromptMessage', { values: { title: pbook.title } })}
+				</p>
+				<div class="modal-action">
+					<button
+						type="button"
+						class="btn btn-ghost btn-sm"
+						onclick={() => {
+							onSave?.(pbook);
+							open = false;
+							pendingProgressBook = null;
+						}}
+					>
+						{$_('book.progressPromptSkip')}
+					</button>
+					<button
+						type="button"
+						class="btn btn-primary btn-sm"
+						onclick={async () => {
+							try {
+								await api.books.progress.create(pbook.id, pbook.page_count!);
+							} catch {
+								// silent — convenience feature
+							}
+							onSave?.(pbook);
+							open = false;
+							pendingProgressBook = null;
+						}}
+					>
+						{$_('book.progressPromptSet')}
+					</button>
+				</div>
+			</div>
+			<div
+				class="modal-backdrop"
+				role="button"
+				tabindex="-1"
+				onclick={() => {
+					onSave?.(pbook);
+					open = false;
+					pendingProgressBook = null;
+				}}
+			></div>
+		</div>
+	{/if}
 {/if}

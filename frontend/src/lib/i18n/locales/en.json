@@ -92,7 +92,11 @@
     "logPage": "Page",
     "deleteEntry": "Delete",
     "deleteEntryConfirm": "Delete this entry?",
-    "progressGraph": "Progress Over Time"
+    "progressGraph": "Progress Over Time",
+    "progressPromptTitle": "Set Reading Progress?",
+    "progressPromptMessage": "Set the reading progress for \"{title}\" to 100%?",
+    "progressPromptSet": "Set to 100%",
+    "progressPromptSkip": "Skip"
   },
   "addModal": {
     "manual": "Manual",
@@ -166,6 +170,14 @@
       "message": "Date finished is already set. Do you want to keep {oldDate} or set {newDate} as the new date finished?",
       "keepOld": "Keep {oldDate}",
       "useNew": "Use {newDate}"
+    },
+    "startedAfterFinished": {
+      "title": "Book was already finished",
+      "message": "This book was finished on {finishedDate}. What should we do?",
+      "keepFinished": "Keep finish date",
+      "clearAndStart": "Clear & start today",
+      "keepDesc": "Keeps the finish date ({finishedDate}) and does not set a start date.",
+      "clearDesc": "Removes the finish date and sets today ({newStartDate}) as the start date."
     }
   },
   "languages": {

@@ -198,6 +198,8 @@ class StatusTransitionRequest(SQLModel):
     new_status: ReadingStatus
     force_date_started: Optional[datetime] = None
     force_date_finished: Optional[datetime] = None
+    skip_auto_date_started: bool = False
+    clear_date_started: bool = False
 
 
 class DateConflict(SQLModel):

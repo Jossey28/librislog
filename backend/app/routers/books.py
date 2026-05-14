@@ -51,12 +51,15 @@ def _apply_status_transition_dates(
     book: Book,
     target_status: ReadingStatus,
     update_data: dict,
+    skip_auto_date_started: bool = False,
 ) -> None:
     if target_status == book.reading_status:
         return
 
-    if target_status == ReadingStatus.currently_reading and book.date_started is None:
-        if update_data.get("date_started") is None:
+    if target_status == ReadingStatus.currently_reading:
+        if skip_auto_date_started:
+            update_data.setdefault("date_started", None)
+        elif book.date_started is None and update_data.get("date_started") is None:
             update_data["date_started"] = _utcnow()
 
     if target_status in (ReadingStatus.read, ReadingStatus.did_not_finish):
@@ -455,6 +458,7 @@ def transition_status(
         transition.new_status == ReadingStatus.currently_reading
         and transition.new_status != book.reading_status
         and book.date_started is not None
+        and not transition.skip_auto_date_started
     ):
         if transition.force_date_started is None:
             conflict = DateConflict(
@@ -464,6 +468,17 @@ def transition_status(
             )
             return StatusTransitionResponse(book=build_book_read(session, book), date_conflict=conflict)
         update_data["date_started"] = transition.force_date_started
+
+        if (
+            book.date_finished is not None
+            and transition.force_date_started > book.date_finished
+        ):
+            conflict = DateConflict(
+                field="started_after_finished",
+                existing_date=book.date_finished,
+                suggested_date=now,
+            )
+            return StatusTransitionResponse(book=build_book_read(session, book), date_conflict=conflict)
 
     if (
         transition.new_status in (ReadingStatus.read, ReadingStatus.did_not_finish)
@@ -479,7 +494,39 @@ def transition_status(
             return StatusTransitionResponse(book=build_book_read(session, book), date_conflict=conflict)
         update_data["date_finished"] = transition.force_date_finished
 
-    _apply_status_transition_dates(book, transition.new_status, update_data)
+    if (
+        transition.new_status == ReadingStatus.currently_reading
+        and transition.new_status != book.reading_status
+        and book.date_started is None
+        and book.date_finished is not None
+        and transition.force_date_started is None
+        and not transition.skip_auto_date_started
+    ):
+        conflict = DateConflict(
+            field="started_after_finished",
+            existing_date=book.date_finished,
+            suggested_date=now,
+        )
+        return StatusTransitionResponse(book=build_book_read(session, book), date_conflict=conflict)
+
+    if (
+        transition.force_date_started is not None
+        and transition.new_status == ReadingStatus.currently_reading
+        and transition.new_status != book.reading_status
+        and book.date_finished is not None
+        and transition.force_date_started > book.date_finished
+    ):
+        update_data["date_started"] = transition.force_date_started
+        update_data["date_finished"] = None
+
+    if (
+        transition.clear_date_started
+        and transition.new_status == ReadingStatus.currently_reading
+        and transition.new_status != book.reading_status
+    ):
+        update_data["date_started"] = None
+
+    _apply_status_transition_dates(book, transition.new_status, update_data, transition.skip_auto_date_started)
     _validate_dates(update_data)
     book.sqlmodel_update(update_data)
     session.add(book)
