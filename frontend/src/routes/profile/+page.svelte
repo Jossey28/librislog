@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { api } from '$lib/api';
 	import PasswordRequirements from '$lib/components/PasswordRequirements.svelte';
 	import { currentUser } from '$lib/stores/auth';
@@ -24,12 +25,67 @@
 	let oidcLink = $state<OidcLinkStatus>({ linked: false, provider_name: null, oidc_email: null, oidc_name: null });
 	let oidcLoading = $state(false);
 	let oidcMessage = $state<{ type: 'success' | 'error'; text: string } | null>(null);
+	let activeSection = $state('');
 
 	$effect(() => {
 		if ($currentUser) {
 			firstname = $currentUser.firstname;
 			lastname = $currentUser.lastname;
 		}
+	});
+
+	function positionNav() {
+		if (window.innerWidth < 1280) return;
+		const nav = document.querySelector('nav[aria-label]') as HTMLElement | null;
+		const content = document.querySelector('#profile-content') as HTMLElement | null;
+		if (!nav || !content) return;
+		const cr = content.getBoundingClientRect();
+		const desiredLeft = cr.right + 32;
+		const maxLeft = window.innerWidth - nav.offsetWidth - 16;
+		nav.style.left = Math.min(desiredLeft, maxLeft) + 'px';
+	}
+
+	function updateActiveSection() {
+		const sections = document.querySelectorAll('[id^="section-"]');
+		if (sections.length === 0) return;
+		const scrollY = window.scrollY;
+		const nav = document.querySelector('nav[aria-label]');
+		const offset = nav ? nav.getBoundingClientRect().height + 32 : 150;
+		let selected = sections[0];
+		for (let i = sections.length - 1; i >= 0; i--) {
+			const section = sections[i] as HTMLElement;
+			if (section.offsetTop <= scrollY + offset) {
+				selected = section;
+				break;
+			}
+		}
+		activeSection = selected.id;
+	}
+
+	$effect(() => {
+		void oidcConfig; // re-run when OIDC config loads (adds/removes OIDC section in DOM)
+
+		positionNav();
+		window.addEventListener('resize', positionNav);
+
+		updateActiveSection();
+
+		let rAFId: number | null = null;
+		const onScroll = () => {
+			if (rAFId === null) {
+				rAFId = requestAnimationFrame(() => {
+					updateActiveSection();
+					rAFId = null;
+				});
+			}
+		};
+		window.addEventListener('scroll', onScroll, { passive: true });
+
+		return () => {
+			if (rAFId !== null) cancelAnimationFrame(rAFId);
+			window.removeEventListener('resize', positionNav);
+			window.removeEventListener('scroll', onScroll);
+		};
 	});
 
 	async function load() {
@@ -44,7 +100,9 @@
 		}
 	}
 
-	void load();
+	onMount(() => {
+		void load();
+	});
 
 	async function saveProfile() {
 		profileMessage = null;
@@ -157,10 +215,10 @@
 	});
 </script>
 
-<div class="max-w-3xl mx-auto flex flex-col gap-6">
+<div id="profile-content" class="max-w-3xl mx-auto flex flex-col gap-6">
 	<h1 class="text-2xl font-bold">{$_('user.profile')}</h1>
 
-	<div class="card bg-base-100 border border-base-200 shadow-sm">
+	<div id="section-profile" class="scroll-mt-24 card bg-base-100 border border-base-200 shadow-sm">
 		<form class="card-body gap-3" onsubmit={(e) => { e.preventDefault(); saveProfile(); }}>
 			<h2 class="text-lg font-semibold">{$_('user.profile')}</h2>
 			{#if profileMessage}
@@ -199,7 +257,7 @@
 		</form>
 	</div>
 
-	<div class="card bg-base-100 border border-base-200 shadow-sm">
+	<div id="section-language" class="scroll-mt-24 card bg-base-100 border border-base-200 shadow-sm">
 		<div class="card-body gap-3">
 			<h2 class="text-lg font-semibold">{$_('settings.languageTitle')}</h2>
 			<select class="select select-bordered max-w-xs" bind:value={language}>
@@ -211,7 +269,7 @@
 		</div>
 	</div>
 
-	<div class="card bg-base-100 border border-base-200 shadow-sm">
+	<div id="section-timezone" class="scroll-mt-24 card bg-base-100 border border-base-200 shadow-sm">
 		<div class="card-body gap-3">
 			<h2 class="text-lg font-semibold">{$_('settings.timezone')}</h2>
 			<p class="text-sm text-base-content/70">{$_('settings.timezoneHelp')}</p>
@@ -237,7 +295,7 @@
 		</div>
 	</div>
 
-	<div class="card bg-base-100 border border-base-200 shadow-sm">
+	<div id="section-api-keys" class="scroll-mt-24 card bg-base-100 border border-base-200 shadow-sm">
 		<div class="card-body gap-3">
 			<h2 class="text-lg font-semibold">{$_('user.apiKeys')}</h2>
 			<p class="text-sm text-base-content/70">
@@ -273,7 +331,7 @@
 	</div>
 
 	{#if oidcConfig.enabled}
-		<div class="card bg-base-100 border border-base-200 shadow-sm">
+		<div id="section-oidc" class="scroll-mt-24 card bg-base-100 border border-base-200 shadow-sm">
 			<div class="card-body gap-3">
 				<h2 class="text-lg font-semibold">{$_('oidc.profileTitle')}</h2>
 				{#if oidcMessage}
@@ -299,6 +357,67 @@
 		</div>
 	{/if}
 </div>
+
+<!--
+	Uses xl instead of lg because at lg (1024px) the sidebar (224px) + content
+	(max-w-3xl, 768px) + nav (208px) doesn't fit without horizontal overflow.
+-->
+<nav
+	class="hidden xl:block fixed top-8 w-52"
+	aria-label={$_('profile.sectionNav')}
+>
+	<div class="card bg-base-100 border border-base-200 shadow-sm">
+		<div class="card-body p-4 gap-2">
+			<h3 class="text-sm font-semibold text-base-content/70 uppercase tracking-wider">
+				{$_('profile.sectionNav')}
+			</h3>
+			<ul class="flex flex-col gap-1">
+				<li>
+					<a
+						href="#section-profile"
+						class="link link-hover text-sm"
+						class:text-primary={activeSection === 'section-profile'}
+						data-section="section-profile"
+					>{$_('user.profile')}</a>
+				</li>
+				<li>
+					<a
+						href="#section-language"
+						class="link link-hover text-sm"
+						class:text-primary={activeSection === 'section-language'}
+						data-section="section-language"
+					>{$_('settings.languageTitle')}</a>
+				</li>
+				<li>
+					<a
+						href="#section-timezone"
+						class="link link-hover text-sm"
+						class:text-primary={activeSection === 'section-timezone'}
+						data-section="section-timezone"
+					>{$_('settings.timezone')}</a>
+				</li>
+				<li>
+					<a
+						href="#section-api-keys"
+						class="link link-hover text-sm"
+						class:text-primary={activeSection === 'section-api-keys'}
+						data-section="section-api-keys"
+					>{$_('user.apiKeys')}</a>
+				</li>
+				{#if oidcConfig.enabled}
+					<li>
+						<a
+							href="#section-oidc"
+							class="link link-hover text-sm"
+							class:text-primary={activeSection === 'section-oidc'}
+							data-section="section-oidc"
+						>{$_('oidc.profileTitle')}</a>
+					</li>
+				{/if}
+			</ul>
+		</div>
+	</div>
+</nav>
 
 <dialog class="modal" class:modal-open={pendingDeleteKeyId !== null}>
 	<div class="modal-box">

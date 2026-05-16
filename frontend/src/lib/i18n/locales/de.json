@@ -261,6 +261,13 @@
     "signingIn": "Anmeldung laeuft...",
     "linkingAccount": "Konto wird verknuepft..."
   },
+  "profile": {
+    "sectionNav": "Auf dieser Seite",
+    "profileSaveSuccess": "Profil gespeichert",
+    "profileSaveFailed": "Profil konnte nicht gespeichert werden",
+    "passwordChangeSuccess": "Passwort geändert",
+    "passwordChangeFailed": "Passwort konnte nicht geändert werden"
+  },
   "timeline": {
     "title": "Lese-Zeitleiste",
     "subtitle": "Eine chronologische Ansicht der Bücher, die du gelesen hast",

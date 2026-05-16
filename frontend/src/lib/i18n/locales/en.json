@@ -261,6 +261,13 @@
     "signingIn": "Signing you in...",
     "linkingAccount": "Linking account..."
   },
+  "profile": {
+    "sectionNav": "On this page",
+    "profileSaveSuccess": "Profile saved",
+    "profileSaveFailed": "Failed to save profile",
+    "passwordChangeSuccess": "Password changed",
+    "passwordChangeFailed": "Failed to change password"
+  },
   "timeline": {
     "title": "Reading Timeline",
     "subtitle": "A chronological view of books you've finished reading",

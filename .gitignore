@@ -224,3 +224,4 @@ __marimo__/
 /backend/data/
 !frontend/src/lib
 cookies.txt
+profile-snapshot
