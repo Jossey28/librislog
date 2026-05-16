@@ -110,7 +110,8 @@
 	const NAV_ITEMS = $derived.by(() => {
 		const items = [
 			{ href: '/dashboard', labelKey: 'nav.dashboard', icon: '🏠' },
-			{ href: '/library', labelKey: 'nav.library', icon: '📚' }
+			{ href: '/library', labelKey: 'nav.library', icon: '📚' },
+			{ href: '/timeline', labelKey: 'nav.timeline', icon: '📖' }
 		];
 		if ($currentUser?.role === 'admin') {
 			items.push({ href: '/admin', labelKey: 'admin.title', icon: '🛠️' });
@@ -131,6 +132,10 @@
 
 		if ($page.url.pathname.startsWith('/api-docs')) {
 			return `${$_('app.title')} - ${$_('settings.apiDocsTitle')}`;
+		}
+
+		if ($page.url.pathname.startsWith('/timeline')) {
+			return `${$_('app.title')} - ${$_('nav.timeline')}`;
 		}
 
 		if ($page.url.pathname.startsWith('/admin')) {

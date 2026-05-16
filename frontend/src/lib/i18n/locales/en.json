@@ -8,6 +8,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "library": "Library",
+    "timeline": "Timeline",
     "want_to_read": "Want to Read",
     "currently_reading": "Reading",
     "read": "Read",
@@ -259,5 +260,11 @@
     "unlinkFailed": "Could not unlink account",
     "signingIn": "Signing you in...",
     "linkingAccount": "Linking account..."
+  },
+  "timeline": {
+    "title": "Reading Timeline",
+    "subtitle": "A chronological view of books you've finished reading",
+    "viewInLibrary": "View all in library",
+    "noReadBooks": "No finished books in your library yet."
   }
 }

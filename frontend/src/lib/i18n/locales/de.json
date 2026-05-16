@@ -8,6 +8,7 @@
   "nav": {
     "dashboard": "Dashboard",
     "library": "Bibliothek",
+    "timeline": "Zeitleiste",
     "want_to_read": "Möchte ich lesen",
     "currently_reading": "Lese ich gerade",
     "read": "Gelesen",
@@ -259,5 +260,11 @@
     "unlinkFailed": "Konto-Verknuepfung konnte nicht entfernt werden",
     "signingIn": "Anmeldung laeuft...",
     "linkingAccount": "Konto wird verknuepft..."
+  },
+  "timeline": {
+    "title": "Lese-Zeitleiste",
+    "subtitle": "Eine chronologische Ansicht der Bücher, die du gelesen hast",
+    "viewInLibrary": "Alle in der Bibliothek anzeigen",
+    "noReadBooks": "Noch keine gelesenen Bücher in deiner Bibliothek."
   }
 }
