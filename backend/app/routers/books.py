@@ -91,6 +91,21 @@ def _validate_dates(data: dict) -> None:
         raise HTTPException(status_code=422, detail="error.dateStartedAfterFinished")
 
 
+def _validate_date_finished_for_read(
+    book: Book,
+    update_data: dict,
+    target_status: ReadingStatus,
+) -> None:
+    if "date_finished" not in update_data:
+        return
+    if update_data["date_finished"] is not None:
+        return
+    if book.date_finished is None:
+        return
+    if book.reading_status == ReadingStatus.read and target_status == ReadingStatus.read:
+        raise HTTPException(status_code=422, detail="error.dateFinishedRequiredForRead")
+
+
 def _raise_integrity_conflict(exc: IntegrityError) -> None:
     message = str(exc.orig).lower() if exc.orig else str(exc).lower()
     if "book.isbn" in message and "unique" in message:
@@ -411,6 +426,7 @@ async def update_book(
 
     _apply_status_transition_dates(book, target_status, update_data)
     _validate_dates(update_data)
+    _validate_date_finished_for_read(book, update_data, target_status)
 
     book.sqlmodel_update(update_data)
     session.add(book)
@@ -454,6 +470,13 @@ def transition_status(
     update_data: dict = {"reading_status": transition.new_status}
     now = _utcnow()
 
+    # date_finished handling is split into two passes:
+    #   1. Inline below — conflict detection when moving TO read/did_not_finish
+    #      and force_date_finished override.
+    #   2. _apply_status_transition_dates — default-fills date_finished when
+    #      the target status is read/did_not_finish and it's still None.
+    # This is intentional: the conflict dialog interrupts before mutation,
+    # while default-fill runs during the actual update.
     if (
         transition.new_status == ReadingStatus.currently_reading
         and transition.new_status != book.reading_status
@@ -526,8 +549,16 @@ def transition_status(
     ):
         update_data["date_started"] = None
 
+    if (
+        transition.clear_date_finished
+        and transition.new_status != book.reading_status
+        and transition.new_status != ReadingStatus.read
+    ):
+        update_data["date_finished"] = None
+
     _apply_status_transition_dates(book, transition.new_status, update_data, transition.skip_auto_date_started)
     _validate_dates(update_data)
+    _validate_date_finished_for_read(book, update_data, transition.new_status)
     book.sqlmodel_update(update_data)
     session.add(book)
     session.commit()

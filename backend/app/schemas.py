@@ -203,6 +203,7 @@ class StatusTransitionRequest(SQLModel):
     force_date_finished: Optional[datetime] = None
     skip_auto_date_started: bool = False
     clear_date_started: bool = False
+    clear_date_finished: bool = False
 
 
 class DateConflict(SQLModel):

@@ -99,13 +99,15 @@
 		if (!book || !pendingStatus) return;
 
 		const dateFinishedWasNull = !book.date_finished;
+		const dfCleared = !date_finished.trim() && !!book.date_finished;
 
 		const transition = await api.books.transitionStatus(book.id, {
 			new_status: pendingStatus,
 			force_date_started: params.forceDateStarted,
 			force_date_finished: params.forceDateFinished,
 			skip_auto_date_started: params.skipAutoDateStarted,
-			clear_date_started: params.clearDateStarted
+			clear_date_started: params.clearDateStarted,
+			...(dfCleared ? { clear_date_finished: true } : {})
 		});
 
 		if (transition.date_conflict) {
@@ -145,10 +147,15 @@
 			toasts.add($_('error.dateStartedAfterFinished'), 'error');
 			return;
 		}
+		const statusChanged = reading_status !== book.reading_status;
+		const dfCleared = !df && !!book.date_finished;
+		if (dfCleared && reading_status === 'read' && !statusChanged) {
+			toasts.add($_('error.dateFinishedRequiredForRead'), 'error');
+			return;
+		}
 		saving = true;
 		try {
 			const dateFinishedWasNull = !book.date_finished;
-			const statusChanged = reading_status !== book.reading_status;
 			const dateStartedChanged =
 				date_started.trim() !== toDateInputValue(book.date_started, tz);
 			const dateFinishedChanged =
@@ -159,7 +166,8 @@
 				pendingPayload = buildNonStatusPayload(dateStartedChanged || dateFinishedChanged);
 
 				const transition = await api.books.transitionStatus(book.id, {
-					new_status: reading_status
+					new_status: reading_status,
+					...(dfCleared ? { clear_date_finished: true } : {})
 				});
 
 				if (transition.date_conflict) {
@@ -208,6 +216,8 @@
 						? $_('error.dateInFuture')
 					: e instanceof Error && e.message === 'error.dateStartedAfterFinished'
 						? $_('error.dateStartedAfterFinished')
+					: e instanceof Error && e.message === 'error.dateFinishedRequiredForRead'
+						? $_('error.dateFinishedRequiredForRead')
 					: e instanceof Error
 						? e.message
 						: $_('common.actionFailed', { values: { action: $_('common.save') } });

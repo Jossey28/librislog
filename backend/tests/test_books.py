@@ -802,3 +802,90 @@ def test_suggest_user_isolation(client, create_user_with_key):
     resp2 = c2.get("/api/books/suggestions/authors?q=frank")
     assert resp2.status_code == 200
     assert resp2.json()["suggestions"] == []
+
+
+# ── prevent removing date_finished for read books ──────────────────────────────
+
+def test_update_book_rejects_clearing_date_finished_for_read(client: TestClient):
+    book = _create_book(client, title="Read Book", reading_status="read", date_finished="2024-06-01")
+
+    resp = client.patch(f"/api/books/{book['id']}", json={"date_finished": None})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "error.dateFinishedRequiredForRead"
+
+
+def test_update_book_allows_clearing_date_finished_when_changing_status(client: TestClient):
+    book = _create_book(client, title="Change Status", reading_status="read", date_finished="2024-06-01")
+
+    resp = client.patch(
+        f"/api/books/{book['id']}",
+        json={"reading_status": "want_to_read", "date_finished": None},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["reading_status"] == "want_to_read"
+    assert resp.json()["date_finished"] is None
+
+
+def test_update_book_allows_edit_without_touching_date_finished_for_read(client: TestClient):
+    book = _create_book(client, title="Edit Other", reading_status="read", date_finished="2024-06-01")
+
+    resp = client.patch(f"/api/books/{book['id']}", json={"rating": 5})
+    assert resp.status_code == 200
+    assert resp.json()["date_finished"] == "2024-06-01T00:00:00Z"
+
+
+def test_update_book_allows_clearing_when_date_finished_already_null(client: TestClient):
+    book = _create_book(client, title="Already Null", reading_status="read")
+
+    resp = client.patch(f"/api/books/{book['id']}", json={"date_finished": None})
+    assert resp.status_code == 200
+
+
+def test_transition_status_preserves_date_finished_without_clear_flag(client: TestClient, monkeypatch):
+    book = _create_book(client, title="Preserve DF", reading_status="read", date_finished="2024-06-01")
+
+    resp = client.post(
+        f"/api/books/{book['id']}/transition-status",
+        json={"new_status": "want_to_read"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["book"]["reading_status"] == "want_to_read"
+    assert data["book"]["date_finished"] == "2024-06-01T00:00:00Z"
+
+
+def test_transition_status_clears_date_finished_with_clear_flag(client: TestClient, monkeypatch):
+    book = _create_book(client, title="Clear DF", reading_status="read", date_finished="2024-06-01")
+
+    resp = client.post(
+        f"/api/books/{book['id']}/transition-status",
+        json={"new_status": "want_to_read", "clear_date_finished": True},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["book"]["reading_status"] == "want_to_read"
+    assert data["book"]["date_finished"] is None
+
+
+def test_transition_status_ignores_clear_date_finished_when_target_is_read(client: TestClient, monkeypatch):
+    book = _create_book(
+        client,
+        title="Clear DF Ignored",
+        reading_status="currently_reading",
+        date_started="2024-01-01",
+        date_finished="2024-06-01",
+    )
+    monkeypatch.setattr(
+        books_router,
+        "_utcnow",
+        lambda: datetime(2026, 5, 11, 10, 30, tzinfo=timezone.utc),
+    )
+
+    resp = client.post(
+        f"/api/books/{book['id']}/transition-status",
+        json={"new_status": "read", "clear_date_finished": True, "force_date_finished": "2024-06-01T00:00:00Z"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["book"]["reading_status"] == "read"
+    assert data["book"]["date_finished"] is not None

@@ -47,6 +47,7 @@ export interface StatusTransitionRequest {
 	force_date_finished?: string | null;
 	skip_auto_date_started?: boolean;
 	clear_date_started?: boolean;
+	clear_date_finished?: boolean;
 }
 
 export interface DateConflict {
