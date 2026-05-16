@@ -6,6 +6,7 @@
 	import { _ } from '$lib/i18n';
 	import { toasts } from '$lib/toasts';
 	import { shouldShowActionToast } from '$lib/errors';
+	import { isQuoteServiceEnabled } from '$lib/stores/timezone';
 	import BookCard from '$lib/components/BookCard.svelte';
 	import BookDetailDialog from '$lib/components/BookDetailDialog.svelte';
 	import BookDrawer from '$lib/components/BookDrawer.svelte';
@@ -130,6 +131,11 @@
 	}
 
 	async function loadQuote() {
+		if (!isQuoteServiceEnabled()) {
+			quoteEnabled = false;
+			quote = null;
+			return;
+		}
 		quoteLoading = true;
 		try {
 			const data = await api.books.dashboardQuote();

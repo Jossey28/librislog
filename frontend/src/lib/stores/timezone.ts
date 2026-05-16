@@ -10,6 +10,7 @@ function guessTimezone(): string {
 }
 
 let _timezone: string = guessTimezone();
+let _quoteServiceEnabled = false;
 
 export function setTimezone(tz: string) {
 	_timezone = tz;
@@ -21,4 +22,12 @@ export function getTimezone(): string {
 
 export function detectTimezone(): string {
 	return guessTimezone();
+}
+
+export function setQuoteServiceEnabled(enabled: boolean) {
+	_quoteServiceEnabled = enabled;
+}
+
+export function isQuoteServiceEnabled(): boolean {
+	return _quoteServiceEnabled;
 }

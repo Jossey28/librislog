@@ -172,6 +172,7 @@ class UserSettingsRead(SQLModel):
     user_id: int
     language: str
     timezone: str
+    quote_service_enabled: bool
 
 
 class UserSettingsUpdate(SQLModel):

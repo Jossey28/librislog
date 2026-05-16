@@ -100,6 +100,7 @@ export interface UserSettings {
 	user_id: number;
 	language: string;
 	timezone: string;
+	quote_service_enabled: boolean;
 }
 
 export interface ApiKeyMeta {

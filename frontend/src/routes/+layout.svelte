@@ -8,7 +8,7 @@
 	import { api } from '$lib/api';
 	import { currentUser, csrfToken, loadAuthFromStorage, initAuthSync } from '$lib/stores/auth';
 	import { _, setupI18n } from '$lib/i18n';
-	import { setTimezone } from '$lib/stores/timezone';
+	import { setTimezone, setQuoteServiceEnabled } from '$lib/stores/timezone';
 
 	let { children } = $props();
 
@@ -89,6 +89,7 @@
 					csrfToken.set(csrf.csrf_token);
 					const settings = await api.profile.getSettings();
 					setTimezone(settings.timezone);
+					setQuoteServiceEnabled(settings.quote_service_enabled);
 				} catch {
 					csrfToken.set(null);
 					window.location.href = '/login';

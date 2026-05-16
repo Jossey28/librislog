@@ -11,6 +11,7 @@ from app.auth import (
     hash_api_key,
     require_user,
 )
+from app.config import settings as app_settings
 from app.database import get_session
 from app.models import ApiKey, User, UserSettings
 from app.schemas import (
@@ -54,14 +55,19 @@ def update_profile(
 def get_settings(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
-) -> UserSettings:
+) -> UserSettingsRead:
     settings = session.exec(select(UserSettings).where(UserSettings.user_id == current_user.id)).first()
     if not settings:
         settings = UserSettings(user_id=current_user.id, language="en")
         session.add(settings)
         session.commit()
         session.refresh(settings)
-    return settings
+    return UserSettingsRead(
+        user_id=settings.user_id,
+        language=settings.language,
+        timezone=settings.timezone,
+        quote_service_enabled=app_settings.dashboard_quote_enabled,
+    )
 
 
 @router.patch("/settings", response_model=UserSettingsRead)
@@ -69,7 +75,7 @@ def update_settings(
     body: UserSettingsUpdate,
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
-) -> UserSettings:
+) -> UserSettingsRead:
     settings = session.exec(select(UserSettings).where(UserSettings.user_id == current_user.id)).first()
     if not settings:
         settings = UserSettings(user_id=current_user.id, language="en")
@@ -77,7 +83,12 @@ def update_settings(
     session.add(settings)
     session.commit()
     session.refresh(settings)
-    return settings
+    return UserSettingsRead(
+        user_id=settings.user_id,
+        language=settings.language,
+        timezone=settings.timezone,
+        quote_service_enabled=app_settings.dashboard_quote_enabled,
+    )
 
 
 @router.get("/api-keys", response_model=list[ApiKeyRead])
