@@ -729,10 +729,100 @@ def test_update_book_cover_change_keeps_shared_cover(client, tmp_path, monkeypat
     assert resp.status_code == 200
     assert shared_path.exists(), "Shared cover must not be deleted"
 
-def test_health(client: TestClient):
+def test_health(client: TestClient, monkeypatch):
+    monkeypatch.setattr(settings, "dashboard_quote_enabled", False)
     resp = client.get("/api/health")
     assert resp.status_code == 200
-    assert resp.json() == {"status": "ok"}
+    data = resp.json()
+    assert data["status"] == "healthy"
+    assert data["checks"]["database_connectivity"]["status"] == "healthy"
+    assert data["checks"]["database_schema"]["status"] == "healthy"
+    assert data["checks"]["data_dir_writable"]["status"] == "healthy"
+    assert data["checks"]["quote_service"]["status"] == "healthy"
+    assert "detail" in data["checks"]["quote_service"]
+    assert "version" in data["checks"]["app_version"]
+    assert "git_sha" in data["checks"]["app_version"]
+
+
+def test_health_database_down(client: TestClient, monkeypatch):
+    monkeypatch.setattr(settings, "dashboard_quote_enabled", False)
+    import app.main as main_module
+
+    def fake_text(*args, **kwargs):
+        raise Exception("Connection refused")
+    monkeypatch.setattr(main_module, "text", fake_text)
+    resp = client.get("/api/health")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "unhealthy"
+    assert data["checks"]["database_connectivity"]["status"] == "unhealthy"
+    assert "Connection refused" in data["checks"]["database_connectivity"]["detail"]
+
+
+def test_health_missing_tables(client: TestClient, monkeypatch):
+    monkeypatch.setattr(settings, "dashboard_quote_enabled", False)
+    import app.main as main_module
+
+    class FakeInspector:
+        def get_table_names(self):
+            return []
+
+    original_inspect = main_module.inspect
+    monkeypatch.setattr(main_module, "inspect", lambda bind: FakeInspector())
+    try:
+        resp = client.get("/api/health")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "unhealthy"
+        assert data["checks"]["database_schema"]["status"] == "unhealthy"
+        assert "Missing tables" in data["checks"]["database_schema"]["detail"]
+    finally:
+        monkeypatch.undo()
+
+
+def test_health_data_dir_not_writable(client: TestClient, monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "dashboard_quote_enabled", False)
+    import app.main as main_module
+
+    db_dir = tmp_path / "data"
+    db_dir.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(settings, "database_url", f"sqlite:///{db_dir}/librislog.db")
+    monkeypatch.setattr(main_module.os_module, "access", lambda *a, **kw: False)
+    resp = client.get("/api/health")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "unhealthy"
+    assert data["checks"]["data_dir_writable"]["status"] == "unhealthy"
+
+
+def test_health_quote_service_unhealthy(client: TestClient, monkeypatch):
+    monkeypatch.setattr(settings, "dashboard_quote_enabled", True)
+    import app.main as main_module
+
+    class FakeFailingAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+        async def __aenter__(self):
+            return self
+        async def __aexit__(self, exc_type, exc, tb):
+            pass
+        async def get(self, url):
+            raise Exception("Connection timeout")
+
+    monkeypatch.setattr(main_module.httpx, "AsyncClient", FakeFailingAsyncClient)
+    resp = client.get("/api/health")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["checks"]["quote_service"]["status"] == "unhealthy"
+
+
+def test_health_quote_service_disabled(client: TestClient, monkeypatch):
+    monkeypatch.setattr(settings, "dashboard_quote_enabled", False)
+    resp = client.get("/api/health")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["checks"]["quote_service"]["status"] == "healthy"
+    assert "disabled via configuration" in data["checks"]["quote_service"]["detail"]
 
 
 # ── suggestions ────────────────────────────────────────────────────────────────
