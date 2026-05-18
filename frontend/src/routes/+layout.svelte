@@ -9,6 +9,7 @@
 	import { currentUser, csrfToken, loadAuthFromStorage, initAuthSync } from '$lib/stores/auth';
 	import { _, setupI18n } from '$lib/i18n';
 	import { setTimezone, setQuoteServiceEnabled } from '$lib/stores/timezone';
+	import { version, gitSha } from '$lib/version';
 
 	let { children } = $props();
 
@@ -183,6 +184,9 @@
 				</a>
 			{/each}
 		</nav>
+		<div class="text-[10px] text-base-content/40 px-1 mt-auto">
+			{version}{#if gitSha && gitSha !== 'unknown'} ({gitSha.slice(0, 7)}){/if}
+		</div>
 	</aside>
 
 	<!-- Main content -->

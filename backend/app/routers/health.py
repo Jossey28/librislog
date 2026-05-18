@@ -1,7 +1,8 @@
 import logging
 import os as os_module
-from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
+
+from app._build_info import __git_sha__, __version__
 
 import httpx
 from fastapi import APIRouter, Depends
@@ -106,15 +107,9 @@ async def health(db_session: Session = Depends(get_session)) -> dict:
     overall_healthy = overall_healthy and quote_ok
 
     # ── 5. App version ──────────────────────────────────────────────────────
-    app_ver = "unknown"
-    try:
-        app_ver = version("librislog-backend")
-    except PackageNotFoundError:
-        pass
-
     checks["app_version"] = {
-        "version": app_ver,
-        "git_sha": os_module.environ.get("GIT_SHA", "unknown"),
+        "version": __version__,
+        "git_sha": __git_sha__,
     }
 
     return {

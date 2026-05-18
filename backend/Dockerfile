@@ -16,6 +16,12 @@ COPY alembic.ini ./
 COPY alembic/ ./alembic/
 COPY app/ ./app/
 
+# Inject version from build args (overwrites fallback in _build_info.py)
+ARG APP_VERSION=v0.0.0-dev
+ARG GIT_SHA=unknown
+RUN echo "__version__ = \"$APP_VERSION\"" > app/_build_info.py && \
+    echo "__git_sha__ = \"$GIT_SHA\"" >> app/_build_info.py
+
 # Entrypoint: run migrations then start server
 COPY entrypoint.sh ./
 RUN chmod +x entrypoint.sh

@@ -12,7 +12,11 @@ services:
     restart: unless-stopped
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      args:
+        APP_VERSION: ${APP_VERSION:-v0.0.0-dev}
+        GIT_SHA: ${GIT_SHA:-unknown}
     env_file: .env
     volumes:
       - ./data:/app/data
@@ -33,6 +37,8 @@ services:
       context: ./frontend
       args:
         PUBLIC_DEFAULT_LOCALE: ${PUBLIC_DEFAULT_LOCALE:-en}
+        APP_VERSION: ${APP_VERSION:-v0.0.0-dev}
+        GIT_SHA: ${GIT_SHA:-unknown}
     restart: unless-stopped
     depends_on:
       - backend

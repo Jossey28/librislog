@@ -20,6 +20,16 @@ cp .env.example .env          # adjust values if needed
 docker compose up --build -d
 ```
 
+Optional: inject the app version from git (shown in the sidebar and health endpoint):
+
+```bash
+export APP_VERSION=$(git describe --tags --always)
+export GIT_SHA=$(git rev-parse HEAD)
+docker compose up --build -d
+```
+
+Omitting the vars leaves the fallback `v0.0.0-dev` / `unknown`.
+
 The app is available at **http://localhost:8080**.
 
 ---
