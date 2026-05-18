@@ -1,5 +1,6 @@
 import type {
 	ApiKeyMeta,
+	DataResetResponse,
 	Book,
 	BookImportCandidate,
 	BookProgress,
@@ -146,6 +147,20 @@ export const api = {
 
 		deleteApiKey(id: number): Promise<void> {
 			return request<void>(`/profile/api-keys/${id}`, { method: 'DELETE' });
+		},
+
+		resetData(confirmation: string): Promise<DataResetResponse> {
+			return request<DataResetResponse>('/profile/reset-data', {
+				method: 'POST',
+				body: JSON.stringify({ confirmation })
+			});
+		},
+
+		deleteOwnAccount(confirmation: string): Promise<void> {
+			return request<void>('/profile/account', {
+				method: 'DELETE',
+				body: JSON.stringify({ confirmation })
+			});
 		}
 	},
 

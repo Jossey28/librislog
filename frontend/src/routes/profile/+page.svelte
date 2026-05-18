@@ -6,6 +6,7 @@
 	import { _, SUPPORTED_LOCALES, setLocale } from '$lib/i18n';
 	import { getPasswordChecks, passwordChecksPassed, passwordPattern } from '$lib/password';
 	import { getTimezone, setTimezone, detectTimezone } from '$lib/stores/timezone';
+	import { toasts } from '$lib/toasts';
 	import type { ApiKeyMeta, OidcConfig, OidcLinkStatus } from '$lib/types';
 
 	let firstname = $state('');
@@ -25,6 +26,11 @@
 	let oidcLink = $state<OidcLinkStatus>({ linked: false, provider_name: null, oidc_email: null, oidc_name: null });
 	let oidcLoading = $state(false);
 	let oidcMessage = $state<{ type: 'success' | 'error'; text: string } | null>(null);
+	let resetDataConfirmation = $state('');
+	let resetDataMessage = $state<{ type: 'success' | 'error'; text: string } | null>(null);
+	let deleteAccountConfirmation = $state('');
+	let deleteAccountMessage = $state<{ type: 'success' | 'error'; text: string } | null>(null);
+	let dangerLoading = $state(false);
 	let activeSection = $state('');
 
 	$effect(() => {
@@ -206,6 +212,76 @@
 		}
 	}
 
+	function localizeError(err: unknown, fallback: string): string {
+		if (err instanceof Error) {
+			if (err.message.startsWith('error.')) {
+				return $_(err.message);
+			}
+			return err.message;
+		}
+		return fallback;
+	}
+
+	async function confirmResetData() {
+		if (resetDataConfirmation.trim() !== $_('profile.dangerZone.resetData.confirmationPhrase')) {
+			return;
+		}
+		resetDataMessage = null;
+		dangerLoading = true;
+		try {
+			const result = await api.profile.resetData(resetDataConfirmation.trim());
+			resetDataMessage = {
+				type: 'success',
+				text: $_('profile.dangerZone.resetData.success', {
+					values: {
+						books: result.deleted.books,
+						tags: result.deleted.tags,
+						entries: result.deleted.progress_entries
+					}
+				})
+			};
+			toasts.add($_('profile.dangerZone.resetData.success', {
+				values: {
+					books: result.deleted.books,
+					tags: result.deleted.tags,
+					entries: result.deleted.progress_entries
+				}
+			}), 'success');
+			resetDataConfirmation = '';
+			setTimeout(() => {
+				window.location.href = '/dashboard';
+			}, 1500);
+		} catch (e: unknown) {
+			const message = localizeError(e, $_('profile.dangerZone.resetData.failed'));
+			resetDataMessage = { type: 'error', text: message };
+			toasts.add(message, 'error');
+		} finally {
+			dangerLoading = false;
+		}
+	}
+
+	async function confirmDeleteAccount() {
+		if (deleteAccountConfirmation.trim() !== $_('profile.dangerZone.deleteAccount.confirmationPhrase')) {
+			return;
+		}
+		deleteAccountMessage = null;
+		dangerLoading = true;
+		try {
+			await api.profile.deleteOwnAccount(deleteAccountConfirmation.trim());
+			deleteAccountMessage = { type: 'success', text: $_('profile.dangerZone.deleteAccount.success') };
+			toasts.add($_('profile.dangerZone.deleteAccount.success'), 'success');
+			setTimeout(() => {
+				window.location.href = '/login';
+			}, 1000);
+		} catch (e: unknown) {
+			const message = localizeError(e, $_('profile.dangerZone.deleteAccount.failed'));
+			deleteAccountMessage = { type: 'error', text: message };
+			toasts.add(message, 'error');
+		} finally {
+			dangerLoading = false;
+		}
+	}
+
 	$effect(() => {
 		const params = new URLSearchParams(window.location.search);
 		if (params.get('oidc_linked') === '1') {
@@ -356,6 +432,69 @@
 			</div>
 		</div>
 	{/if}
+
+	<div id="section-danger-zone" class="scroll-mt-24 card bg-error/10 border border-error/30 shadow-sm">
+		<div class="card-body gap-4">
+			<h2 class="text-lg font-semibold text-error">{$_('profile.dangerZone.title')}</h2>
+			<p class="text-sm text-base-content/70">{$_('profile.dangerZone.subtitle')}</p>
+
+			<div class="border border-error/20 rounded-lg p-4 flex flex-col gap-3">
+				<h3 class="font-medium">{$_('profile.dangerZone.resetData.title')}</h3>
+				<p class="text-sm text-base-content/70">{$_('profile.dangerZone.resetData.description')}</p>
+				<p class="text-xs font-semibold text-warning">{$_('profile.dangerZone.resetData.warning')}</p>
+				<input
+					class="input input-bordered max-w-md"
+					bind:value={resetDataConfirmation}
+					placeholder={$_('profile.dangerZone.resetData.placeholder')}
+				/>
+				<p class="text-xs text-base-content/60">{$_('profile.dangerZone.resetData.hint')}</p>
+				{#if resetDataMessage}
+					<div class={`alert ${resetDataMessage.type === 'success' ? 'alert-success' : 'alert-error'} text-sm`}>
+						<span>{resetDataMessage.text}</span>
+					</div>
+				{/if}
+				<button
+					type="button"
+					class="btn btn-error btn-sm self-start"
+					disabled={
+						dangerLoading ||
+						resetDataConfirmation.trim() !== $_('profile.dangerZone.resetData.confirmationPhrase')
+					}
+					onclick={confirmResetData}
+				>
+					{$_('profile.dangerZone.resetData.button')}
+				</button>
+			</div>
+
+			<div class="border border-error/20 rounded-lg p-4 flex flex-col gap-3">
+				<h3 class="font-medium">{$_('profile.dangerZone.deleteAccount.title')}</h3>
+				<p class="text-sm text-base-content/70">{$_('profile.dangerZone.deleteAccount.description')}</p>
+				<p class="text-xs font-semibold text-error">{$_('profile.dangerZone.deleteAccount.warning')}</p>
+				<input
+					class="input input-bordered max-w-md"
+					bind:value={deleteAccountConfirmation}
+					placeholder={$_('profile.dangerZone.deleteAccount.placeholder')}
+				/>
+				<p class="text-xs text-base-content/60">{$_('profile.dangerZone.deleteAccount.hint')}</p>
+				{#if deleteAccountMessage}
+					<div class={`alert ${deleteAccountMessage.type === 'success' ? 'alert-success' : 'alert-error'} text-sm`}>
+						<span>{deleteAccountMessage.text}</span>
+					</div>
+				{/if}
+				<button
+					type="button"
+					class="btn btn-error btn-sm self-start"
+					disabled={
+						dangerLoading ||
+						deleteAccountConfirmation.trim() !== $_('profile.dangerZone.deleteAccount.confirmationPhrase')
+					}
+					onclick={confirmDeleteAccount}
+				>
+					{$_('profile.dangerZone.deleteAccount.button')}
+				</button>
+			</div>
+		</div>
+	</div>
 </div>
 
 <!--
@@ -414,6 +553,14 @@
 						>{$_('oidc.profileTitle')}</a>
 					</li>
 				{/if}
+				<li>
+					<a
+						href="#section-danger-zone"
+						class="link link-hover text-sm"
+						class:text-primary={activeSection === 'section-danger-zone'}
+						data-section="section-danger-zone"
+					>{$_('profile.dangerZone.title')}</a>
+				</li>
 			</ul>
 		</div>
 	</div>

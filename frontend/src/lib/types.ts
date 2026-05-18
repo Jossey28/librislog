@@ -168,6 +168,15 @@ export interface ApiKeyMeta {
 	last_used_at: string | null;
 }
 
+export interface DataResetResponse {
+	message: string;
+	deleted: {
+		books: number;
+		tags: number;
+		progress_entries: number;
+	};
+}
+
 export interface OidcConfig {
 	enabled: boolean;
 	provider_id: string | null;

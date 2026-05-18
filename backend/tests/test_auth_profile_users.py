@@ -3,7 +3,7 @@ from sqlmodel import Session, select
 
 from app.database import get_session
 from app.main import app
-from app.models import ApiKey, User, UserRole, UserSettings
+from app.models import ApiKey, Book, OidcLink, ReadingProgress, Tag, User, UserRole, UserSettings
 
 
 def test_auth_me_returns_current_user(client: TestClient):
@@ -360,3 +360,59 @@ def test_oidc_link_status_disabled_by_default(client: TestClient):
     resp = client.get("/api/oidc/link-status")
     assert resp.status_code == 200
     assert resp.json()["linked"] is False
+
+
+def test_profile_reset_data_requires_confirmation_phrase(client: TestClient):
+    resp = client.post("/api/profile/reset-data", json={"confirmation": "WRONG"})
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "error.invalidConfirmationPhrase"
+
+
+def test_profile_reset_data_deletes_books_tags_progress(client: TestClient):
+    b1 = client.post("/api/books", json={"title": "A", "tags": "one,two"}).json()
+    b2 = client.post("/api/books", json={"title": "B", "tags": "one"}).json()
+    client.post(f"/api/books/{b1['id']}/progress", json={"page": 10})
+    client.post(f"/api/books/{b1['id']}/progress", json={"page": 20})
+
+    resp = client.post("/api/profile/reset-data", json={"confirmation": "DELETE ALL MY DATA"})
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["deleted"]["books"] == 2
+    assert data["deleted"]["tags"] == 2
+    assert data["deleted"]["progress_entries"] == 2
+
+    assert client.get("/api/books").json() == []
+
+
+def test_profile_delete_account_rejects_last_admin(client: TestClient):
+    resp = client.request("DELETE", "/api/profile/account", json={"confirmation": "DELETE MY ACCOUNT"})
+    assert resp.status_code == 403
+    assert resp.json()["detail"] == "error.cannotDeleteLastAdmin"
+
+
+def test_profile_delete_account_deletes_regular_user_data(client: TestClient, create_user_with_key, session: Session):
+    user, key = create_user_with_key(email="danger@example.com", role=UserRole.user)
+    c2 = TestClient(client.app)
+    c2.headers.update({"X-API-Key": key})
+
+    create = c2.post("/api/books", json={"title": "To Delete", "tags": "x"})
+    assert create.status_code == 201
+    book_id = create.json()["id"]
+    c2.post(f"/api/books/{book_id}/progress", json={"page": 7})
+
+    session.add(OidcLink(user_id=user.id, provider_id="google", oidc_sub="sub-123"))
+    session.commit()
+
+    resp = c2.request("DELETE", "/api/profile/account", json={"confirmation": "DELETE MY ACCOUNT"})
+    assert resp.status_code == 204
+
+    assert session.get(User, user.id) is None
+    assert session.exec(select(UserSettings).where(UserSettings.user_id == user.id)).first() is None
+    assert session.exec(select(Book).where(Book.user_id == user.id)).first() is None
+    assert session.exec(select(ReadingProgress).where(ReadingProgress.user_id == user.id)).first() is None
+    assert session.exec(select(Tag).where(Tag.user_id == user.id)).first() is None
+    assert session.exec(select(OidcLink).where(OidcLink.user_id == user.id)).first() is None
+
+    keys = session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).all()
+    assert keys
+    assert all(k.revoked_at is not None for k in keys)

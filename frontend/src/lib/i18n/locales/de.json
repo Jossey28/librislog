@@ -270,7 +270,9 @@
     "dateInFuture": "Datum darf nicht in der Zukunft liegen.",
     "dateStartedAfterFinished": "Startdatum darf nicht nach dem Enddatum liegen.",
     "dateFinishedRequiredForRead": "Ein gelesenes Buch muss ein Enddatum haben. Ändere den Status, wenn du das Enddatum entfernen möchtest.",
-    "invalidLanguageCode": "Sprache muss ein 2-stelliger ISO-Code sein (z. B. EN, DE, FR)."
+    "invalidLanguageCode": "Sprache muss ein 2-stelliger ISO-Code sein (z. B. EN, DE, FR).",
+    "invalidConfirmationPhrase": "Bestätigungsphrase stimmt nicht überein.",
+    "cannotDeleteLastAdmin": "Konto kann nicht gelöscht werden: Sie sind der letzte Administrator"
   },
   "oidc": {
     "orContinueWith": "oder weiter mit",
@@ -292,7 +294,34 @@
     "profileSaveSuccess": "Profil gespeichert",
     "profileSaveFailed": "Profil konnte nicht gespeichert werden",
     "passwordChangeSuccess": "Passwort geändert",
-    "passwordChangeFailed": "Passwort konnte nicht geändert werden"
+    "passwordChangeFailed": "Passwort konnte nicht geändert werden",
+    "dangerZone": {
+      "title": "Gefahrenbereich",
+      "subtitle": "Unumkehrbare Aktionen, die Ihre Daten oder Ihr Konto dauerhaft löschen.",
+      "resetData": {
+        "title": "Alle persönlichen Daten zurücksetzen",
+        "description": "Löscht alle Bücher, Tags und Lesefortschritte, behält aber Konto und Einstellungen.",
+        "warning": "Dies kann nicht rückgängig gemacht werden.",
+        "placeholder": "Bestätigungsphrase eingeben",
+        "hint": "Genau eingeben: DELETE ALL MY DATA",
+        "confirmationPhrase": "DELETE ALL MY DATA",
+        "button": "Alle Daten zurücksetzen",
+        "success": "{books} Bücher, {tags} Tags und {entries} Fortschrittseinträge gelöscht.",
+        "failed": "Daten konnten nicht zurückgesetzt werden"
+      },
+      "deleteAccount": {
+        "title": "Konto löschen",
+        "description": "Löscht Ihr Konto und alle zugehörigen Daten dauerhaft.",
+        "warning": "Dies ist dauerhaft und kann nicht rückgängig gemacht werden.",
+        "placeholder": "Bestätigungsphrase eingeben",
+        "hint": "Genau eingeben: DELETE MY ACCOUNT",
+        "confirmationPhrase": "DELETE MY ACCOUNT",
+        "button": "Mein Konto löschen",
+        "success": "Konto gelöscht. Weiterleitung zur Anmeldung...",
+        "failed": "Konto konnte nicht gelöscht werden",
+        "lastAdminError": "Konto kann nicht gelöscht werden: Sie sind der letzte Administrator"
+      }
+    }
   },
   "timeline": {
     "title": "Lese-Zeitleiste",

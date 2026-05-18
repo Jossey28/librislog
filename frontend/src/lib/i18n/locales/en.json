@@ -270,7 +270,9 @@
     "dateInFuture": "Date cannot be in the future.",
     "dateStartedAfterFinished": "Start date cannot be after finish date.",
     "dateFinishedRequiredForRead": "A finished book must have an end date. Change the status if you want to remove the finish date.",
-    "invalidLanguageCode": "Language must be a 2-letter ISO code (for example: EN, DE, FR)."
+    "invalidLanguageCode": "Language must be a 2-letter ISO code (for example: EN, DE, FR).",
+    "invalidConfirmationPhrase": "Confirmation phrase does not match.",
+    "cannotDeleteLastAdmin": "Cannot delete account: you are the last administrator"
   },
   "oidc": {
     "orContinueWith": "or continue with",
@@ -292,7 +294,34 @@
     "profileSaveSuccess": "Profile saved",
     "profileSaveFailed": "Failed to save profile",
     "passwordChangeSuccess": "Password changed",
-    "passwordChangeFailed": "Failed to change password"
+    "passwordChangeFailed": "Failed to change password",
+    "dangerZone": {
+      "title": "Danger Zone",
+      "subtitle": "Irreversible actions that permanently delete your data or account.",
+      "resetData": {
+        "title": "Reset All Personal Data",
+        "description": "Delete all your books, tags, and reading progress while keeping your account and settings.",
+        "warning": "This cannot be undone.",
+        "placeholder": "Type confirmation phrase",
+        "hint": "Type exactly: DELETE ALL MY DATA",
+        "confirmationPhrase": "DELETE ALL MY DATA",
+        "button": "Reset All Data",
+        "success": "Deleted {books} books, {tags} tags, and {entries} progress entries.",
+        "failed": "Failed to reset data"
+      },
+      "deleteAccount": {
+        "title": "Delete Account",
+        "description": "Delete your account and all associated data permanently.",
+        "warning": "This is permanent and cannot be undone.",
+        "placeholder": "Type confirmation phrase",
+        "hint": "Type exactly: DELETE MY ACCOUNT",
+        "confirmationPhrase": "DELETE MY ACCOUNT",
+        "button": "Delete My Account",
+        "success": "Account deleted. Redirecting to login...",
+        "failed": "Failed to delete account",
+        "lastAdminError": "Cannot delete account: you are the last administrator"
+      }
+    }
   },
   "timeline": {
     "title": "Reading Timeline",

@@ -238,6 +238,21 @@ class UserSettingsUpdate(SQLModel):
     timezone: Optional[str] = None
 
 
+class ConfirmationPhrase(SQLModel):
+    confirmation: str
+
+
+class DataResetDeleted(SQLModel):
+    books: int
+    tags: int
+    progress_entries: int
+
+
+class DataResetResponse(SQLModel):
+    message: str
+    deleted: DataResetDeleted
+
+
 class ApiKeyCreate(SQLModel):
     description: Optional[str] = None
 
