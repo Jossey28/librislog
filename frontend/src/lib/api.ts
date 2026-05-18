@@ -4,6 +4,7 @@ import type {
 	BookImportCandidate,
 	BookProgress,
 	DashboardQuote,
+	StatisticsResponse,
 	LibraryStats,
 	ReadingProgressEntry,
 	StatusTransitionRequest,
@@ -175,6 +176,12 @@ export const api = {
 
 		delete(id: number): Promise<void> {
 			return request<void>(`/users/${id}`, { method: 'DELETE' });
+		}
+	},
+
+	statistics: {
+		get(): Promise<StatisticsResponse> {
+			return request<StatisticsResponse>('/statistics');
 		}
 	},
 

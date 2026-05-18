@@ -119,6 +119,61 @@ class DashboardQuote(SQLModel):
     author: Optional[str] = None
 
 
+class LanguageDistribution(SQLModel):
+    language: Optional[str]
+    count: int
+
+
+class StatusDistribution(SQLModel):
+    want_to_read: int
+    currently_reading: int
+    read: int
+    did_not_finish: int
+
+
+class PageBuckets(SQLModel):
+    pages_to_read: int
+    pages_read: int
+    pages_wasted: int
+
+
+class MonthlyPages(SQLModel):
+    month: str
+    pages: int
+
+
+class MonthlyBooks(SQLModel):
+    month: str
+    count: int
+
+
+class YearlyBooks(SQLModel):
+    year: int
+    count: int
+
+
+class FavoriteAuthor(SQLModel):
+    author: str
+    book_count: int
+    cover_urls: list[str]
+
+
+class StatisticsResponse(SQLModel):
+    avg_books_per_month: Optional[float]
+    busiest_month: Optional[str]
+    busiest_month_count: Optional[int]
+    avg_page_count: Optional[float]
+    most_popular_language: Optional[str]
+    most_popular_language_count: Optional[int]
+    language_distribution: list[LanguageDistribution]
+    status_distribution: StatusDistribution
+    page_buckets: PageBuckets
+    pages_read_per_month: list[MonthlyPages]
+    books_finished_per_month: list[MonthlyBooks]
+    books_finished_per_year: list[YearlyBooks]
+    favorite_author: Optional[FavoriteAuthor]
+
+
 class UserLogin(SQLModel):
     email: str
     password: str

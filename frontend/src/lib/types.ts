@@ -75,6 +75,61 @@ export interface DashboardQuote {
 	author: string | null;
 }
 
+export interface LanguageDistribution {
+	language: string | null;
+	count: number;
+}
+
+export interface StatusDistribution {
+	want_to_read: number;
+	currently_reading: number;
+	read: number;
+	did_not_finish: number;
+}
+
+export interface PageBuckets {
+	pages_to_read: number;
+	pages_read: number;
+	pages_wasted: number;
+}
+
+export interface MonthlyPages {
+	month: string;
+	pages: number;
+}
+
+export interface MonthlyBooks {
+	month: string;
+	count: number;
+}
+
+export interface YearlyBooks {
+	year: number;
+	count: number;
+}
+
+export interface FavoriteAuthor {
+	author: string;
+	book_count: number;
+	cover_urls: string[];
+}
+
+export interface StatisticsResponse {
+	avg_books_per_month: number | null;
+	busiest_month: string | null;
+	busiest_month_count: number | null;
+	avg_page_count: number | null;
+	most_popular_language: string | null;
+	most_popular_language_count: number | null;
+	language_distribution: LanguageDistribution[];
+	status_distribution: StatusDistribution;
+	page_buckets: PageBuckets;
+	pages_read_per_month: MonthlyPages[];
+	books_finished_per_month: MonthlyBooks[];
+	books_finished_per_year: YearlyBooks[];
+	favorite_author: FavoriteAuthor | null;
+}
+
 export type UserRole = 'admin' | 'user';
 
 export interface User {

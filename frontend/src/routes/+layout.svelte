@@ -112,7 +112,8 @@
 		const items = [
 			{ href: '/dashboard', labelKey: 'nav.dashboard', icon: '🏠' },
 			{ href: '/library', labelKey: 'nav.library', icon: '📚' },
-			{ href: '/timeline', labelKey: 'nav.timeline', icon: '📖' }
+			{ href: '/timeline', labelKey: 'nav.timeline', icon: '📖' },
+			{ href: '/statistics', labelKey: 'nav.statistics', icon: '📊' }
 		];
 		if ($currentUser?.role === 'admin') {
 			items.push({ href: '/admin', labelKey: 'admin.title', icon: '🛠️' });
@@ -137,6 +138,10 @@
 
 		if ($page.url.pathname.startsWith('/timeline')) {
 			return `${$_('app.title')} - ${$_('nav.timeline')}`;
+		}
+
+		if ($page.url.pathname.startsWith('/statistics')) {
+			return `${$_('app.title')} - ${$_('nav.statistics')}`;
 		}
 
 		if ($page.url.pathname.startsWith('/admin')) {
