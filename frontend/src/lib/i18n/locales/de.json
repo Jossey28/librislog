@@ -89,10 +89,13 @@
     "loadingEllipsis": "...",
     "starLabel": "{star} Stern",
     "clickToRate": "Zum Bewerten auf einen Stern klicken",
-    "actionFailed": "{action} fehlgeschlagen"
+    "actionFailed": "{action} fehlgeschlagen",
+    "readMore": "Mehr lesen",
+    "readLess": "Weniger lesen"
   },
   "book": {
     "title": "Titel",
+    "subtitle": "Untertitel",
     "author": "Autor",
     "status": "Status",
     "isbn": "ISBN",
@@ -104,6 +107,8 @@
     "tagsPlaceholder": "Tag eingeben und Enter oder Komma druecken",
     "tagsHint": "Mit Enter oder Komma Tag hinzufuegen. Backspace entfernt den letzten Tag.",
     "notes": "Notizen",
+    "blurb": "Beschreibung",
+    "about": "Über das Buch",
     "dateStarted": "Begonnen am",
     "dateFinished": "Beendet am",
     "cover": "Cover",

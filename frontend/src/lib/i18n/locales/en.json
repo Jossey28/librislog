@@ -89,10 +89,13 @@
     "loadingEllipsis": "...",
     "starLabel": "{star} star",
     "clickToRate": "Click a star to rate",
-    "actionFailed": "{action} failed"
+    "actionFailed": "{action} failed",
+    "readMore": "Read more",
+    "readLess": "Read less"
   },
   "book": {
     "title": "Title",
+    "subtitle": "Subtitle",
     "author": "Author",
     "status": "Status",
     "isbn": "ISBN",
@@ -104,6 +107,8 @@
     "tagsPlaceholder": "Type a tag and press Enter or comma",
     "tagsHint": "Press Enter or comma to add tags. Backspace removes the last tag.",
     "notes": "Notes",
+    "blurb": "Description",
+    "about": "About",
     "dateStarted": "Date started",
     "dateFinished": "Date finished",
     "cover": "Cover",

@@ -159,7 +159,9 @@ def list_books(
         statement = statement.where(
             or_(
                 Book.title.ilike(pattern),  # type: ignore[union-attr]
+                Book.subtitle.ilike(pattern),
                 Book.author.ilike(pattern),
+                Book.blurb.ilike(pattern),
                 Book.id.in_(matching_tag_book_ids),
             )
         )

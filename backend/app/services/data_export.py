@@ -15,6 +15,7 @@ from app.services.tags import tags_text_for_book
 
 BOOK_CSV_FIELDS = [
     "title",
+    "subtitle",
     "author",
     "isbn",
     "publisher",
@@ -23,6 +24,7 @@ BOOK_CSV_FIELDS = [
     "language",
     "tags",
     "notes",
+    "blurb",
     "rating",
     "reading_status",
     "date_added",
@@ -44,6 +46,7 @@ def _serialize_datetime(value: datetime | None) -> str | None:
 def _book_to_dict(session: Session, book: Book) -> dict:
     return {
         "title": book.title,
+        "subtitle": book.subtitle,
         "author": book.author,
         "isbn": book.isbn,
         "publisher": book.publisher,
@@ -52,6 +55,7 @@ def _book_to_dict(session: Session, book: Book) -> dict:
         "language": book.language,
         "tags": tags_text_for_book(session, book.id) if book.id else None,
         "notes": book.notes,
+        "blurb": book.blurb,
         "rating": book.rating,
         "reading_status": book.reading_status.value,
         "date_added": _serialize_datetime(book.date_added),

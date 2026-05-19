@@ -3,6 +3,7 @@ export type ReadingStatus = 'want_to_read' | 'currently_reading' | 'read' | 'did
 export interface Book {
 	id: number;
 	title: string;
+	subtitle: string | null;
 	author: string | null;
 	isbn: string | null;
 	cover_url: string | null;
@@ -12,6 +13,7 @@ export interface Book {
 	language: string | null;
 	tags: string | null;
 	notes: string | null;
+	blurb: string | null;
 	rating: number | null; // 1–5
 	reading_status: ReadingStatus;
 	date_added: string; // ISO datetime
@@ -21,6 +23,7 @@ export interface Book {
 
 export interface BookImportCandidate {
 	title: string;
+	subtitle: string | null;
 	author: string | null;
 	isbn: string | null;
 	cover_url: string | null;
@@ -29,6 +32,7 @@ export interface BookImportCandidate {
 	page_count: number | null;
 	language: string | null;
 	tags: string | null;
+	blurb: string | null;
 	source: string;
 }
 

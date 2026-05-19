@@ -39,6 +39,7 @@ class UserRole(str, Enum):
 class Book(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str = Field(index=True)
+    subtitle: Optional[str] = None
     author: Optional[str] = Field(default=None, index=True)
     isbn: Optional[str] = Field(default=None, unique=True)
     cover_url: Optional[str] = None
@@ -47,6 +48,7 @@ class Book(SQLModel, table=True):
     page_count: Optional[int] = None
     language: Optional[str] = Field(default=None, max_length=2)
     notes: Optional[str] = None
+    blurb: Optional[str] = None
     rating: Optional[int] = Field(default=None, ge=1, le=5)
     reading_status: ReadingStatus = Field(default=ReadingStatus.want_to_read, index=True)
     user_id: Optional[int] = Field(default=None, foreign_key="user.id", index=True)

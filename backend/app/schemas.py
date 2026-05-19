@@ -27,6 +27,7 @@ class ReadingProgressLatest(SQLModel):
 
 class BookCreate(SQLModel):
     title: str
+    subtitle: Optional[str] = None
     author: Optional[str] = None
     isbn: Optional[str] = None
     cover_url: Optional[str] = None
@@ -36,6 +37,7 @@ class BookCreate(SQLModel):
     language: Optional[str] = None
     tags: Optional[str] = None
     notes: Optional[str] = None
+    blurb: Optional[str] = None
     rating: Optional[int] = Field(default=None, ge=1, le=5)
     reading_status: ReadingStatus = ReadingStatus.want_to_read
     date_started: Optional[datetime] = None
@@ -44,6 +46,7 @@ class BookCreate(SQLModel):
 
 class BookUpdate(SQLModel):
     title: Optional[str] = None
+    subtitle: Optional[str] = None
     author: Optional[str] = None
     isbn: Optional[str] = None
     cover_url: Optional[str] = None
@@ -53,6 +56,7 @@ class BookUpdate(SQLModel):
     language: Optional[str] = None
     tags: Optional[str] = None
     notes: Optional[str] = None
+    blurb: Optional[str] = None
     rating: Optional[int] = Field(default=None, ge=1, le=5)
     reading_status: Optional[ReadingStatus] = None
     date_started: Optional[datetime] = None
@@ -62,6 +66,7 @@ class BookUpdate(SQLModel):
 class BookImportCandidate(SQLModel):
     """A book result from an external API, not yet persisted locally."""
     title: str
+    subtitle: Optional[str] = None
     author: Optional[str] = None
     isbn: Optional[str] = None
     cover_url: Optional[str] = None
@@ -70,6 +75,7 @@ class BookImportCandidate(SQLModel):
     page_count: Optional[int] = None
     language: Optional[str] = None
     tags: Optional[str] = None
+    blurb: Optional[str] = None
     source: str  # "open_library" | "google_books"
 
 
@@ -82,6 +88,7 @@ class BookImportRequest(SQLModel):
 class BookRead(SQLModel):
     id: int
     title: str
+    subtitle: Optional[str]
     author: Optional[str]
     isbn: Optional[str]
     cover_url: Optional[str]
@@ -91,6 +98,7 @@ class BookRead(SQLModel):
     language: Optional[str] = None
     tags: Optional[str] = None
     notes: Optional[str]
+    blurb: Optional[str]
     rating: Optional[int]
     reading_status: ReadingStatus
     date_added: datetime

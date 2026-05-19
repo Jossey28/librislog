@@ -275,6 +275,7 @@ def map_open_library(doc: dict) -> BookImportCandidate:
 
     return BookImportCandidate(
         title=doc["title"],
+        subtitle=doc.get("subtitle") or None,
         author=author,
         isbn=isbn,
         cover_url=cover_url,
@@ -473,6 +474,7 @@ def map_google_books(item: dict) -> BookImportCandidate:
 
     return BookImportCandidate(
         title=vi["title"],
+        subtitle=vi.get("subtitle") or None,
         author=author,
         isbn=isbn,
         cover_url=cover_url,
@@ -481,6 +483,7 @@ def map_google_books(item: dict) -> BookImportCandidate:
         page_count=vi.get("pageCount"),
         language=language,
         tags=tags,
+        blurb=vi.get("description") or None,
         source="google_books",
     )
 

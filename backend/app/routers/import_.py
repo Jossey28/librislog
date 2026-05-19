@@ -124,6 +124,7 @@ async def import_book(
 
     book = Book(
         title=c.title,
+        subtitle=c.subtitle,
         author=c.author,
         isbn=c.isbn,
         cover_url=cover_url,
@@ -131,6 +132,7 @@ async def import_book(
         published_year=c.published_year,
         page_count=c.page_count,
         language=_normalize_language(c.language),
+        blurb=c.blurb,
         reading_status=body.reading_status,
         user_id=current_user.id,
     )

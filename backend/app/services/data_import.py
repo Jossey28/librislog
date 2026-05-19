@@ -17,6 +17,7 @@ from app.services.tags import sync_book_tags
 
 BOOK_IMPORT_FIELDS = [
     "title",
+    "subtitle",
     "author",
     "isbn",
     "publisher",
@@ -25,6 +26,7 @@ BOOK_IMPORT_FIELDS = [
     "language",
     "tags",
     "notes",
+    "blurb",
     "rating",
     "reading_status",
     "date_started",
@@ -36,6 +38,8 @@ _ALIASES: dict[str, str] = {
     "title": "title",
     "book title": "title",
     "name": "title",
+    "subtitle": "subtitle",
+    "book subtitle": "subtitle",
     "author": "author",
     "authors": "author",
     "author name": "author",
@@ -53,6 +57,10 @@ _ALIASES: dict[str, str] = {
     "tags": "tags",
     "genres": "tags",
     "notes": "notes",
+    "blurb": "blurb",
+    "description": "blurb",
+    "summary": "blurb",
+    "synopsis": "blurb",
     "rating": "rating",
     "my rating": "rating",
     "status": "reading_status",
@@ -450,6 +458,7 @@ async def execute_import(
                 page_count = _parse_int(row_data.get("page_count"), "page_count")
                 book = Book(
                     title=title,
+                    subtitle=None if row_data.get("subtitle") in (None, "") else str(row_data.get("subtitle")),
                     author=None if row_data.get("author") in (None, "") else str(row_data.get("author")),
                     isbn=None if row_data.get("isbn") in (None, "") else str(row_data.get("isbn")),
                     cover_url=cover_url,
@@ -458,6 +467,7 @@ async def execute_import(
                     page_count=page_count,
                     language=language,
                     notes=None if row_data.get("notes") in (None, "") else str(row_data.get("notes")),
+                    blurb=None if row_data.get("blurb") in (None, "") else str(row_data.get("blurb")),
                     rating=rating,
                     reading_status=reading_status,
                     date_started=date_started,

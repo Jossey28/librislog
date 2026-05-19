@@ -23,6 +23,7 @@
 		onDelete?: (id: number) => void;
 	} = $props();
 
+	let blurbExpanded = $state(false);
 	let confirmDelete = $state(false);
 	let deleting = $state(false);
 	let progressEntries: ReadingProgressEntry[] = $state([]);
@@ -229,6 +230,7 @@
 	$effect(() => {
 		if (open && book) {
 			confirmDelete = false;
+			blurbExpanded = false;
 			void loadProgress();
 		}
 		if (!open && book && currentPage !== latestDbPage) {
@@ -247,9 +249,14 @@
 
 	<div class="fixed top-0 right-0 h-full w-full max-w-md bg-base-100 shadow-xl z-50 flex flex-col overflow-y-auto">
 		<div class="flex items-center justify-between p-4 border-b border-base-200">
-			<h2 class="text-lg font-bold truncate">{book.title}</h2>
+			<div class="min-w-0 flex-1">
+				<h2 class="text-lg font-bold truncate">{book.title}</h2>
+				{#if book.subtitle}
+					<p class="text-sm text-base-content/50 italic truncate">{book.subtitle}</p>
+				{/if}
+			</div>
 			<button
-				class="btn btn-ghost btn-sm btn-circle"
+				class="btn btn-ghost btn-sm btn-circle shrink-0"
 				onclick={() => (open = false)}
 				aria-label={$_('common.close')}
 			>✕</button>
@@ -448,6 +455,28 @@
 					{book.notes ?? '-'}
 				</div>
 			</div>
+
+			{#if book.blurb}
+				<div class="divider my-1"></div>
+				<h3 class="text-sm font-semibold mb-2">{$_('book.about')}</h3>
+				{@const MAX_BLURB_LENGTH = 300}
+				{@const isTruncated = book.blurb.length > MAX_BLURB_LENGTH}
+				{@const displayBlurb = blurbExpanded || !isTruncated
+					? book.blurb
+					: book.blurb.slice(0, MAX_BLURB_LENGTH) + '...'}
+				<div class="text-sm whitespace-pre-wrap break-words rounded border border-base-200 p-3">
+					{displayBlurb}
+					{#if isTruncated}
+						<button
+							type="button"
+							class="link link-primary text-xs ml-2"
+							onclick={() => (blurbExpanded = !blurbExpanded)}
+						>
+							{blurbExpanded ? $_('common.readLess') : $_('common.readMore')}
+						</button>
+					{/if}
+				</div>
+			{/if}
 		</div>
 
 		<div class="p-4 border-t border-base-200 flex gap-2">

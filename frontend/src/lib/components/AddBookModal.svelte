@@ -25,6 +25,7 @@
 
 	// Manual form state
 	let title = $state('');
+	let subtitle = $state('');
 	let author = $state('');
 	let isbn = $state('');
 	let publisher = $state('');
@@ -33,6 +34,7 @@
 	let language = $state('');
 	let tags = $state('');
 	let notes = $state('');
+	let blurb = $state('');
 	let rating = $state('');
 	let status = $state<ReadingStatus>('want_to_read');
 	let cover_url = $state<string | null>(null);
@@ -40,6 +42,7 @@
 
 	function reset() {
 		title = '';
+		subtitle = '';
 		author = '';
 		isbn = '';
 		publisher = '';
@@ -48,6 +51,7 @@
 		language = '';
 		tags = '';
 		notes = '';
+		blurb = '';
 		rating = '';
 		status = defaultStatus;
 		cover_url = null;
@@ -60,6 +64,7 @@
 		try {
 			const book = await api.books.create({
 				title: title.trim(),
+				subtitle: subtitle || null,
 				author: author || null,
 				isbn: isbn || null,
 				publisher: publisher || null,
@@ -68,6 +73,7 @@
 				language: language || null,
 				tags: tags || null,
 				notes: notes || null,
+				blurb: blurb || null,
 				rating: rating ? parseInt(rating) : null,
 				reading_status: status,
 				cover_url: cover_url || null
@@ -124,6 +130,10 @@
 						<span class="label label-text">{$_('book.title')} <span class="text-error">*</span></span>
 						<input class="input input-bordered input-sm" bind:value={title} required />
 					</label>
+					<label class="form-control">
+						<span class="label label-text">{$_('book.subtitle')}</span>
+						<input class="input input-bordered input-sm" bind:value={subtitle} />
+					</label>
 					<div class="grid grid-cols-2 gap-2">
 						<label class="form-control">
 							<span class="label label-text">{$_('book.author')}</span>
@@ -172,6 +182,10 @@
 				<label class="form-control">
 					<span class="label label-text">{$_('book.notes')}</span>
 					<textarea class="textarea textarea-bordered text-sm" rows="2" bind:value={notes}></textarea>
+				</label>
+				<label class="form-control">
+					<span class="label label-text">{$_('book.blurb')}</span>
+					<textarea class="textarea textarea-bordered text-sm" rows="3" bind:value={blurb}></textarea>
 				</label>
 
 				<CoverPicker bind:value={cover_url} disabled={submitting} />

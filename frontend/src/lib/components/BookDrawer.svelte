@@ -34,9 +34,11 @@
 
 	// Editable fields
 	let title = $state('');
+	let subtitle = $state('');
 	let author = $state('');
 	let isbn = $state('');
 	let notes = $state('');
+	let blurb = $state('');
 	let rating = $state<number | null>(null);
 	let reading_status = $state<ReadingStatus>('want_to_read');
 	let publisher = $state('');
@@ -51,9 +53,11 @@
 	$effect(() => {
 		if (book) {
 			title = book.title;
+			subtitle = book.subtitle ?? '';
 			author = book.author ?? '';
 			isbn = book.isbn ?? '';
 			notes = book.notes ?? '';
+			blurb = book.blurb ?? '';
 			rating = book.rating;
 			reading_status = book.reading_status;
 			publisher = book.publisher ?? '';
@@ -73,6 +77,7 @@
 	function buildNonStatusPayload(includeDates: boolean): Partial<Book> {
 		const payload: Partial<Book> = {
 			title,
+			subtitle: subtitle || null,
 			author: author || null,
 			isbn: isbn || null,
 			publisher: publisher || null,
@@ -81,6 +86,7 @@
 			language: language || null,
 			tags: tags || null,
 			notes: notes || null,
+			blurb: blurb || null,
 			rating,
 			cover_url: cover_url || null
 		};
@@ -285,6 +291,10 @@
 				<span class="label label-text">{$_('book.title')}</span>
 				<input class="input input-bordered input-sm" bind:value={title} required />
 			</label>
+			<label class="form-control">
+				<span class="label label-text">{$_('book.subtitle')}</span>
+				<input class="input input-bordered input-sm" bind:value={subtitle} />
+			</label>
 
 			<SuggestionInput
 				bind:value={author}
@@ -357,6 +367,10 @@
 			<label class="form-control">
 				<span class="label label-text">{$_('book.notes')}</span>
 				<textarea class="textarea textarea-bordered text-sm" rows="4" bind:value={notes}></textarea>
+			</label>
+			<label class="form-control">
+				<span class="label label-text">{$_('book.blurb')}</span>
+				<textarea class="textarea textarea-bordered text-sm" rows="4" bind:value={blurb}></textarea>
 			</label>
 
 			<CoverPicker bind:value={cover_url} disabled={saving} />
