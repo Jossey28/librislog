@@ -274,7 +274,7 @@
 	></div>
 
 	<!-- Drawer panel -->
-	<div class="fixed top-0 right-0 h-full w-full max-w-md bg-base-100 shadow-xl z-50 flex flex-col overflow-y-auto">
+	<div class="fixed top-0 right-0 h-full w-full max-w-md bg-base-100 shadow-xl z-50 flex flex-col overflow-hidden">
 		<!-- Header -->
 		<div class="flex items-center justify-between p-4 border-b border-base-200">
 			<h2 class="text-lg font-bold truncate">{book.title}</h2>
@@ -286,7 +286,7 @@
 		</div>
 
 		<!-- Editable form -->
-		<form class="flex flex-col gap-3 px-4 pb-4 flex-1" onsubmit={(e) => { e.preventDefault(); save(); }}>
+		<form class="flex flex-col gap-3 px-4 pb-4 flex-1 min-h-0 overflow-y-auto" onsubmit={(e) => { e.preventDefault(); save(); }}>
 			<label class="form-control">
 				<span class="label label-text">{$_('book.title')}</span>
 				<input class="input input-bordered input-sm" bind:value={title} required />
@@ -380,7 +380,7 @@
 				</a>
 			</div>
 
-			<div class="flex gap-2 mt-auto pt-2">
+			<div class="sticky bottom-0 bg-base-100 py-3 border-t border-base-200 flex gap-2">
 				<button type="button" class="btn btn-ghost btn-sm" onclick={() => (open = false)} disabled={saving}>
 					{$_('common.cancel')}
 				</button>

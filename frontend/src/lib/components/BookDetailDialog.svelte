@@ -205,7 +205,7 @@
 		onkeydown={(e) => e.key === 'Escape' && (open = false)}
 	></div>
 
-	<div class="fixed top-0 right-0 h-full w-full max-w-md bg-base-100 shadow-xl z-50 flex flex-col overflow-y-auto">
+	<div class="fixed top-0 right-0 h-full w-full max-w-md bg-base-100 shadow-xl z-50 flex flex-col overflow-hidden">
 		<div class="flex items-center justify-between p-4 border-b border-base-200">
 			<div class="min-w-0 flex-1">
 				<h2 class="text-lg font-bold truncate">{book.title}</h2>
@@ -220,7 +220,7 @@
 			>✕</button>
 		</div>
 
-		<div class="p-4 flex-1 flex flex-col gap-4">
+		<div class="p-4 flex-1 min-h-0 overflow-y-auto flex flex-col gap-4">
 			<div class="rounded-lg bg-base-200 overflow-hidden aspect-[2/3] w-40 self-center">
 				{#if book.cover_url}
 					<img
@@ -380,7 +380,7 @@
 			{/if}
 		</div>
 
-		<div class="p-4 border-t border-base-200 flex gap-2">
+		<div class="sticky bottom-0 bg-base-100 p-4 border-t border-base-200 flex gap-2">
 			<button type="button" class="btn btn-primary btn-sm flex-1" onclick={openEdit}>{$_('common.edit')}</button>
 			{#if !confirmDelete}
 				<button
