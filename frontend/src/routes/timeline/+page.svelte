@@ -136,7 +136,7 @@
 			<div class="hero-content text-center">
 				<div class="max-w-md">
 					<p class="text-base-content/70">{$_('timeline.noReadBooks')}</p>
-					<a href="/library" class="btn btn-primary btn-sm mt-4">{$_('library.title')}</a>
+					<a href="/library" class="btn btn-primary btn-sm mt-4">{$_('timeline.goToLibrary')}</a>
 				</div>
 			</div>
 		</div>

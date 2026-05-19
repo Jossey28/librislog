@@ -181,6 +181,14 @@
 			</div>
 		</div>
 	{:else}
+		{@const s = stats}
+		{#if s.status_distribution.want_to_read + s.status_distribution.currently_reading + s.status_distribution.read + s.status_distribution.did_not_finish === 0}
+			<div class="card bg-base-100 border border-base-200 shadow-sm">
+				<div class="card-body py-10 text-center">
+					<p>{$_('statistics.noData')}</p>
+				</div>
+			</div>
+		{:else}
 		<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
 			<div class="stat bg-base-100 rounded-2xl shadow-sm border border-base-200">
 				<div class="stat-title">{$_('statistics.avgBooksPerMonth')}</div>
@@ -353,5 +361,6 @@
 				{/if}
 			</div>
 		</div>
+		{/if}
 	{/if}
 </div>

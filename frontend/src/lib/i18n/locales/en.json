@@ -374,7 +374,8 @@
     "title": "Reading Timeline",
     "subtitle": "A chronological view of books you've finished reading",
     "viewInLibrary": "View all in library",
-    "noReadBooks": "No finished books in your library yet."
+    "noReadBooks": "No finished books in your library yet.",
+    "goToLibrary": "Go to library"
   },
   "data": {
     "title": "Data Management",

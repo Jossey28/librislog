@@ -374,7 +374,8 @@
     "title": "Lese-Zeitleiste",
     "subtitle": "Eine chronologische Ansicht der Bücher, die du gelesen hast",
     "viewInLibrary": "Alle in der Bibliothek anzeigen",
-    "noReadBooks": "Noch keine gelesenen Bücher in deiner Bibliothek."
+    "noReadBooks": "Noch keine gelesenen Bücher in deiner Bibliothek.",
+    "goToLibrary": "Zur Bibliothek"
   },
   "data": {
     "title": "Datenverwaltung",
