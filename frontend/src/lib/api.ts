@@ -274,6 +274,8 @@ export const api = {
 			sort?: SortField;
 			order?: SortOrder;
 			smart_sort?: boolean;
+			offset?: number;
+			limit?: number;
 		}): Promise<Book[]> {
 			const qs = new URLSearchParams();
 			if (params?.status) qs.set('status', params.status);
@@ -281,6 +283,8 @@ export const api = {
 			if (params?.sort) qs.set('sort', params.sort);
 			if (params?.order) qs.set('order', params.order);
 			if (params?.smart_sort !== undefined) qs.set('smart_sort', String(params.smart_sort));
+			if (params?.offset !== undefined) qs.set('offset', String(params.offset));
+			if (params?.limit !== undefined) qs.set('limit', String(params.limit));
 			const query = qs.toString() ? `?${qs}` : '';
 			return request<Book[]>(`/books${query}`);
 		},

@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import type { Book, ReadingStatus, SortField, SortOrder } from '$lib/types';
+	import { onMount } from 'svelte';
+	import type { Book, LibraryStats, ReadingStatus, SortField, SortOrder } from '$lib/types';
 	import { api } from '$lib/api';
 	import { shouldShowActionToast } from '$lib/errors';
 	import { _ } from '$lib/i18n';
@@ -32,6 +33,8 @@
 		did_not_finish: 'status.did_not_finish'
 	};
 
+	const PAGE_SIZE = 40;
+
 	let activeStatus = $derived<ReadingStatus>(
 		($page.url.searchParams.get('status') as ReadingStatus) ?? 'want_to_read'
 	);
@@ -44,12 +47,47 @@
 
 	let books = $state<Book[]>([]);
 	let progressMap = $state<Record<number, number>>({});
+	let statusCounts = $state<LibraryStats | null>(null);
 	let loading = $state(false);
 	let syncing = $state(false);
+	let loadingMore = $state(false);
+	let hasMore = $state(true);
+	let nextOffset = $state(0);
 	let searchQuery = $state('');
 	let smartSort = $state(true);
 	let sort = $state<SortField>('date_added');
 	let order = $state<SortOrder>('desc');
+	let loadMoreAnchor = $state<HTMLDivElement | null>(null);
+	let requestVersion = 0;
+	let observer: IntersectionObserver | null = null;
+	const numberFormatter = new Intl.NumberFormat();
+
+	function formatCount(value: number | null): string {
+		if (value === null) return '...';
+		return numberFormatter.format(value);
+	}
+
+	function getStatusCount(status: ReadingStatus): number | null {
+		if (!statusCounts) return null;
+		switch (status) {
+			case 'want_to_read':
+				return statusCounts.books_want_to_read;
+			case 'currently_reading':
+				return statusCounts.books_reading;
+			case 'read':
+				return statusCounts.books_read;
+			case 'did_not_finish':
+				return statusCounts.books_did_not_finish;
+		}
+	}
+
+	async function refreshStatusCounts() {
+		try {
+			statusCounts = await api.books.stats();
+		} catch {
+			statusCounts = null;
+		}
+	}
 
 	let selectedBook = $state<Book | null>(null);
 	let detailOpen = $state(false);
@@ -61,30 +99,66 @@
 		void goto(`/library?status=${status}`);
 	}
 
+	async function fetchProgressForBatch(batch: Book[], version: number, replace = false) {
+		const ids = batch.map((b) => b.id);
+		if (ids.length === 0) {
+			if (replace) {
+				progressMap = {};
+			}
+			return;
+		}
+
+		const results = await api.books.progress.latest(ids);
+		if (version !== requestVersion) return;
+
+		const map: Record<number, number> = replace ? {} : { ...progressMap };
+		for (const p of results) {
+			map[p.book_id] = p.current_page;
+		}
+		progressMap = map;
+	}
+
+	async function maybePrefillViewport(version: number) {
+		if (typeof window === 'undefined') return;
+		let safety = 0;
+		while (
+			version === requestVersion &&
+			hasMore &&
+			!loadingMore &&
+			document.documentElement.scrollHeight <= window.innerHeight + 240 &&
+			safety < 4
+		) {
+			safety += 1;
+			await loadMoreBooks();
+		}
+	}
+
 	async function fetchBooks(background = false) {
+		const version = ++requestVersion;
 		if (background) {
 			syncing = true;
 		} else {
 			loading = true;
 		}
 		try {
-			books = await api.books.list({
+			const firstPage = await api.books.list({
 				status: activeStatus,
 				q: searchQuery || undefined,
 				smart_sort: smartSort,
 				sort,
-				order
+				order,
+				offset: 0,
+				limit: PAGE_SIZE
 			});
-			const ids = books.map((b) => b.id);
-			if (ids.length > 0) {
-				const results = await api.books.progress.latest(ids);
-				const map: Record<number, number> = {};
-				for (const p of results) {
-					map[p.book_id] = p.current_page;
-				}
-				progressMap = map;
-			}
+			if (version !== requestVersion) return;
+
+			books = firstPage;
+			nextOffset = firstPage.length;
+			hasMore = firstPage.length === PAGE_SIZE;
+			await fetchProgressForBatch(firstPage, version, true);
+			await maybePrefillViewport(version);
 		} catch (e: unknown) {
+			if (version !== requestVersion) return;
 			const message = e instanceof Error ? e.message : $_('import.searchFailed');
 			if (shouldShowActionToast(message)) {
 				toasts.add(message, 'error');
@@ -94,6 +168,39 @@
 				syncing = false;
 			} else {
 				loading = false;
+			}
+		}
+	}
+
+	async function loadMoreBooks() {
+		if (loadingMore || loading || syncing || !hasMore) return;
+		const version = requestVersion;
+		loadingMore = true;
+		try {
+			const pageData = await api.books.list({
+				status: activeStatus,
+				q: searchQuery || undefined,
+				smart_sort: smartSort,
+				sort,
+				order,
+				offset: nextOffset,
+				limit: PAGE_SIZE
+			});
+			if (version !== requestVersion) return;
+
+			books = [...books, ...pageData];
+			nextOffset += pageData.length;
+			hasMore = pageData.length === PAGE_SIZE;
+			await fetchProgressForBatch(pageData, version);
+		} catch (e: unknown) {
+			if (version !== requestVersion) return;
+			const message = e instanceof Error ? e.message : $_('import.searchFailed');
+			if (shouldShowActionToast(message)) {
+				toasts.add(message, 'error');
+			}
+		} finally {
+			if (version === requestVersion) {
+				loadingMore = false;
 			}
 		}
 	}
@@ -139,6 +246,7 @@
 			books = books.map((b) => (b.id === updated.id ? updated : b));
 		}
 		void fetchBooks(true);
+		void refreshStatusCounts();
 	}
 
 	function handleDelete(id: number) {
@@ -146,6 +254,7 @@
 		drawerOpen = false;
 		books = books.filter((b) => b.id !== id);
 		void fetchBooks(true);
+		void refreshStatusCounts();
 	}
 
 	function handleAdded(book: Book) {
@@ -154,7 +263,37 @@
 		}
 		addBookOpen = false;
 		void fetchBooks(true);
+		void refreshStatusCounts();
 	}
+
+	onMount(() => {
+		void refreshStatusCounts();
+
+		if (typeof window === 'undefined' || typeof IntersectionObserver === 'undefined') {
+			return;
+		}
+
+		observer = new IntersectionObserver(
+			(entries) => {
+				if (entries.some((entry) => entry.isIntersecting)) {
+					void loadMoreBooks();
+				}
+			},
+			{ root: null, rootMargin: '300px 0px', threshold: 0 }
+		);
+
+		return () => {
+			observer?.disconnect();
+			observer = null;
+		};
+	});
+
+	$effect(() => {
+		const anchor = loadMoreAnchor;
+		if (!anchor || !observer) return;
+		observer.observe(anchor);
+		return () => observer?.unobserve(anchor);
+	});
 </script>
 
 <div class="flex flex-col gap-4">
@@ -168,7 +307,7 @@
 				onclick={() => changeTab(tab.status)}
 			>
 				<span class="mr-1">{tab.icon}</span>
-				{$_(tab.labelKey)}
+				{$_(tab.labelKey)} ({formatCount(getStatusCount(tab.status))})
 			</button>
 		{/each}
 	</div>
@@ -226,6 +365,12 @@
 				<BookCard {book} onClick={openDetailView} currentPage={progressMap[book.id] ?? 0} />
 			{/each}
 		</div>
+		<div bind:this={loadMoreAnchor} class="h-1"></div>
+		{#if loadingMore}
+			<div class="flex justify-center py-4">
+				<span class="loading loading-spinner loading-md"></span>
+			</div>
+		{/if}
 	{/if}
 </div>
 

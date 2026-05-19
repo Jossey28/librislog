@@ -134,6 +134,8 @@ def list_books(
     ),
     order: Literal["asc", "desc"] = Query(default="desc"),
     smart_sort: bool = Query(default=True),
+    offset: int = Query(default=0, ge=0),
+    limit: Optional[int] = Query(default=None, ge=1, le=200),
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> List[BookRead]:
@@ -189,7 +191,9 @@ def list_books(
     if sort_col in (Book.date_started, Book.date_finished):
         sort_expression = sort_expression.nullslast()  # type: ignore[assignment]
 
-    statement = statement.order_by(sort_expression)
+    statement = statement.order_by(sort_expression).offset(offset)
+    if limit is not None:
+        statement = statement.limit(limit)
 
     books = list(session.exec(statement).all())
     logger.debug("list_books — returning %d book(s)", len(books))

@@ -224,6 +224,20 @@ def test_list_books_filter_by_did_not_finish_status(client: TestClient):
     assert data[0]["title"] == "DNF"
 
 
+def test_list_books_supports_limit_and_offset(client: TestClient):
+    _create_book(client, title="First")
+    _create_book(client, title="Second")
+    _create_book(client, title="Third")
+
+    first_page = client.get("/api/books?sort=title&order=asc&limit=2&offset=0")
+    assert first_page.status_code == 200
+    assert [item["title"] for item in first_page.json()] == ["First", "Second"]
+
+    second_page = client.get("/api/books?sort=title&order=asc&limit=2&offset=2")
+    assert second_page.status_code == 200
+    assert [item["title"] for item in second_page.json()] == ["Third"]
+
+
 def test_update_book_to_did_not_finish_status(client: TestClient):
     book = _create_book(client, title="Update To DNF")
 
