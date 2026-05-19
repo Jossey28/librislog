@@ -1,6 +1,7 @@
 import csv
 import hashlib
 import json
+import re
 import secrets
 from datetime import datetime, timezone
 from pathlib import Path
@@ -207,6 +208,9 @@ def suggest_mapping(source_fields: list[str]) -> dict[str, str]:
     return suggested
 
 
+_YEAR_PATTERN = re.compile(r"\b(\d{4})\b")
+
+
 def _parse_int(value, field: str) -> int | None:
     if value is None or value == "":
         return None
@@ -233,6 +237,29 @@ def _parse_int(value, field: str) -> int | None:
                 hint="Use digits only, for example 1998 or 320",
             )
         )
+
+
+def _parse_year(value, field: str) -> int | None:
+    if value is None or value == "":
+        return None
+    raw = str(value).strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        pass
+    m = _YEAR_PATTERN.search(raw)
+    if m:
+        return int(m.group(1))
+    raise ValueError(
+        _format_value_error(
+            field=field,
+            expected="a year (e.g., 1998) or date string",
+            value=value,
+            hint="Use a 4-digit year like 1998, or a date that includes the year",
+        )
+    )
 
 
 def _parse_datetime(value, field: str) -> datetime | None:
@@ -351,7 +378,7 @@ def validate_import(file_id: str, user: User, mapping: dict[str, str], session: 
             rating = _parse_int(row_data.get("rating"), "rating")
             if rating is not None and (rating < 1 or rating > 5):
                 warnings.append(f"Row {idx}: rating out of range, will be ignored")
-            _parse_int(row_data.get("published_year"), "published_year")
+            _parse_year(row_data.get("published_year"), "published_year")
             _parse_int(row_data.get("page_count"), "page_count")
             reading_status = _parse_reading_status(row_data.get("reading_status"))
             date_started = _parse_datetime(row_data.get("date_started"), "date_started")
@@ -463,7 +490,7 @@ async def execute_import(
                     isbn=None if row_data.get("isbn") in (None, "") else str(row_data.get("isbn")),
                     cover_url=cover_url,
                     publisher=None if row_data.get("publisher") in (None, "") else str(row_data.get("publisher")),
-                    published_year=_parse_int(row_data.get("published_year"), "published_year"),
+                    published_year=_parse_year(row_data.get("published_year"), "published_year"),
                     page_count=page_count,
                     language=language,
                     notes=None if row_data.get("notes") in (None, "") else str(row_data.get("notes")),
