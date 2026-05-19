@@ -36,8 +36,13 @@
     "favoriteAuthor": "Lieblingsautor",
     "booksCount": "{count} {count, plural, one {Buch} other {Bücher}}",
     "unknownLanguage": "Unbekannt",
-    "loading": "Lade Statistiken...",
-    "noData": "Noch keine Daten verfügbar. Fange an, Bücher zu lesen und zu erfassen, um Statistiken zu sehen!"
+	"pagesReadCalendar": "Leseaktivität (letzte 365 Tage)",
+	"noCalendarData": "Keine Leseaktivität im letzten Jahr verfügbar",
+	"pagesOver": "Seiten an",
+	"daysLabel": "Tagen",
+	"avgPerDay": "Ø:",
+	"loading": "Lade Statistiken...",
+	"noData": "Noch keine Daten verfügbar. Fange an, Bücher zu lesen und zu erfassen, um Statistiken zu sehen!"
   },
   "dashboard": {
     "title": "Lese-Dashboard",

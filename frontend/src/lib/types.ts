@@ -194,6 +194,18 @@ export interface OidcLinkStatus {
 	oidc_name: string | null;
 }
 
+export interface DailyPages {
+	date: string;
+	pages: number;
+}
+
+export interface DailyPagesResponse {
+	data: DailyPages[];
+	total_days: number;
+	days_with_activity: number;
+	total_pages: number;
+}
+
 export interface ReadingProgressEntry {
 	id: number;
 	book_id: number;

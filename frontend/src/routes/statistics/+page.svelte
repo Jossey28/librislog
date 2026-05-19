@@ -2,10 +2,11 @@
 	import { onMount } from 'svelte';
 	import { _, locale } from '$lib/i18n';
 	import { api } from '$lib/api';
-	import type { StatisticsResponse } from '$lib/types';
+	import type { DailyPagesResponse, StatisticsResponse } from '$lib/types';
 	import { toasts } from '$lib/toasts';
 	import { formatLanguageCode } from '$lib/utils/language';
 	import BarChart from '$lib/components/BarChart.svelte';
+	import CalendarHeatmap from '$lib/components/CalendarHeatmap.svelte';
 
 	type Segment = {
 		label: string;
@@ -20,10 +21,13 @@
 
 	let loading = $state(true);
 	let stats = $state<StatisticsResponse | null>(null);
+	let calendarData = $state<DailyPagesResponse | null>(null);
+	let calendarLoading = $state(false);
 
 	onMount(() => {
 		let active = true;
 		void loadStatistics(() => active);
+		void loadCalendarData(() => active);
 		return () => {
 			active = false;
 		};
@@ -45,6 +49,27 @@
 		} finally {
 			if (isActive()) {
 				loading = false;
+			}
+		}
+	}
+
+	async function loadCalendarData(isActive: () => boolean) {
+		calendarLoading = true;
+		try {
+			const data = await api.statistics.getPagesPerDay(365);
+			if (isActive()) {
+				console.debug('Pages per day response:', data);
+				calendarData = data;
+			}
+		} catch (e: unknown) {
+			if (isActive()) {
+				const message = e instanceof Error ? e.message : String(e);
+				console.error('Failed to load calendar data:', message);
+				calendarData = null;
+			}
+		} finally {
+			if (isActive()) {
+				calendarLoading = false;
 			}
 		}
 	}
@@ -304,6 +329,35 @@
 					</div>
 				{:else}
 					<p class="text-base-content/70">{$_('statistics.noData')}</p>
+				{/if}
+			</div>
+		</div>
+
+		<div class="card bg-base-100 border border-base-200 shadow-sm">
+			<div class="card-body">
+				<h2 class="card-title text-base">{$_('statistics.pagesReadCalendar')}</h2>
+				{#if calendarLoading}
+					<div class="flex items-center justify-center h-40">
+						<span class="loading loading-spinner loading-md"></span>
+					</div>
+				{:else if calendarData}
+					<CalendarHeatmap data={calendarData.data} />
+					<div class="flex flex-wrap gap-4 text-sm text-base-content/70 mt-2">
+						<span>
+							<strong>{formatNumber(calendarData.total_pages, 0)}</strong>
+							{$_('statistics.pagesOver')}
+							<strong>{calendarData.days_with_activity}</strong>
+							{$_('statistics.daysLabel')}
+						</span>
+						<span>
+							{$_('statistics.avgPerDay')}
+							<strong>{formatNumber(calendarData.total_pages / Math.max(calendarData.days_with_activity, 1), 1)}</strong>
+						</span>
+					</div>
+				{:else}
+					<div class="text-center py-8 text-base-content/50">
+						<p>{$_('statistics.noCalendarData')}</p>
+					</div>
 				{/if}
 			</div>
 		</div>

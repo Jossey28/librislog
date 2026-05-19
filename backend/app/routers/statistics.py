@@ -1,9 +1,10 @@
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from statistics import mean
+from types import SimpleNamespace
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func
 from sqlmodel import Session, select
 
@@ -11,6 +12,8 @@ from app.auth import require_user
 from app.database import get_session
 from app.models import Book, ReadingProgress, ReadingStatus, User, UserSettings
 from app.schemas import (
+    DailyPages,
+    DailyPagesResponse,
     FavoriteAuthor,
     LanguageDistribution,
     MonthlyBooks,
@@ -50,6 +53,130 @@ def _month_range(start_key: str, end_key: str) -> list[str]:
             month = 1
             year += 1
     return keys
+
+
+def _extract_progress_daily_pages(
+    entries: list, tz: ZoneInfo
+) -> Counter[str]:
+    daily: Counter[str] = Counter()
+    grouped: dict[int, list] = {}
+    for entry in entries:
+        grouped.setdefault(entry.book_id, []).append(entry)
+
+    for book_id in sorted(grouped):
+        book_entries = grouped[book_id]
+        book_entries.sort(key=lambda e: e.created_at)
+        for prev, curr in zip(book_entries, book_entries[1:]):
+            delta = curr.page - prev.page
+            if delta > 0:
+                day_diff = (curr.created_at - prev.created_at).days + 1
+                if day_diff > 0:
+                    daily_avg = delta / day_diff
+                    current = prev.created_at
+                    end_dt = curr.created_at
+                    while current <= end_dt:
+                        date_key = current.astimezone(tz).strftime("%Y-%m-%d")
+                        daily[date_key] += daily_avg
+                        current += timedelta(days=1)
+
+    return daily
+
+
+def _extract_book_level_daily_pages(books: list[Book], tz: ZoneInfo) -> Counter[str]:
+    daily: Counter[str] = Counter()
+    for book in books:
+        if not (book.date_started and book.date_finished and book.page_count):
+            continue
+        if book.date_finished < book.date_started:
+            continue
+        total_days = (book.date_finished - book.date_started).days + 1
+        if total_days <= 0:
+            continue
+        daily_avg = book.page_count / total_days
+        current = book.date_started
+        while current <= book.date_finished:
+            date_key = current.astimezone(tz).strftime("%Y-%m-%d")
+            daily[date_key] += daily_avg
+            current += timedelta(days=1)
+    return daily
+
+
+@router.get("/pages-per-day", response_model=DailyPagesResponse)
+def get_pages_per_day(
+    days: int = Query(default=365, ge=1, le=730),
+    current_user: User = Depends(require_user),
+    session: Session = Depends(get_session),
+) -> DailyPagesResponse:
+    tz = _user_timezone(session, current_user.id)
+    end_date = datetime.now(tz)
+    start_date = end_date - timedelta(days=days)
+
+    start_date_utc = start_date.astimezone(timezone.utc).replace(tzinfo=None)
+    end_date_utc = end_date.astimezone(timezone.utc).replace(tzinfo=None)
+
+    progress_entries = list(
+        session.exec(
+            select(ReadingProgress)
+            .where(
+                ReadingProgress.user_id == current_user.id,
+                ReadingProgress.created_at >= start_date_utc,
+                ReadingProgress.created_at <= end_date_utc,
+            )
+            .order_by(ReadingProgress.book_id, ReadingProgress.created_at)
+        ).all()
+    )
+
+    books = list(
+        session.exec(select(Book).where(Book.user_id == current_user.id)).all()
+    )
+
+    books_with_progress = {e.book_id for e in progress_entries}
+
+    virtual_entries = []
+    for book in books:
+        if book.id in books_with_progress and book.date_started:
+            virtual_entries.append(
+                SimpleNamespace(
+                    book_id=book.id,
+                    page=0,
+                    created_at=book.date_started,
+                )
+            )
+
+    all_progress_entries = list(progress_entries) + virtual_entries
+    progress_daily = _extract_progress_daily_pages(all_progress_entries, tz)
+
+    fallback_books = [
+        b
+        for b in books
+        if b.id not in books_with_progress
+        and b.reading_status == ReadingStatus.read
+        and b.date_started
+        and b.date_finished
+        and b.page_count
+    ]
+    fallback_daily = _extract_book_level_daily_pages(fallback_books, tz)
+
+    combined: Counter[str] = Counter()
+    for k, v in progress_daily.items():
+        combined[k] += v
+    for k, v in fallback_daily.items():
+        combined[k] += v
+
+    start_date_str = start_date.strftime("%Y-%m-%d")
+    end_date_str = end_date.strftime("%Y-%m-%d")
+    data = [
+        DailyPages(date=date_str, pages=int(round(pages)))
+        for date_str, pages in sorted(combined.items())
+        if start_date_str <= date_str <= end_date_str
+    ]
+
+    return DailyPagesResponse(
+        data=data,
+        total_days=days,
+        days_with_activity=len(data),
+        total_pages=sum(d.pages for d in data),
+    )
 
 
 @router.get("", response_model=StatisticsResponse)

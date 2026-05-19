@@ -36,8 +36,13 @@
     "favoriteAuthor": "Favorite Author",
     "booksCount": "{count} {count, plural, one {book} other {books}}",
     "unknownLanguage": "Unknown",
-    "loading": "Loading statistics...",
-    "noData": "No data available yet. Start reading and tracking books to see statistics!"
+	"pagesReadCalendar": "Reading Activity (Last 365 Days)",
+	"noCalendarData": "No reading data available for the past year",
+	"pagesOver": "pages over",
+	"daysLabel": "days",
+	"avgPerDay": "Avg:",
+	"loading": "Loading statistics...",
+	"noData": "No data available yet. Start reading and tracking books to see statistics!"
   },
   "dashboard": {
     "title": "Reading Dashboard",

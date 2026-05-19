@@ -24,22 +24,22 @@
   });
 
   const varMap: Record<string, string> = {
-    primary: '--p',
-    secondary: '--s',
-    accent: '--a',
-    info: '--in',
-    success: '--su',
-    warning: '--wa',
-    error: '--er',
+	primary: '--color-primary',
+	secondary: '--color-secondary',
+	accent: '--color-accent',
+	info: '--color-info',
+	success: '--color-success',
+	warning: '--color-warning',
+	error: '--color-error',
   };
 
   function resolveColor(name: string): string {
     const varName = varMap[name];
     if (!varName) {
       console.warn(`BarChart: unknown color "${name}", falling back to primary`);
-      return 'oklch(var(--p))';
+	  return 'var(--color-primary)';
     }
-    return `oklch(var(${varName}))`;
+	return `var(${varName})`;
   }
 
   const len = $derived(Math.min(labels.length, data.length));

@@ -316,6 +316,18 @@ class OidcLoginResponse(SQLModel):
     user: UserRead
 
 
+class DailyPages(SQLModel):
+    date: str
+    pages: int
+
+
+class DailyPagesResponse(SQLModel):
+    data: list[DailyPages]
+    total_days: int
+    days_with_activity: int
+    total_pages: int
+
+
 class DataExportRequest(SQLModel):
     datasets: list[Literal["books", "progress", "tags", "covers"]]
     format: Literal["csv", "json"]
