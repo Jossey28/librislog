@@ -50,6 +50,20 @@ def test_get_cover_404_for_missing(covers_client):
     assert resp.status_code == 404
 
 
+def test_get_cover_rejects_path_traversal_dotdot(covers_client):
+    """Filename containing '..' returns 400."""
+    client, _ = covers_client
+    resp = client.get("/api/covers/test..jpg")
+    assert resp.status_code == 400
+
+
+def test_get_cover_rejects_backslash(covers_client):
+    """Filename with backslash returns 400."""
+    client, _ = covers_client
+    resp = client.get("/api/covers/sub%5Cfile.jpg")
+    assert resp.status_code == 400
+
+
 # ── POST /api/covers/upload ────────────────────────────────────────────────────
 
 _VALID_IMAGE = b"I" * 10_000  # 10 KB — passes the 5 KB minimum

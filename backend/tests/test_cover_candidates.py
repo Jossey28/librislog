@@ -639,6 +639,7 @@ def test_cover_candidates_thalia_scrapling_error(client: TestClient, monkeypatch
 def test_cover_candidates_hardcover_rejects_ssrf_url(client: TestClient, monkeypatch):
     from app import config
     monkeypatch.setattr(config.settings, "hardcover_app_api_token", "test_token")
+    monkeypatch.setattr(config.settings, "thalia_cover_search_enabled", False)
 
     class _FakeResponse:
         def __init__(self, status_code: int, headers: dict[str, str], url: str, json_data=None):
@@ -693,6 +694,295 @@ def test_cover_candidates_hardcover_rejects_ssrf_url(client: TestClient, monkeyp
 
     data = resp.json()
 
+    by_source = {item["source"]: item for item in data["candidates"]}
+    assert "hardcover" in by_source
+    assert by_source["hardcover"]["available"] is False
+    assert by_source["hardcover"]["url"] == ""
+
+
+def _make_adaptive_mock_page(first_empty: bool = False):
+    """Mock page where Phase 1 (auto_save) returns empty, Phase 2 (adaptive) finds elements."""
+
+    class _MockElement:
+        def __init__(self, attrs: dict[str, str] | None = None):
+            self.attrib = attrs or {}
+            self.text = ""
+
+    class _MockElements:
+        def __init__(self, items: list):
+            self._items = items
+
+        def __getitem__(self, index: int):
+            return self._items[index]
+
+        def __bool__(self):
+            return len(self._items) > 0
+
+        def __len__(self):
+            return len(self._items)
+
+    class _AdaptiveMockPage:
+        content = "<html></html>"
+        status = 200
+
+        def __init__(self):
+            self._first_call = True
+
+        def css(self, selector: str, auto_save: bool = False, adaptive: bool = False):
+            if adaptive and first_empty:
+                if "dl-pageview" in selector:
+                    return _MockElements([_MockElement({"suchtreffer": "1"})])
+                return _MockElements([_MockElement({"src": "https://images.thalia.media/03/-/adaptive/cover.jpg"})])
+            if auto_save and first_empty and not adaptive:
+                return _MockElements([])
+            if "dl-pageview" in selector:
+                return _MockElements([_MockElement({"suchtreffer": "1"})])
+            return _MockElements([_MockElement({"src": "https://images.thalia.media/03/-/normal/cover.jpg"})])
+
+    return _AdaptiveMockPage()
+
+
+def test_cover_candidates_thalia_adaptive_fallback(client: TestClient, monkeypatch):
+    """When exact selector fails, adaptive fallback re-finds elements."""
+    from app import config
+    monkeypatch.setattr(config.settings, "thalia_cover_search_enabled", True)
+    monkeypatch.setattr(config.settings, "hardcover_app_api_token", "")
+
+    import app.routers.cover_candidates as cc_module
+
+    adaptive_page = _make_adaptive_mock_page(first_empty=True)
+
+    class _FakeFetcher:
+        @classmethod
+        def get(cls, url: str, **kwargs):
+            return adaptive_page
+
+    monkeypatch.setattr(cc_module, "_THALIA_FETCHER_CLASS", _FakeFetcher)
+
+    class _FakeResponse:
+        def __init__(self, status_code: int, headers: dict[str, str], url: str):
+            self.status_code = status_code
+            self.headers = headers
+            self.url = url
+
+    class _FakeAsyncClient:
+        def __init__(self, *args, **kwargs): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, exc_type, exc, tb): return False
+        async def head(self, url: str, follow_redirects: bool = True):
+            if "images.thalia.media" in url:
+                return _FakeResponse(200, {"content-type": "image/jpeg", "content-length": "50000"}, url)
+            return _FakeResponse(404, {}, url)
+
+    monkeypatch.setattr(cc_module.httpx, "AsyncClient", _FakeAsyncClient)
+
+    resp = client.get("/api/cover-candidates/search?isbn=9783426440087")
+    assert resp.status_code == 200
+
+    data = resp.json()
+    by_source = {item["source"]: item for item in data["candidates"]}
+    assert "thalia" in by_source
+    assert by_source["thalia"]["available"] is True
+    assert by_source["thalia"]["url"].startswith("https://images.thalia.media/00/-/")
+
+
+def test_cover_candidates_thalia_403_blocked(client: TestClient, monkeypatch):
+    """Thalia returns unavailable when Fetcher gets a 403 response."""
+    from app import config
+    monkeypatch.setattr(config.settings, "thalia_cover_search_enabled", True)
+    monkeypatch.setattr(config.settings, "hardcover_app_api_token", "")
+
+    import app.routers.cover_candidates as cc_module
+
+    blocked_page = _make_mock_page(status=403)
+
+    class _FakeFetcher:
+        @classmethod
+        def get(cls, url: str, **kwargs):
+            return blocked_page
+
+    monkeypatch.setattr(cc_module, "_THALIA_FETCHER_CLASS", _FakeFetcher)
+
+    class _FakeAsyncClient:
+        def __init__(self, *args, **kwargs): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, exc_type, exc, tb): return False
+        async def head(self, url: str, follow_redirects: bool = True):
+            return _FakeResponse(404, {}, url)
+
+    monkeypatch.setattr(cc_module.httpx, "AsyncClient", _FakeAsyncClient)
+
+    resp = client.get("/api/cover-candidates/search?isbn=9783426440087")
+    assert resp.status_code == 200
+
+    data = resp.json()
+    by_source = {item["source"]: item for item in data["candidates"]}
+    assert "thalia" in by_source
+    assert by_source["thalia"]["available"] is False
+    assert by_source["thalia"]["url"] == ""
+
+
+def test_cover_candidates_thalia_suchtreffer_not_found(client: TestClient, monkeypatch):
+    """Thalia returns unavailable when dl-pageview element has no suchtreffer attr."""
+    from app import config
+    monkeypatch.setattr(config.settings, "thalia_cover_search_enabled", True)
+    monkeypatch.setattr(config.settings, "hardcover_app_api_token", "")
+
+    import app.routers.cover_candidates as cc_module
+
+    mock_page = _make_mock_page(suchtreffer=None, src=None)
+
+    class _FakeFetcher:
+        @classmethod
+        def get(cls, url: str, **kwargs):
+            return mock_page
+
+    monkeypatch.setattr(cc_module, "_THALIA_FETCHER_CLASS", _FakeFetcher)
+
+    class _FakeAsyncClient:
+        def __init__(self, *args, **kwargs): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, exc_type, exc, tb): return False
+        async def head(self, url: str, follow_redirects: bool = True):
+            return _FakeResponse(404, {}, url)
+
+    monkeypatch.setattr(cc_module.httpx, "AsyncClient", _FakeAsyncClient)
+
+    resp = client.get("/api/cover-candidates/search?isbn=9783426440087")
+    assert resp.status_code == 200
+
+    data = resp.json()
+    by_source = {item["source"]: item for item in data["candidates"]}
+    assert "thalia" in by_source
+    assert by_source["thalia"]["available"] is False
+    assert by_source["thalia"]["url"] == ""
+
+
+def test_cover_candidates_thalia_empty_image_src(client: TestClient, monkeypatch):
+    """Thalia returns unavailable when img src attribute is empty string."""
+    from app import config
+    monkeypatch.setattr(config.settings, "thalia_cover_search_enabled", True)
+    monkeypatch.setattr(config.settings, "hardcover_app_api_token", "")
+
+    import app.routers.cover_candidates as cc_module
+
+    mock_page = _make_mock_page(suchtreffer="1", src="")
+
+    class _FakeFetcher:
+        @classmethod
+        def get(cls, url: str, **kwargs):
+            return mock_page
+
+    monkeypatch.setattr(cc_module, "_THALIA_FETCHER_CLASS", _FakeFetcher)
+
+    class _FakeAsyncClient:
+        def __init__(self, *args, **kwargs): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, exc_type, exc, tb): return False
+        async def head(self, url: str, follow_redirects: bool = True):
+            return _FakeResponse(404, {}, url)
+
+    monkeypatch.setattr(cc_module.httpx, "AsyncClient", _FakeAsyncClient)
+
+    resp = client.get("/api/cover-candidates/search?isbn=9783426440087")
+    assert resp.status_code == 200
+
+    data = resp.json()
+    by_source = {item["source"]: item for item in data["candidates"]}
+    assert "thalia" in by_source
+    assert by_source["thalia"]["available"] is False
+    assert by_source["thalia"]["url"] == ""
+
+
+def test_cover_candidates_probe_content_length_value_error(client: TestClient, monkeypatch):
+    """Cover probe handles invalid Content-Length header gracefully."""
+    from app import config
+    monkeypatch.setattr(config.settings, "thalia_cover_search_enabled", False)
+    monkeypatch.setattr(config.settings, "hardcover_app_api_token", "")
+
+    class _FakeResponse:
+        def __init__(self, status_code: int, headers: dict[str, str], url: str):
+            self.status_code = status_code
+            self.headers = headers
+            self.url = url
+
+    class _FakeAsyncClient:
+        def __init__(self, *args, **kwargs): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, exc_type, exc, tb): return False
+        async def head(self, url: str, follow_redirects: bool = True):
+            return _FakeResponse(200, {"content-type": "image/jpeg", "content-length": "not-a-number"}, url)
+
+    import app.routers.cover_candidates as cover_candidates_router
+    monkeypatch.setattr(cover_candidates_router.httpx, "AsyncClient", _FakeAsyncClient)
+
+    resp = client.get("/api/cover-candidates/search?isbn=9780451524935")
+    assert resp.status_code == 200
+
+    data = resp.json()
+    by_source = {item["source"]: item for item in data["candidates"]}
+    assert by_source["abebooks"]["available"] is True
+    assert by_source["abebooks"]["filesize"] is None
+
+
+def test_cover_candidates_probe_exception(client: TestClient, monkeypatch):
+    """Cover probe returns unavailable on network exception."""
+
+    class _FakeAsyncClient:
+        def __init__(self, *args, **kwargs): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, exc_type, exc, tb): return False
+        async def head(self, url: str, follow_redirects: bool = True):
+            raise ConnectionError("network failure")
+
+    import app.routers.cover_candidates as cover_candidates_router
+    monkeypatch.setattr(cover_candidates_router.httpx, "AsyncClient", _FakeAsyncClient)
+
+    resp = client.get("/api/cover-candidates/search?isbn=9780451524935")
+    assert resp.status_code == 200
+
+    data = resp.json()
+    by_source = {item["source"]: item for item in data["candidates"]}
+    assert by_source["abebooks"]["available"] is False
+
+
+def test_cover_candidates_hardcover_no_image_url(client: TestClient, monkeypatch):
+    """Hardcover returns unavailable when book_mappings has no image.url."""
+    from app import config
+    monkeypatch.setattr(config.settings, "hardcover_app_api_token", "test_token")
+    monkeypatch.setattr(config.settings, "thalia_cover_search_enabled", False)
+
+    class _FakeResponse:
+        def __init__(self, status_code: int, headers: dict[str, str], url: str, json_data=None):
+            self.status_code = status_code
+            self.headers = headers
+            self.url = url
+            self._json_data = json_data or {}
+
+        def json(self):
+            return self._json_data
+
+    class _FakeAsyncClient:
+        def __init__(self, *args, **kwargs): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, exc_type, exc, tb): return False
+        async def head(self, url: str, follow_redirects: bool = True):
+            return _FakeResponse(404, {}, url)
+        async def post(self, url: str, **kwargs):
+            return _FakeResponse(
+                200,
+                {"content-type": "application/json"},
+                url,
+                {"data": {"book_mappings": [{"edition": {"image": {}}}]}},
+            )
+
+    import app.routers.cover_candidates as cover_candidates_router
+    monkeypatch.setattr(cover_candidates_router.httpx, "AsyncClient", _FakeAsyncClient)
+
+    resp = client.get("/api/cover-candidates/search?isbn=9783426440087")
+    assert resp.status_code == 200
+
+    data = resp.json()
     by_source = {item["source"]: item for item in data["candidates"]}
     assert "hardcover" in by_source
     assert by_source["hardcover"]["available"] is False

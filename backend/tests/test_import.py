@@ -7,7 +7,9 @@ All test functions are modular (no classes).
 
 import pytest
 import httpx
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import IntegrityError
 
 from app.config import settings
 from app.routers import import_ as import_router
@@ -1059,3 +1061,37 @@ def test_import_book_no_cover_url_skips_download(client: TestClient, monkeypatch
     assert resp.status_code == 201
     assert resp.json()["cover_url"] is None
     assert called == [], "download_cover should not be called when cover_url is None"
+
+
+# ── import router unit tests for uncovered lines ───────────────────────────────
+
+def test_normalize_language_empty_string():
+    """Whitespace-only language should be treated as None."""
+    assert import_router._normalize_language("   ") is None
+
+
+def test_normalize_language_invalid_code():
+    """Non-alpha or non-2-char language should raise 422."""
+    with pytest.raises(HTTPException) as exc_info:
+        import_router._normalize_language("english")
+    assert exc_info.value.status_code == 422
+    assert "invalidLanguageCode" in exc_info.value.detail
+
+
+def test_raise_integrity_conflict_isbn_unique():
+    """ISBN unique constraint violation should raise 409."""
+    exc = IntegrityError("insert", "params", Exception("UNIQUE constraint failed: book.isbn"))
+    with pytest.raises(HTTPException) as exc_info:
+        import_router._raise_integrity_conflict(exc)
+    assert exc_info.value.status_code == 409
+    assert "isbnAlreadyExists" in exc_info.value.detail
+
+
+def test_raise_integrity_conflict_other():
+    """Non-ISBN integrity error should be re-raised."""
+    exc = IntegrityError("insert", "params", Exception("FOREIGN KEY constraint failed"))
+    with pytest.raises(IntegrityError):
+        try:
+            raise exc
+        except IntegrityError:
+            import_router._raise_integrity_conflict(exc)

@@ -1,6 +1,15 @@
+import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
+from app.auth import (
+    decrypt_api_key,
+    encrypt_api_key,
+    get_password_hash,
+    hash_api_key,
+    require_user_by_api_key,
+)
 from app.database import get_session
 from app.main import app
 from app.models import ApiKey, Book, OidcLink, ReadingProgress, Tag, User, UserRole, UserSettings
@@ -310,6 +319,16 @@ def test_users_update_user_rejects_weak_password(client: TestClient, create_user
     assert resp.status_code == 400
 
 
+def test_users_update_user_password_success(client: TestClient, create_user_with_key):
+    """Admin updating another user's password with a valid password should succeed."""
+    user, _ = create_user_with_key(email="pw-update@example.com", role=UserRole.user)
+    resp = client.patch(
+        f"/api/users/{user.id}",
+        json={"password": "NewSecret1!"},
+    )
+    assert resp.status_code == 200
+
+
 def test_users_update_user_rejects_self_role_demotion(client: TestClient):
     me = client.get("/api/auth/me")
     assert me.status_code == 200
@@ -348,6 +367,106 @@ def test_users_delete_soft_revokes_keys_and_removes_user(
     keys = session.exec(select(ApiKey).where(ApiKey.user_id == user_id)).all()
     assert keys
     assert all(k.revoked_at is not None for k in keys)
+
+
+def test_auth_decrypt_api_key_roundtrip():
+    """encrypt then decrypt should return the original value."""
+    original = "my-secret-api-key"
+    encrypted = encrypt_api_key(original)
+    decrypted = decrypt_api_key(encrypted)
+    assert decrypted == original
+
+
+def test_auth_require_user_by_api_key_missing_header(session: Session):
+    """Missing API key header should raise 401."""
+    with pytest.raises(HTTPException) as exc_info:
+        require_user_by_api_key(x_api_key=None, session=session)
+    assert exc_info.value.status_code == 401
+    assert exc_info.value.detail == "Missing API key"
+
+
+def test_auth_require_user_by_api_key_invalid_user(session: Session):
+    """API key exists but user was deleted — should raise 401."""
+    key_plain = "lk_testkey123"
+    key = ApiKey(
+        user_id=99999,
+        key_prefix=key_plain[:12],
+        key_hash=hash_api_key(key_plain),
+        key_encrypted="encrypted",
+        description="test",
+    )
+    session.add(key)
+    session.commit()
+
+    with pytest.raises(HTTPException) as exc_info:
+        require_user_by_api_key(x_api_key=key_plain, session=session)
+    assert exc_info.value.status_code == 401
+    assert exc_info.value.detail == "Invalid API key user"
+
+
+def test_setup_email_already_registered_no_admin(session: Session):
+    """Setup with an existing user's email should return 400."""
+    user = User(
+        firstname="Existing",
+        lastname="User",
+        email="existing@example.com",
+        role=UserRole.user,
+        hashed_password=get_password_hash("password"),
+    )
+    session.add(user)
+    session.commit()
+
+    def override_get_session():
+        yield session
+
+    app.dependency_overrides[get_session] = override_get_session
+    try:
+        with TestClient(app) as raw_client:
+            resp = raw_client.post(
+                "/api/auth/setup",
+                json={
+                    "firstname": "New",
+                    "lastname": "Admin",
+                    "email": "existing@example.com",
+                    "password": "Secret123!",
+                },
+            )
+            assert resp.status_code == 400
+            assert resp.json()["detail"] == "Email already registered"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_csrf_token_not_authenticated(client: TestClient):
+    """CSRF endpoint without session should return 401."""
+    client.post("/api/auth/logout")
+    client.headers.pop("X-API-Key", None)
+    resp = client.get("/api/auth/csrf")
+    assert resp.status_code == 401
+    assert resp.json()["detail"] == "Not authenticated"
+
+
+def test_users_list_returns_users(client: TestClient):
+    """Admin listing users should return the user list."""
+    resp = client.get("/api/users")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) >= 1
+    assert data[0]["email"] == "test@example.com"
+
+
+def test_users_update_user_not_found(client: TestClient):
+    """Updating a non-existent user should return 404."""
+    resp = client.patch("/api/users/99999", json={"firstname": "Ghost"})
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "User not found"
+
+
+def test_users_delete_user_not_found(client: TestClient):
+    """Deleting a non-existent user should return 404."""
+    resp = client.delete("/api/users/99999")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "User not found"
 
 
 def test_oidc_config_disabled_by_default(client: TestClient):

@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 from app.config import settings
-import app.routers.books as books_router
+import app.services.quote_cache as quote_cache
 from app.services.quote_cache import configure_quote_cache_ttl, invalidate_quote_cache
 
 
@@ -77,6 +77,11 @@ def test_book_stats_is_user_scoped(client: TestClient, create_user_with_key):
     }
 
 
+import pytest
+
+from app.services.quote_cache import get_or_fetch_dashboard_quote, invalidate_quote_cache
+
+
 def test_dashboard_quote_returns_none_when_disabled(client: TestClient, monkeypatch):
     invalidate_quote_cache()
     monkeypatch.setattr(settings, "dashboard_quote_enabled", False)
@@ -113,7 +118,7 @@ def test_dashboard_quote_returns_quote(client: TestClient, monkeypatch):
     invalidate_quote_cache()
     configure_quote_cache_ttl(86400)
     monkeypatch.setattr(settings, "dashboard_quote_enabled", True)
-    monkeypatch.setattr(books_router.httpx, "AsyncClient", _FakeAsyncClient)
+    monkeypatch.setattr(quote_cache.httpx, "AsyncClient", _FakeAsyncClient)
 
     resp = client.get("/api/books/dashboard-quote")
 
@@ -148,12 +153,127 @@ class _FakeQuoteResponse2:
         return {"quote": "Keep going.", "author": "Anon2"}
 
 
+@pytest.mark.anyio
+async def test_dashboard_quote_network_error(monkeypatch):
+    """Network error during quote fetch should return None."""
+    invalidate_quote_cache()
+
+    class _ErrorClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args, **kwargs):
+            return None
+
+        async def get(self, url):
+            raise Exception("network down")
+
+    monkeypatch.setattr("app.services.quote_cache.httpx.AsyncClient", _ErrorClient)
+    result = await get_or_fetch_dashboard_quote()
+    assert result is None
+
+
+@pytest.mark.anyio
+async def test_dashboard_quote_non_dict_payload(monkeypatch):
+    """Non-dict JSON payload should return None."""
+    invalidate_quote_cache()
+
+    class _ListResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return ["not", "a", "dict"]
+
+    class _FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args, **kwargs):
+            return None
+
+        async def get(self, url):
+            return _ListResponse()
+
+    monkeypatch.setattr("app.services.quote_cache.httpx.AsyncClient", _FakeClient)
+    result = await get_or_fetch_dashboard_quote()
+    assert result is None
+
+
+@pytest.mark.anyio
+async def test_dashboard_quote_empty_quote(monkeypatch):
+    """Empty or whitespace-only quote should return None."""
+    invalidate_quote_cache()
+
+    class _EmptyQuoteResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"quote": "   ", "author": "Anon"}
+
+    class _FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args, **kwargs):
+            return None
+
+        async def get(self, url):
+            return _EmptyQuoteResponse()
+
+    monkeypatch.setattr("app.services.quote_cache.httpx.AsyncClient", _FakeClient)
+    result = await get_or_fetch_dashboard_quote()
+    assert result is None
+
+
+@pytest.mark.anyio
+async def test_dashboard_quote_non_string_author(monkeypatch):
+    """Non-string author should be treated as None."""
+    invalidate_quote_cache()
+
+    class _NumAuthorResponse:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            return {"quote": "Hello", "author": 42}
+
+    class _FakeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args, **kwargs):
+            return None
+
+        async def get(self, url):
+            return _NumAuthorResponse()
+
+    monkeypatch.setattr("app.services.quote_cache.httpx.AsyncClient", _FakeClient)
+    result = await get_or_fetch_dashboard_quote()
+    assert result is not None
+    assert result.quote == "Hello"
+    assert result.author is None
+
+
 def test_dashboard_quote_uses_backend_cache(client: TestClient, monkeypatch):
     invalidate_quote_cache()
     configure_quote_cache_ttl(86400)
     _ChangingFakeAsyncClient.calls = 0
     monkeypatch.setattr(settings, "dashboard_quote_enabled", True)
-    monkeypatch.setattr(books_router.httpx, "AsyncClient", _ChangingFakeAsyncClient)
+    monkeypatch.setattr(quote_cache.httpx, "AsyncClient", _ChangingFakeAsyncClient)
 
     first = client.get("/api/books/dashboard-quote")
     second = client.get("/api/books/dashboard-quote")

@@ -220,6 +220,104 @@ def test_statistics_invalid_timezone_falls_back_to_utc(client, session: Session)
     assert resp.json()["books_finished_per_month"] == [{"month": "2026-05", "count": 1}]
 
 
+def test_pages_per_day_fallback_books_without_progress(client):
+    """Books marked read with start/finish dates but no progress entries contribute to daily pages via fallback."""
+    _create_book(
+        client,
+        title="Fallback Book",
+        reading_status="read",
+        page_count=300,
+        date_started="2026-05-01T10:00:00Z",
+        date_finished="2026-05-03T10:00:00Z",
+    )
+
+    resp = client.get("/api/statistics/pages-per-day?days=730")
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+
+    # 300 pages over 3 days = 100 pages per day
+    dates = {row["date"]: row["pages"] for row in data}
+    assert dates.get("2026-05-01") == 100
+    assert dates.get("2026-05-02") == 100
+    assert dates.get("2026-05-03") == 100
+
+
+def test_pages_per_day_skips_books_missing_dates_or_pages(client):
+    """Books without date_started, date_finished, or page_count should be skipped in fallback."""
+    _create_book(
+        client,
+        title="No Dates",
+        reading_status="read",
+        page_count=100,
+    )
+    _create_book(
+        client,
+        title="No Pages",
+        reading_status="read",
+        date_started="2026-05-01T10:00:00Z",
+        date_finished="2026-05-02T10:00:00Z",
+    )
+
+    resp = client.get("/api/statistics/pages-per-day?days=730")
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert len(data) == 0
+
+
+def test_pages_per_day_skips_inverted_date_range(client, session: Session):
+    """Books with date_finished < date_started should be skipped."""
+    from app.models import Book
+    from datetime import datetime, timezone
+
+    # Create book directly to bypass API validation
+    book = Book(
+        title="Inverted Dates",
+        reading_status="read",
+        page_count=100,
+        date_started=datetime(2026, 5, 3, 10, 0, tzinfo=timezone.utc),
+        date_finished=datetime(2026, 5, 1, 10, 0, tzinfo=timezone.utc),
+        user_id=1,
+    )
+    session.add(book)
+    session.commit()
+
+    resp = client.get("/api/statistics/pages-per-day?days=730")
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert len(data) == 0
+
+
+def test_statistics_books_spanning_multiple_years(client):
+    """Books finished across year boundaries should trigger month/year rollover logic."""
+    _create_book(
+        client,
+        title="Dec Book",
+        reading_status="read",
+        page_count=100,
+        date_finished="2025-12-15T10:00:00Z",
+    )
+    _create_book(
+        client,
+        title="Jan Book",
+        reading_status="read",
+        page_count=200,
+        date_finished="2026-01-10T10:00:00Z",
+    )
+
+    resp = client.get("/api/statistics")
+    assert resp.status_code == 200
+    data = resp.json()
+
+    assert data["books_finished_per_month"] == [
+        {"month": "2025-12", "count": 1},
+        {"month": "2026-01", "count": 1},
+    ]
+    assert data["books_finished_per_year"] == [
+        {"year": 2025, "count": 1},
+        {"year": 2026, "count": 1},
+    ]
+
+
 def test_pages_per_day_counts_single_log_when_started_and_finished_same_day(client, session: Session):
     date_iso = "2026-05-01T10:00:00Z"
     created = _create_book(

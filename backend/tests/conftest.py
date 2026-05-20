@@ -101,3 +101,9 @@ def create_user_with_key_fixture(session: Session):
         return user, key_plain
 
     return _create
+
+
+@pytest.fixture(name="invalid_settings_kwargs")
+def invalid_settings_kwargs_fixture(request):
+    """Parametrized fixture providing (kwargs, expected_error_substring) for Settings validation."""
+    return request.param

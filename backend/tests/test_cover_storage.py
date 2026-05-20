@@ -6,7 +6,15 @@ All HTTP calls are intercepted with fake clients — no real network I/O.
 
 import pytest
 
-from app.services.cover_storage import download_cover, save_uploaded_cover
+from unittest.mock import MagicMock
+
+from app.services.cover_storage import (
+    delete_cover_file,
+    download_cover,
+    resolve_cover_path,
+    safe_cover_filename,
+    save_uploaded_cover,
+)
 
 # ── Fake HTTP infrastructure ──────────────────────────────────────────────────
 
@@ -243,6 +251,73 @@ def test_save_uploaded_cover_no_tmp_leftover(tmp_path):
     assert tmp_files == []
     assert filename is not None
     assert (tmp_path / filename).exists()
+
+
+def test_safe_cover_filename_empty():
+    """Empty or None filename should be rejected."""
+    assert safe_cover_filename("") is None
+    assert safe_cover_filename(None) is None
+
+
+def test_resolve_cover_path_none():
+    """None or empty filename should return None."""
+    assert resolve_cover_path("/tmp/covers", None) is None
+    assert resolve_cover_path("/tmp/covers", "") is None
+
+
+def test_delete_cover_file_invalid_filename():
+    """Invalid filename should return False without touching filesystem."""
+    assert delete_cover_file("", "/tmp/covers") is False
+    assert delete_cover_file(None, "/tmp/covers") is False
+
+
+def test_delete_cover_file_unlink_error(monkeypatch):
+    """OSError during unlink should return False."""
+    mock_path = MagicMock()
+    mock_path.unlink.side_effect = OSError("permission denied")
+    monkeypatch.setattr(
+        "app.services.cover_storage.resolve_cover_path", lambda d, f: mock_path
+    )
+    assert delete_cover_file("test.jpg", "/tmp/covers") is False
+
+
+@pytest.mark.anyio
+async def test_download_cover_oserror_on_write(tmp_path, monkeypatch):
+    """OSError during atomic write should return None."""
+
+    class _FakeResponse:
+        status_code = 200
+        headers = {"content-type": "image/jpeg"}
+        content = b"X" * 10_000
+        is_success = True
+
+        def raise_for_status(self):
+            pass
+
+    class _FakeClient:
+        async def get(self, url, **_kwargs):
+            return _FakeResponse()
+
+    def _raise(*args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("app.services.cover_storage.Path.mkdir", _raise)
+    result = await download_cover(
+        "https://example.com/img.jpg", tmp_path, _FakeClient(), 1
+    )
+    assert result is None
+
+
+def test_save_uploaded_cover_oserror_on_write(tmp_path, monkeypatch):
+    """OSError during atomic write should return None."""
+
+    def _raise(*args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("app.services.cover_storage.Path.mkdir", _raise)
+    body = b"X" * 10_000
+    result = save_uploaded_cover(body, "image/jpeg", tmp_path, 1)
+    assert result is None
 
 
 def test_save_uploaded_cover_content_type_with_params(tmp_path):

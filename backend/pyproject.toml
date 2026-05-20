@@ -28,8 +28,13 @@ dev = [
     "httpx>=0.28.1",
     "pytest>=9.0.3",
     "pytest-anyio>=0.0.0",
+    "pytest-cov>=7.1.0",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+filterwarnings = [
+    "ignore::DeprecationWarning:lxml\\.html.*",
+]
+addopts = "-ra -p no:unraisableexception --cov=app --cov-report term-missing"

@@ -220,6 +220,7 @@ __marimo__/
 /.playwright-mcp
 
 /ideas.txt
+/backend/data/
 /data/
 /backend/data/
 !frontend/src/lib
