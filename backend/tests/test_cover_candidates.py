@@ -428,19 +428,25 @@ def test_rewrite_thalia_image_url():
 
 
 def _make_mock_page(suchtreffer: str | None = None, src: str | None = None, status: int = 200):
-    """Helper to create a mock Scrapling page that returns desired css values."""
-    class _MockResult:
-        def __init__(self, value):
-            self._value = value
+    """Helper to create a mock Scrapling page that returns element objects with attributes."""
 
-        def get(self):
-            return self._value
+    class _MockElement:
+        def __init__(self, attrs: dict[str, str] | None = None):
+            self.attrib = attrs or {}
+            self.text = ""
+
+    class _MockElements:
+        def __init__(self, items: list):
+            self._items = items
+
+        def __getitem__(self, index: int):
+            return self._items[index]
 
         def __bool__(self):
-            return self._value is not None
+            return len(self._items) > 0
 
         def __len__(self):
-            return 1 if self._value is not None else 0
+            return len(self._items)
 
     class _MockPage:
         content = "<html></html>"
@@ -448,12 +454,16 @@ def _make_mock_page(suchtreffer: str | None = None, src: str | None = None, stat
         def __init__(self):
             self.status = status
 
-        def css(self, selector: str):
-            if selector == 'dl-pageview::attr(suchtreffer)':
-                return _MockResult(suchtreffer)
-            if selector == 'suche-produktliste > div > ul > li:nth-child(1) > picture > img::attr(src)':
-                return _MockResult(src)
-            return _MockResult(None)
+        def css(self, selector: str, auto_save: bool = False, adaptive: bool = False):
+            if selector == "dl-pageview":
+                if suchtreffer is not None:
+                    return _MockElements([_MockElement({"suchtreffer": suchtreffer})])
+                return _MockElements([])
+            if selector == "suche-produktliste > div > ul > li:nth-child(1) > picture > img":
+                if src is not None:
+                    return _MockElements([_MockElement({"src": src})])
+                return _MockElements([])
+            return _MockElements([])
 
     return _MockPage()
 

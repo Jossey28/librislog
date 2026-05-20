@@ -24,19 +24,53 @@ _THALIA_FETCHER_CLASS = None
 def _get_thalia_fetcher_class():
     global _THALIA_FETCHER_CLASS
     if _THALIA_FETCHER_CLASS is None:
+        from pathlib import Path
+
         from scrapling import Fetcher
 
         _THALIA_FETCHER_CLASS = Fetcher
+        _THALIA_FETCHER_CLASS.configure(
+            adaptive=True,
+            adaptive_domain="thalia.de",
+            storage_args={"storage_file": str(Path(settings.data_dir) / "scrapling_adaptive.db")},
+        )
     return _THALIA_FETCHER_CLASS
 
 
-def _extract_css_first(page, selector: str):
-    values = page.css(selector)
-    if not values:
+def _extract_css_adaptive(page, selector: str, attr: str | None = None):
+    """
+    Extract a CSS value with adaptive fallback.
+
+    First tries exact selector with auto_save (to refresh stored fingerprint).
+    If the selector returns nothing, retries with adaptive=True to re-find
+    elements after website structure changes.
+
+    When *attr* is given, extracts that attribute from the matched element.
+    When *attr* is None, returns the matched element text.
+    """
+    # Phase 1: exact match with auto_save to keep fingerprints fresh
+    elements = page.css(selector, auto_save=True)
+    if elements:
+        elem = elements[0]
+        if attr is not None:
+            value = elem.attrib.get(attr)
+        else:
+            value = getattr(elem, "text", None) or str(elem)
+        if value:
+            return str(value).strip() if attr is not None else value
         return None
-    if hasattr(values, "get"):
-        return values.get()
-    return values[0]
+
+    # Phase 2: adaptive fallback — site structure may have changed
+    elements = page.css(selector, adaptive=True)
+    if elements:
+        elem = elements[0]
+        if attr is not None:
+            value = elem.attrib.get(attr)
+        else:
+            value = getattr(elem, "text", None) or str(elem)
+        if value:
+            return str(value).strip() if attr is not None else value
+    return None
 
 
 def _rewrite_thalia_image_url(url: str) -> str | None:
@@ -79,7 +113,7 @@ def _fetch_thalia_page_sync(isbn13: str, timeout_seconds: int) -> str | None:
         return None
 
     try:
-        suchtreffer = _extract_css_first(page, 'dl-pageview::attr(suchtreffer)')
+        suchtreffer = _extract_css_adaptive(page, "dl-pageview", "suchtreffer")
     except Exception as exc:
         logger.debug("thalia failed to parse suchtreffer for isbn=%s: %s", isbn13, exc)
         return None
@@ -99,9 +133,10 @@ def _fetch_thalia_page_sync(isbn13: str, timeout_seconds: int) -> str | None:
         return None
 
     try:
-        raw_url = _extract_css_first(
+        raw_url = _extract_css_adaptive(
             page,
-            'suche-produktliste > div > ul > li:nth-child(1) > picture > img::attr(src)'
+            "suche-produktliste > div > ul > li:nth-child(1) > picture > img",
+            "src",
         )
     except Exception as exc:
         logger.debug("thalia failed to parse image src for isbn=%s: %s", isbn13, exc)
