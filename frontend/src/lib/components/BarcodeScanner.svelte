@@ -88,6 +88,7 @@
 			let mediaStream: MediaStream;
 			try {
 				mediaStream = await navigator.mediaDevices.getUserMedia({
+					audio: false,
 					video: {
 						facingMode: { ideal: 'environment' },
 						width: { min: 640 },
@@ -98,8 +99,13 @@
 				const devices = await navigator.mediaDevices.enumerateDevices();
 				const cameras = devices.filter((d) => d.kind === 'videoinput');
 				if (!cameras.length) throw new Error($_('scanner.noCamera'));
+				const backCamera = cameras.find((c) =>
+					c.label.toLowerCase().includes('back')
+					|| c.label.toLowerCase().includes('environment')
+				);
 				mediaStream = await navigator.mediaDevices.getUserMedia({
-					video: { deviceId: { exact: cameras[0].deviceId } }
+					audio: false,
+					video: { deviceId: { exact: (backCamera ?? cameras[0]).deviceId } }
 				});
 			}
 
