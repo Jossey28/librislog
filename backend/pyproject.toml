@@ -35,6 +35,7 @@ dev = [
 testpaths = ["tests"]
 pythonpath = ["."]
 filterwarnings = [
+    "error::ResourceWarning",
     "ignore::DeprecationWarning:lxml\\.html.*",
 ]
-addopts = "-ra -p no:unraisableexception --cov=app --cov-report term-missing"
+addopts = "-ra --cov=app --cov-report term-missing"

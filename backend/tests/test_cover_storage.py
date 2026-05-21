@@ -55,7 +55,7 @@ class _FakeCoverClient:
     async def get(self, url: str, **_kwargs) -> _FakeCoverResponse:
         resp = self._get.get(url)
         if resp is None:
-            return _FakeCoverResponse(404)
+            return _FakeCoverResponse(404)  # pragma: no cover
         return resp
 
 

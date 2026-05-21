@@ -230,7 +230,7 @@ def test_cover_candidates_hardcover_with_token(client: TestClient, monkeypatch):
                         }
                     },
                 )
-            return _FakeResponse(404, {}, url)
+            return _FakeResponse(404, {}, url)  # pragma: no cover
 
     import app.routers.cover_candidates as cover_candidates_router
     monkeypatch.setattr(cover_candidates_router.httpx, "AsyncClient", _FakeAsyncClient)
@@ -287,8 +287,8 @@ def test_cover_candidates_hardcover_without_token(client: TestClient, monkeypatc
             return _FakeResponse(404, {}, url)
 
         async def post(self, url: str, **kwargs):
-            graphql_requests.append((url, kwargs))
-            return _FakeResponse(404, {}, url)
+            graphql_requests.append((url, kwargs))  # pragma: no cover
+            return _FakeResponse(404, {}, url)  # pragma: no cover
 
     import app.routers.cover_candidates as cover_candidates_router
     monkeypatch.setattr(cover_candidates_router.httpx, "AsyncClient", _FakeAsyncClient)
@@ -337,7 +337,7 @@ def test_cover_candidates_hardcover_graphql_error(client: TestClient, monkeypatc
         async def post(self, url: str, **kwargs):
             if "hardcover.app" in url:
                 return _FakeResponse(401, {}, url, "Unauthorized")
-            return _FakeResponse(404, {}, url)
+            return _FakeResponse(404, {}, url)  # pragma: no cover
 
     import app.routers.cover_candidates as cover_candidates_router
     monkeypatch.setattr(cover_candidates_router.httpx, "AsyncClient", _FakeAsyncClient)
@@ -389,7 +389,7 @@ def test_cover_candidates_hardcover_no_results(client: TestClient, monkeypatch):
                     url,
                     {"data": {"book_mappings": []}},
                 )
-            return _FakeResponse(404, {}, url)
+            return _FakeResponse(404, {}, url)  # pragma: no cover
 
     import app.routers.cover_candidates as cover_candidates_router
     monkeypatch.setattr(cover_candidates_router.httpx, "AsyncClient", _FakeAsyncClient)
@@ -445,7 +445,7 @@ def _make_mock_page(suchtreffer: str | None = None, src: str | None = None, stat
         def __bool__(self):
             return len(self._items) > 0
 
-        def __len__(self):
+        def __len__(self):  # pragma: no cover
             return len(self._items)
 
     class _MockPage:
@@ -462,8 +462,8 @@ def _make_mock_page(suchtreffer: str | None = None, src: str | None = None, stat
             if selector == "suche-produktliste > div > ul > li:nth-child(1) > picture > img":
                 if src is not None:
                     return _MockElements([_MockElement({"src": src})])
-                return _MockElements([])
-            return _MockElements([])
+                return _MockElements([])  # pragma: no cover
+            return _MockElements([])  # pragma: no cover
 
     return _MockPage()
 
@@ -480,7 +480,7 @@ def test_cover_candidates_thalia_disabled_by_setting(client: TestClient, monkeyp
             self.url = url
             self._json_data = json_data or {}
         def json(self):
-            return self._json_data
+            return self._json_data  # pragma: no cover
 
     class _FakeAsyncClient:
         def __init__(self, *args, **kwargs): pass
@@ -684,7 +684,7 @@ def test_cover_candidates_hardcover_rejects_ssrf_url(client: TestClient, monkeyp
                         }
                     },
                 )
-            return _FakeResponse(404, {}, url)
+            return _FakeResponse(404, {}, url)  # pragma: no cover
 
     import app.routers.cover_candidates as cover_candidates_router
     monkeypatch.setattr(cover_candidates_router.httpx, "AsyncClient", _FakeAsyncClient)
@@ -718,7 +718,7 @@ def _make_adaptive_mock_page(first_empty: bool = False):
         def __bool__(self):
             return len(self._items) > 0
 
-        def __len__(self):
+        def __len__(self):  # pragma: no cover
             return len(self._items)
 
     class _AdaptiveMockPage:
@@ -734,10 +734,10 @@ def _make_adaptive_mock_page(first_empty: bool = False):
                     return _MockElements([_MockElement({"suchtreffer": "1"})])
                 return _MockElements([_MockElement({"src": "https://images.thalia.media/03/-/adaptive/cover.jpg"})])
             if auto_save and first_empty and not adaptive:
-                return _MockElements([])
-            if "dl-pageview" in selector:
-                return _MockElements([_MockElement({"suchtreffer": "1"})])
-            return _MockElements([_MockElement({"src": "https://images.thalia.media/03/-/normal/cover.jpg"})])
+                return _MockElements([])  # pragma: no cover
+            if "dl-pageview" in selector:  # pragma: no cover
+                return _MockElements([_MockElement({"suchtreffer": "1"})])  # pragma: no cover
+            return _MockElements([_MockElement({"src": "https://images.thalia.media/03/-/normal/cover.jpg"})])  # pragma: no cover
 
     return _AdaptiveMockPage()
 
@@ -987,3 +987,161 @@ def test_cover_candidates_hardcover_no_image_url(client: TestClient, monkeypatch
     assert "hardcover" in by_source
     assert by_source["hardcover"]["available"] is False
     assert by_source["hardcover"]["url"] == ""
+
+
+# ── _extract_css_adaptive direct tests ────────────────────────────────────────
+
+def test_extract_css_adaptive_text_without_attr_phase1():
+    from app.routers.cover_candidates import _extract_css_adaptive
+
+    class _Elem:
+        text = "Hello"
+        attrib = {}
+
+    class _Elements:
+        def __init__(self, items):
+            self._items = items
+        def __getitem__(self, index):
+            return self._items[index]
+        def __bool__(self):
+            return len(self._items) > 0
+
+    class _Page:
+        def css(self, selector, auto_save=False, adaptive=False):
+            return _Elements([_Elem()])
+
+    page = _Page()
+    assert _extract_css_adaptive(page, "div") == "Hello"
+
+
+def test_extract_css_adaptive_text_without_attr_phase2():
+    from app.routers.cover_candidates import _extract_css_adaptive
+
+    class _Elem:
+        text = "Adaptive"
+        attrib = {}
+
+    class _Elements:
+        def __init__(self, items):
+            self._items = items
+        def __getitem__(self, index):
+            return self._items[index]
+        def __bool__(self):
+            return len(self._items) > 0
+
+    class _Page:
+        def css(self, selector, auto_save=False, adaptive=False):
+            if adaptive:
+                return _Elements([_Elem()])
+            return _Elements([])
+
+    page = _Page()
+    assert _extract_css_adaptive(page, "div") == "Adaptive"
+
+
+# ── _fetch_thalia_page_sync direct tests ──────────────────────────────────────
+
+def test_fetch_thalia_page_sync_returns_none_when_page_is_none(monkeypatch):
+    from app.routers.cover_candidates import _fetch_thalia_page_sync
+
+    class _FakeFetcher:
+        @classmethod
+        def get(cls, url, **kwargs):
+            return None
+
+    monkeypatch.setattr("app.routers.cover_candidates._THALIA_FETCHER_CLASS", _FakeFetcher)
+    result = _fetch_thalia_page_sync("9783426440087", 10)
+    assert result is None
+
+
+def test_fetch_thalia_page_sync_returns_none_on_suchtreffer_exception(monkeypatch):
+    from app.routers.cover_candidates import _fetch_thalia_page_sync
+
+    class _FakeFetcher:
+        @classmethod
+        def get(cls, url, **kwargs):
+            return _make_mock_page()
+
+    monkeypatch.setattr("app.routers.cover_candidates._THALIA_FETCHER_CLASS", _FakeFetcher)
+
+    def fake_extract(page, selector, attr=None):
+        if selector == "dl-pageview":
+            raise ValueError("parse error")
+        return None  # pragma: no cover
+
+    monkeypatch.setattr("app.routers.cover_candidates._extract_css_adaptive", fake_extract)
+    result = _fetch_thalia_page_sync("9783426440087", 10)
+    assert result is None
+
+
+def test_fetch_thalia_page_sync_returns_none_on_image_src_exception(monkeypatch):
+    from app.routers.cover_candidates import _fetch_thalia_page_sync
+
+    mock_page = _make_mock_page(suchtreffer="1", src=None)
+
+    class _FakeFetcher:
+        @classmethod
+        def get(cls, url, **kwargs):
+            return mock_page
+
+    monkeypatch.setattr("app.routers.cover_candidates._THALIA_FETCHER_CLASS", _FakeFetcher)
+
+    def fake_extract(page, selector, attr=None):
+        if selector == "suche-produktliste > div > ul > li:nth-child(1) > picture > img":
+            raise ValueError("parse error")
+        if selector == "dl-pageview":
+            return "1"
+        return None  # pragma: no cover
+
+    monkeypatch.setattr("app.routers.cover_candidates._extract_css_adaptive", fake_extract)
+    result = _fetch_thalia_page_sync("9783426440087", 10)
+    assert result is None
+
+
+def test_fetch_thalia_page_sync_returns_none_on_empty_image_src(monkeypatch):
+    from app.routers.cover_candidates import _fetch_thalia_page_sync
+
+    mock_page = _make_mock_page(suchtreffer="1", src="   ")
+
+    class _FakeFetcher:
+        @classmethod
+        def get(cls, url, **kwargs):
+            return mock_page
+
+    monkeypatch.setattr("app.routers.cover_candidates._THALIA_FETCHER_CLASS", _FakeFetcher)
+    result = _fetch_thalia_page_sync("9783426440087", 10)
+    assert result is None
+
+
+# ── _probe_thalia_candidate direct tests ──────────────────────────────────────
+
+def test_probe_thalia_rejects_unsafe_url(monkeypatch):
+    import asyncio
+    from app.routers.cover_candidates import _probe_thalia_candidate
+
+    def fake_fetch(*args, **kwargs):
+        return "http://unsafe.com/cover.jpg"
+
+    monkeypatch.setattr("app.routers.cover_candidates._fetch_thalia_page_sync", fake_fetch)
+    monkeypatch.setattr("app.routers.cover_candidates.is_safe_cover_import_url", lambda url: False)
+
+    async def run():
+        candidate = await _probe_thalia_candidate("9783426440087", None, 1000, 10)
+        assert candidate.available is False
+        assert candidate.url == ""
+
+    asyncio.run(run())
+
+
+# ── _probe_source_candidates direct tests ─────────────────────────────────────
+
+def test_probe_source_candidates_empty_urls():
+    import asyncio
+    import pytest
+    from app.routers.cover_candidates import _probe_source_candidates
+
+    async def run():
+        with pytest.raises(IndexError):
+            await _probe_source_candidates("abebooks", [], None, 1000)
+
+    asyncio.run(run())

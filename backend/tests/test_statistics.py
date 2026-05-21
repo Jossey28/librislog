@@ -1,3 +1,4 @@
+from collections import Counter
 from datetime import datetime, timezone
 
 from sqlmodel import Session, select
@@ -348,3 +349,50 @@ def test_pages_per_day_counts_single_log_when_started_and_finished_same_day(clie
     target = next((row for row in data if row["date"] == "2026-05-01"), None)
     assert target is not None
     assert target["pages"] == 250
+
+
+# ── Direct unit tests for _extract_book_level_daily_pages edge cases ───────────
+
+from app.routers.statistics import _extract_book_level_daily_pages
+from unittest.mock import MagicMock
+
+
+def test_extract_book_level_skips_books_with_missing_fields():
+    """Line 90: books without date_started, date_finished or page_count are skipped."""
+    book = Book(
+        title="Incomplete",
+        reading_status=ReadingStatus.read,
+        date_started=None,
+        date_finished=None,
+        page_count=None,
+        user_id=1,
+    )
+    result = _extract_book_level_daily_pages([book], timezone.utc)
+    assert result == Counter()
+
+
+def test_extract_book_level_skips_non_positive_total_days():
+    """Line 95: total_days <= 0 should cause the book to be skipped.
+
+    This branch is defensive; under normal datetime arithmetic total_days is always >= 1
+    after the previous guards, so we force the condition with a fake datetime whose
+    subtraction returns a mock timedelta with negative days.
+    """
+    from datetime import timezone
+
+    class FakeDateTime:
+        def __lt__(self, other):
+            return False
+
+        def __sub__(self, other):
+            mock_delta = MagicMock()
+            mock_delta.days = -1
+            return mock_delta
+
+    book = MagicMock()
+    book.date_started = FakeDateTime()
+    book.date_finished = FakeDateTime()
+    book.page_count = 100
+
+    result = _extract_book_level_daily_pages([book], timezone.utc)
+    assert result == Counter()

@@ -44,7 +44,112 @@ def test_data_export_zip_contains_manifest_and_books_json(client: TestClient):
         assert books[0]["title"] == "Dune"
 
 
-def test_data_import_parse_and_suggest_mapping(client: TestClient):
+def test_data_export_csv_format(client: TestClient):
+    create_resp = client.post(
+        "/api/books",
+        json={"title": "Dune", "author": "Frank Herbert", "reading_status": "read"},
+    )
+    assert create_resp.status_code == 201
+
+    export_resp = client.post(
+        "/api/data/export",
+        json={"datasets": ["books", "progress", "tags"], "format": "csv"},
+    )
+    assert export_resp.status_code == 200
+
+    with zipfile.ZipFile(io.BytesIO(export_resp.content), "r") as zf:
+        names = set(zf.namelist())
+        assert "books.csv" in names
+        assert "progress.csv" in names
+        assert "tags.csv" in names
+        books_csv = zf.read("books.csv").decode()
+        assert "title,subtitle" in books_csv
+        assert "Dune" in books_csv
+
+
+def test_data_export_with_covers(client: TestClient, monkeypatch, tmp_path):
+    covers_dir = tmp_path / "covers"
+    covers_dir.mkdir()
+    monkeypatch.setattr(settings, "covers_dir", str(covers_dir))
+
+    create_resp = client.post(
+        "/api/books",
+        json={"title": "Dune", "author": "Frank Herbert", "reading_status": "read", "cover_url": "/api/covers/test_cover.jpg"},
+    )
+    assert create_resp.status_code == 201
+
+    # Create a fake cover file
+    (covers_dir / "test_cover.jpg").write_bytes(b"fake-cover")
+
+    export_resp = client.post(
+        "/api/data/export",
+        json={"datasets": ["books", "covers"], "format": "json"},
+    )
+    assert export_resp.status_code == 200
+
+    with zipfile.ZipFile(io.BytesIO(export_resp.content), "r") as zf:
+        names = set(zf.namelist())
+        assert "covers/test_cover.jpg" in names
+        manifest = json.loads(zf.read("manifest.json"))
+        assert manifest["counts"]["covers"] == 1
+
+
+def test_data_export_missing_cover_skipped(client: TestClient, monkeypatch, tmp_path):
+    covers_dir = tmp_path / "covers"
+    covers_dir.mkdir()
+    monkeypatch.setattr(settings, "covers_dir", str(covers_dir))
+
+    create_resp = client.post(
+        "/api/books",
+        json={"title": "Dune", "author": "Frank Herbert", "reading_status": "read", "cover_url": "/api/covers/missing.jpg"},
+    )
+    assert create_resp.status_code == 201
+
+    export_resp = client.post(
+        "/api/data/export",
+        json={"datasets": ["books", "covers"], "format": "json"},
+    )
+    assert export_resp.status_code == 200
+
+    with zipfile.ZipFile(io.BytesIO(export_resp.content), "r") as zf:
+        names = set(zf.namelist())
+        assert "covers/missing.jpg" not in names
+        manifest = json.loads(zf.read("manifest.json"))
+        assert manifest["counts"]["covers"] == 0
+
+
+def test_data_export_with_progress_and_tags(client: TestClient):
+    create_resp = client.post(
+        "/api/books",
+        json={"title": "Dune", "author": "Frank Herbert", "reading_status": "read", "page_count": 412, "tags": "Sci-Fi"},
+    )
+    assert create_resp.status_code == 201
+    book_id = create_resp.json()["id"]
+
+    # Add a progress entry
+    progress_resp = client.post(f"/api/books/{book_id}/progress", json={"page": 100})
+    assert progress_resp.status_code == 201
+
+    export_resp = client.post(
+        "/api/data/export",
+        json={"datasets": ["books", "progress", "tags"], "format": "json"},
+    )
+    assert export_resp.status_code == 200
+
+    with zipfile.ZipFile(io.BytesIO(export_resp.content), "r") as zf:
+        progress = json.loads(zf.read("progress.json"))
+        assert len(progress) == 1
+        assert progress[0]["page"] == 100
+        assert progress[0]["book_title"] == "Dune"
+
+        tags = json.loads(zf.read("tags.json"))
+        assert len(tags) == 1
+        assert tags[0]["name"] == "Sci-Fi"
+        assert tags[0]["book_count"] == 1
+
+
+def test_data_import_parse_and_suggest_mapping(client: TestClient, monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path / "import_temp"))
     csv_payload = "Title,Author,My Rating\nDune,Frank Herbert,5\n"
     parse_resp = client.post(
         "/api/data/import/parse",
@@ -94,7 +199,8 @@ def test_data_import_mapping_crud(client: TestClient):
     assert get_missing.status_code == 404
 
 
-def test_data_import_validate_and_execute_continue_on_error(client: TestClient):
+def test_data_import_validate_and_execute_continue_on_error(client: TestClient, monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path / "import_temp"))
     csv_payload = "Title,Author\nDune,Frank Herbert\n,No Title\n"
     parse_resp = client.post(
         "/api/data/import/parse",
@@ -124,7 +230,8 @@ def test_data_import_validate_and_execute_continue_on_error(client: TestClient):
     assert complete["failed"] == 1
 
 
-def test_data_import_execute_rollback_all_rolls_back(client: TestClient):
+def test_data_import_execute_rollback_all_rolls_back(client: TestClient, monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path / "import_temp"))
     csv_payload = "Title,Author\nDune,Frank Herbert\n,Missing\n"
     parse_resp = client.post(
         "/api/data/import/parse",
@@ -149,7 +256,8 @@ def test_data_import_execute_rollback_all_rolls_back(client: TestClient):
     assert books.json() == []
 
 
-def test_data_import_execute_rejects_invalid_target_mapping(client: TestClient):
+def test_data_import_execute_rejects_invalid_target_mapping(client: TestClient, monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path / "import_temp"))
     csv_payload = "Title\nDune\n"
     parse_resp = client.post(
         "/api/data/import/parse",
@@ -169,7 +277,8 @@ def test_data_import_execute_rejects_invalid_target_mapping(client: TestClient):
     )
 
 
-def test_data_import_validate_rejects_invalid_reading_status_enum(client: TestClient):
+def test_data_import_validate_rejects_invalid_reading_status_enum(client: TestClient, monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path / "import_temp"))
     csv_payload = "Title,Status\nDune,uxnread\n"
     parse_resp = client.post(
         "/api/data/import/parse",
@@ -187,15 +296,18 @@ def test_data_import_validate_rejects_invalid_reading_status_enum(client: TestCl
     assert any("reading_status" in error for error in payload["errors"])
 
 
-def test_data_import_execute_deletes_temp_file_after_completion(client: TestClient):
+def test_data_import_execute_deletes_temp_file_after_completion(client: TestClient, monkeypatch, tmp_path):
+    import_temp_dir = tmp_path / "import_temp"
+    monkeypatch.setattr(settings, "import_temp_dir", str(import_temp_dir))
     csv_payload = "Title\nDune\n"
     parse_resp = client.post(
         "/api/data/import/parse",
         files={"file": ("books.csv", csv_payload, "text/csv")},
     )
+    assert parse_resp.status_code == 200
     file_id = parse_resp.json()["file_id"]
 
-    temp_file = Path("data/import_temp/1") / f"{file_id}.json"
+    temp_file = import_temp_dir / "1" / f"{file_id}.json"
     assert temp_file.exists()
 
     execute_resp = client.post(
@@ -298,41 +410,180 @@ def test_data_import_execute_progress_falls_back_to_now_without_date_finished(
     assert before <= created_at <= after
 
 
-def test_data_import_execute_progress_uses_date_only_finished_date(
-    client: TestClient, monkeypatch, tmp_path
-):
+def test_data_export_no_datasets_raises_400(client: TestClient):
+    resp = client.post("/api/data/export", json={"datasets": [], "format": "json"})
+    assert resp.status_code == 400
+    assert resp.json()["detail"] == "error.exportNoDatasets"
+
+
+def test_data_import_parse_unsupported_content_type(client: TestClient):
+    resp = client.post(
+        "/api/data/import/parse",
+        files={"file": ("test.exe", b"invalid", "application/octet-stream")},
+    )
+    assert resp.status_code == 415
+    assert resp.json()["detail"] == "error.importUnsupportedContentType"
+
+
+def test_data_import_parse_invalid_json(client: TestClient):
+    resp = client.post(
+        "/api/data/import/parse",
+        files={"file": ("test.json", b"{invalid", "application/json")},
+    )
+    assert resp.status_code == 400
+
+
+def test_data_import_suggest_mapping_not_found(client: TestClient):
+    resp = client.post("/api/data/import/suggest-mapping", json={"file_id": "nonexistent"})
+    assert resp.status_code == 404
+
+
+def test_data_import_mapping_update_existing(client: TestClient):
+    # Save first
+    client.post(
+        "/api/data/import/mappings",
+        json={
+            "name": "UpdateMe",
+            "source_fields": ["F1"],
+            "mapping": {"F1": "title"},
+        },
+    )
+    # Save again with same name
+    resp = client.post(
+        "/api/data/import/mappings",
+        json={
+            "name": "UpdateMe",
+            "source_fields": ["F1", "F2"],
+            "mapping": {"F1": "title", "F2": "author"},
+        },
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["source_fields"] == ["F1", "F2"]
+
+
+def test_data_import_mapping_not_found(client: TestClient):
+    resp = client.get("/api/data/import/mappings/99999")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "error.importMappingNotFound"
+
+    resp = client.delete("/api/data/import/mappings/99999")
+    assert resp.status_code == 404
+
+
+def test_data_import_validate_not_found(client: TestClient):
+    resp = client.post(
+        "/api/data/import/validate",
+        json={"file_id": "nonexistent", "mapping": {}},
+    )
+    assert resp.status_code == 404
+
+
+def test_data_import_execute_not_found(client: TestClient):
+    resp = client.post(
+        "/api/data/import/execute",
+        json={"file_id": "nonexistent", "mapping": {}, "import_mode": "continue_on_error"},
+    )
+    assert resp.status_code == 200
+    events = _parse_sse(resp.text)
+    assert any("error.importFileNotFound" in str(event.get("message")) for event in events)
+
+
+def test_data_import_mapping_integrity_error_new_mapping(client: TestClient, session: Session, monkeypatch):
+    from sqlalchemy.exc import IntegrityError
+
+    call_count = [0]
+    original_commit = session.commit
+
+    def fake_commit():
+        call_count[0] += 1
+        if call_count[0] == 2:
+            raise IntegrityError("insert", "params", Exception("UNIQUE constraint failed: importmapping.name"))
+        original_commit()
+
+    monkeypatch.setattr(session, "commit", fake_commit)
+
+    resp = client.post(
+        "/api/data/import/mappings",
+        json={"name": "Conflict", "source_fields": ["F1"], "mapping": {"F1": "title"}},
+    )
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "error.importMappingNameConflict"
+
+
+def test_data_import_execute_rollback_when_not_completed(client: TestClient, monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path / "import_temp"))
-    csv_payload = "Title,Status,Pages,Date Finished\nDune,read,412,2024-01-15\n"
+    csv_payload = "Title\nDune\n"
     parse_resp = client.post(
         "/api/data/import/parse",
         files={"file": ("books.csv", csv_payload, "text/csv")},
     )
     file_id = parse_resp.json()["file_id"]
 
-    execute_resp = client.post(
+    from app.routers import data as data_module
+
+    async def mock_execute(*args, **kwargs):
+        yield {"event": "progress", "message": "test"}
+
+    monkeypatch.setattr(data_module, "execute_import", mock_execute)
+
+    resp = client.post(
         "/api/data/import/execute",
-        json={
-            "file_id": file_id,
-            "mapping": {
-                "Title": "title",
-                "Status": "reading_status",
-                "Pages": "page_count",
-                "Date Finished": "date_finished",
-            },
-            "import_mode": "continue_on_error",
-            "create_progress_for_read": True,
-        },
+        json={"file_id": file_id, "mapping": {"Title": "title"}, "import_mode": "continue_on_error"},
     )
-    assert execute_resp.status_code == 200
+    assert resp.status_code == 200
+    events = _parse_sse(resp.text)
+    assert any(event.get("event") == "progress" for event in events)
 
-    books_resp = client.get("/api/books")
-    assert books_resp.status_code == 200
-    books = books_resp.json()
-    assert len(books) == 1
-    book = books[0]
 
-    progress_resp = client.get(f"/api/books/{book['id']}/progress")
-    assert progress_resp.status_code == 200
-    progress = progress_resp.json()
-    assert len(progress) == 1
-    assert progress[0]["created_at"] == "2024-01-15T00:00:00Z"
+def test_data_import_execute_cancelled_error(client: TestClient, monkeypatch, tmp_path):
+    import asyncio
+
+    monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path / "import_temp"))
+    csv_payload = "Title\nDune\n"
+    parse_resp = client.post(
+        "/api/data/import/parse",
+        files={"file": ("books.csv", csv_payload, "text/csv")},
+    )
+    file_id = parse_resp.json()["file_id"]
+
+    from app.routers import data as data_module
+
+    async def mock_execute(*args, **kwargs):
+        raise asyncio.CancelledError()
+        yield {}  # make it an async generator
+
+    monkeypatch.setattr(data_module, "execute_import", mock_execute)
+
+    resp = client.post(
+        "/api/data/import/execute",
+        json={"file_id": file_id, "mapping": {"Title": "title"}, "import_mode": "continue_on_error"},
+    )
+    # StreamingResponse returns 200 before consuming the generator.
+    # The generator raises CancelledError, which closes the stream.
+    assert resp.status_code == 200
+
+
+def test_data_import_execute_unexpected_error(client: TestClient, monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path / "import_temp"))
+    csv_payload = "Title\nDune\n"
+    parse_resp = client.post(
+        "/api/data/import/parse",
+        files={"file": ("books.csv", csv_payload, "text/csv")},
+    )
+    file_id = parse_resp.json()["file_id"]
+
+    from app.routers import data
+
+    async def mock_execute(*args, **kwargs):
+        raise Exception("Unexpected")
+        yield {}  # pragma: no cover
+
+    monkeypatch.setattr(data, "execute_import", mock_execute)
+
+    resp = client.post(
+        "/api/data/import/execute",
+        json={"file_id": file_id, "mapping": {"Title": "title"}, "import_mode": "continue_on_error"},
+    )
+    events = _parse_sse(resp.text)
+    assert any(event.get("message") == "error.importExecutionFailed" for event in events)

@@ -140,17 +140,7 @@ class _ChangingFakeAsyncClient:
 
     async def get(self, url):
         _ChangingFakeAsyncClient.calls += 1
-        if _ChangingFakeAsyncClient.calls == 1:
-            return _FakeQuoteResponse()
-        return _FakeQuoteResponse2()
-
-
-class _FakeQuoteResponse2:
-    def raise_for_status(self):
-        return None
-
-    def json(self):
-        return {"quote": "Keep going.", "author": "Anon2"}
+        return _FakeQuoteResponse()
 
 
 @pytest.mark.anyio

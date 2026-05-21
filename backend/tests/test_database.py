@@ -1,6 +1,6 @@
 """Tests for app.database module."""
 
-from app.database import create_db_and_tables, get_session
+from app.database import create_db_and_tables, get_session, _dispose_engine
 from sqlmodel import Session
 
 
@@ -19,3 +19,8 @@ def test_get_session_yields_session():
         next(gen)
     except StopIteration:
         pass
+
+
+def test_dispose_engine():
+    """Line 17: _dispose_engine should run without error."""
+    _dispose_engine()

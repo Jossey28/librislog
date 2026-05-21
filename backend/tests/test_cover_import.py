@@ -76,3 +76,12 @@ def test_is_safe_cover_import_url_resolved_invalid_ip():
         return_value=[(None, None, None, None, ("not-an-ip", 443))],
     ):
         assert is_safe_cover_import_url("https://invalid-addr.example/cover.jpg") is False
+
+
+def test_is_safe_cover_import_url_urlparse_exception():
+    """Lines 18-19: an exception from urlparse should return False."""
+    with patch(
+        "app.services.cover_import.urlparse",
+        side_effect=ValueError("bad url"),
+    ):
+        assert is_safe_cover_import_url("https://example.com/cover.jpg") is False

@@ -1,3 +1,4 @@
+import atexit
 from collections.abc import Generator
 
 from sqlmodel import Session, SQLModel, create_engine
@@ -8,6 +9,12 @@ engine = create_engine(
     settings.database_url,
     connect_args={"check_same_thread": False},  # needed for SQLite
 )
+
+
+@atexit.register
+def _dispose_engine() -> None:
+    """Ensure the engine pool is disposed on process exit to avoid ResourceWarnings."""
+    engine.dispose()
 
 
 def create_db_and_tables() -> None:

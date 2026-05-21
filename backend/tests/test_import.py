@@ -167,11 +167,7 @@ async def test_search_returns_open_library_results(monkeypatch, fake_ol_result):
     async def fake_ol(query, search_type, client):
         return fake_ol_result
 
-    async def fake_gb(query, search_type, api_key, client):
-        return []
-
     monkeypatch.setattr(book_import, "_search_open_library", fake_ol)
-    monkeypatch.setattr(book_import, "_search_google_books", fake_gb)
 
     results = await book_import.search("dune", "title")
     assert len(results) == 1
@@ -202,11 +198,7 @@ async def test_search_returns_empty_when_both_fail(monkeypatch):
     async def fake_ol(query, search_type, client):
         return []
 
-    async def fake_gb(query, search_type, api_key, client):
-        return []
-
     monkeypatch.setattr(book_import, "_search_open_library", fake_ol)
-    monkeypatch.setattr(book_import, "_search_google_books", fake_gb)
 
     results = await book_import.search("unknownxyz", "title")
     assert results == []
@@ -422,7 +414,7 @@ async def test_search_merges_ol_and_hc_results(monkeypatch):
 async def test_search_hardcover_skipped_without_token(monkeypatch):
     hc_called = False
 
-    async def fake_hc(query, search_type, api_token, client):
+    async def fake_hc(query, search_type, api_token, client):  # pragma: no cover
         nonlocal hc_called
         hc_called = True
         return []
@@ -518,7 +510,7 @@ async def test_search_hardcover_isbn_path(monkeypatch):
 async def test_search_hardcover_isbn_invalid(monkeypatch):
     called = False
 
-    async def fake_hc_fetch(isbns, token, client):
+    async def fake_hc_fetch(isbns, token, client):  # pragma: no cover
         nonlocal called
         called = True
         return []
@@ -729,7 +721,7 @@ async def test_search_with_progress_skips_google_without_key(monkeypatch):
 async def test_search_with_progress_google_only_runs_google(monkeypatch, fake_gb_result):
     calls = {"ol": 0, "gb": 0}
 
-    async def fake_ol(query, search_type, client):
+    async def fake_ol(query, search_type, client):  # pragma: no cover
         calls["ol"] += 1
         return []
 
@@ -759,7 +751,7 @@ async def test_search_with_progress_google_only_runs_google(monkeypatch, fake_gb
 async def test_search_with_progress_google_only_without_key_skips(monkeypatch):
     calls = {"gb": 0}
 
-    async def fake_gb(query, search_type, api_key, client):
+    async def fake_gb(query, search_type, api_key, client):  # pragma: no cover
         calls["gb"] += 1
         return []
 
@@ -874,7 +866,7 @@ class _FakeClient:
     async def head(self, url: str, **_kwargs) -> _FakeResponse:
         resp = self._head.get(url)
         if resp is None:
-            return _FakeResponse(404)
+            return _FakeResponse(404)  # pragma: no cover
         return resp
 
 
@@ -1044,7 +1036,7 @@ def test_import_book_no_cover_url_skips_download(client: TestClient, monkeypatch
     monkeypatch.setattr(settings, "covers_dir", str(tmp_path))
     called = []
 
-    async def fake_download(url, covers_dir, http_client, user_id):
+    async def fake_download(url, covers_dir, http_client, user_id):  # pragma: no cover
         called.append(url)
         return None
 
@@ -1095,3 +1087,57 @@ def test_raise_integrity_conflict_other():
             raise exc
         except IntegrityError:
             import_router._raise_integrity_conflict(exc)
+
+
+def test_import_book_flush_integrity_error(client: TestClient, session: Session, monkeypatch):
+    from sqlalchemy.exc import IntegrityError
+
+    flush_count = [0]
+    original_flush = session.flush
+
+    def fake_flush(*args, **kwargs):
+        flush_count[0] += 1
+        if flush_count[0] == 6:
+            raise IntegrityError("insert", "params", Exception("UNIQUE constraint failed: book.isbn"))
+        original_flush(*args, **kwargs)
+
+    monkeypatch.setattr(session, "flush", fake_flush)
+
+    payload = {
+        "candidate": {
+            "title": "Dune",
+            "isbn": "9780441013593",
+            "source": "open_library",
+        },
+        "reading_status": "want_to_read",
+    }
+    resp = client.post("/api/import", json=payload)
+    assert resp.status_code == 409
+    assert "isbnAlreadyExists" in resp.json()["detail"]
+
+
+def test_import_book_commit_integrity_error(client: TestClient, session: Session, monkeypatch):
+    from sqlalchemy.exc import IntegrityError
+
+    call_count = [0]
+    original_commit = session.commit
+
+    def fake_commit():
+        call_count[0] += 1
+        if call_count[0] == 2:
+            raise IntegrityError("insert", "params", Exception("UNIQUE constraint failed: book.isbn"))
+        original_commit()
+
+    monkeypatch.setattr(session, "commit", fake_commit)
+
+    payload = {
+        "candidate": {
+            "title": "Dune",
+            "isbn": "9780441013593",
+            "source": "open_library",
+        },
+        "reading_status": "want_to_read",
+    }
+    resp = client.post("/api/import", json=payload)
+    assert resp.status_code == 409
+    assert "isbnAlreadyExists" in resp.json()["detail"]

@@ -34,10 +34,10 @@ def test_create_progress_no_page_count_allowed(client: TestClient):
 def test_create_progress_wrong_user_returns_404(client: TestClient, create_user_with_key):
     book = _create_book(client)
     user2, key2 = create_user_with_key(email="other@example.com")
-    c2 = TestClient(client.app)
-    c2.headers.update({"X-API-Key": key2})
-    resp = c2.post(f"/api/books/{book['id']}/progress", json={"page": 10})
-    assert resp.status_code == 404
+    with TestClient(client.app) as c2:
+        c2.headers.update({"X-API-Key": key2})
+        resp = c2.post(f"/api/books/{book['id']}/progress", json={"page": 10})
+        assert resp.status_code == 404
 
 
 def test_list_progress_entries_ordered_by_date(client: TestClient):
@@ -77,10 +77,10 @@ def test_delete_progress_entry_wrong_user_returns_404(client: TestClient, create
     book = _create_book(client)
     entry = client.post(f"/api/books/{book['id']}/progress", json={"page": 10}).json()
     user2, key2 = create_user_with_key(email="other@example.com")
-    c2 = TestClient(client.app)
-    c2.headers.update({"X-API-Key": key2})
-    resp = c2.delete(f"/api/books/{book['id']}/progress/{entry['id']}")
-    assert resp.status_code == 404
+    with TestClient(client.app) as c2:
+        c2.headers.update({"X-API-Key": key2})
+        resp = c2.delete(f"/api/books/{book['id']}/progress/{entry['id']}")
+        assert resp.status_code == 404
 
 
 def test_latest_progress_batch(client: TestClient):

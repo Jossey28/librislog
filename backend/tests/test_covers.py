@@ -178,3 +178,13 @@ def test_import_cover_url_returns_422_when_download_fails(covers_client, monkeyp
 
     resp = client.post("/api/covers/import-url", json={"url": "https://example.com/missing.jpg"})
     assert resp.status_code == 422
+
+
+def test_get_cover_returns_400_when_resolve_cover_path_returns_none(covers_client, monkeypatch):
+    """If resolve_cover_path returns None (e.g. empty filename), the endpoint returns 400."""
+    client, _ = covers_client
+    import app.routers.covers as covers_router
+
+    monkeypatch.setattr(covers_router, "resolve_cover_path", lambda *args, **kwargs: None)
+    resp = client.get("/api/covers/anything.jpg")
+    assert resp.status_code == 400

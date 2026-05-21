@@ -1,5 +1,9 @@
+import pytest
 from fastapi.testclient import TestClient
 from datetime import datetime, timezone
+
+from sqlalchemy.exc import IntegrityError as SQLAIntegrityError
+from sqlmodel import Session
 
 from app.config import settings
 import app.routers.books as books_router
@@ -701,7 +705,7 @@ def test_create_book_local_cover_url_not_re_downloaded(client, tmp_path, monkeyp
     """A /api/covers/ URL is passed through unchanged (no download attempt)."""
     monkeypatch.setattr(settings, "covers_dir", str(tmp_path))
     called = []
-    async def spy(*args, **kwargs):
+    async def spy(*args, **kwargs):  # pragma: no cover
         called.append(True)
         return None
     monkeypatch.setattr(books_router, "import_cover_from_url", spy)
@@ -901,18 +905,18 @@ def test_suggest_user_isolation(client, create_user_with_key):
     _create_book(client, title="User1 Book", author="Frank Herbert")
 
     user2, key2 = create_user_with_key(email="other@example.com")
-    c2 = TestClient(client.app)
-    c2.headers.update({"X-API-Key": key2})
-    resp2 = c2.post("/api/books", json={"title": "User2 Book", "author": "Isaac Asimov"})
-    assert resp2.status_code == 201
+    with TestClient(client.app) as c2:
+        c2.headers.update({"X-API-Key": key2})
+        resp2 = c2.post("/api/books", json={"title": "User2 Book", "author": "Isaac Asimov"})
+        assert resp2.status_code == 201
 
-    resp = client.get("/api/books/suggestions/authors?q=frank")
-    assert resp.status_code == 200
-    assert resp.json()["suggestions"] == ["Frank Herbert"]
+        resp = client.get("/api/books/suggestions/authors?q=frank")
+        assert resp.status_code == 200
+        assert resp.json()["suggestions"] == ["Frank Herbert"]
 
-    resp2 = c2.get("/api/books/suggestions/authors?q=frank")
-    assert resp2.status_code == 200
-    assert resp2.json()["suggestions"] == []
+        resp2 = c2.get("/api/books/suggestions/authors?q=frank")
+        assert resp2.status_code == 200
+        assert resp2.json()["suggestions"] == []
 
 
 # ── prevent removing date_finished for read books ──────────────────────────────
@@ -1028,3 +1032,218 @@ def test_transition_status_respects_force_date_started_to_read(client: TestClien
     assert data["book"]["reading_status"] == "read"
     assert data["book"]["date_started"] == "2025-06-15T00:00:00Z"
     assert data["book"]["date_finished"] == "2026-05-11T10:30:00Z"
+
+
+# ── Missing coverage additions ────────────────────────────────────────────────
+
+def test_create_book_future_date_started_returns_422(client: TestClient, monkeypatch):
+    monkeypatch.setattr(
+        books_router,
+        "_utcnow",
+        lambda: datetime(2024, 1, 1, tzinfo=timezone.utc),
+    )
+    resp = client.post("/api/books", json={"title": "Future", "date_started": "2025-01-01"})
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "error.dateInFuture"
+
+
+def test_create_book_date_started_after_finished_returns_422(client: TestClient):
+    resp = client.post(
+        "/api/books",
+        json={"title": "Bad Dates", "date_started": "2024-02-01", "date_finished": "2024-01-01"},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "error.dateStartedAfterFinished"
+
+
+def test_create_book_whitespace_language_returns_none(client: TestClient):
+    resp = client.post("/api/books", json={"title": "Whitespace Lang", "language": "   "})
+    assert resp.status_code == 201
+    assert resp.json()["language"] is None
+
+
+def test_create_book_duplicate_isbn_returns_409(client: TestClient):
+    _create_book(client, title="First", isbn="9780441013593")
+    resp = client.post("/api/books", json={"title": "Duplicate", "isbn": "9780441013593"})
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "error.isbnAlreadyExists"
+
+
+def test_list_books_sort_by_date_started(client: TestClient):
+    _create_book(client, title="A", date_started="2024-01-01")
+    _create_book(client, title="B", date_started="2024-02-01")
+    resp = client.get("/api/books?sort=date_started&order=desc")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data[0]["title"] == "B"
+
+
+def test_list_books_sort_by_date_finished(client: TestClient):
+    _create_book(client, title="A", date_finished="2024-01-01")
+    _create_book(client, title="B", date_finished="2024-02-01")
+    resp = client.get("/api/books?sort=date_finished&order=desc")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data[0]["title"] == "B"
+
+
+def test_get_library_stats(client: TestClient):
+    _create_book(client, title="Read", reading_status="read")
+    _create_book(client, title="Reading", reading_status="currently_reading")
+    _create_book(client, title="Want", reading_status="want_to_read")
+    _create_book(client, title="DNF", reading_status="did_not_finish")
+
+    resp = client.get("/api/books/stats")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["total_books"] == 4
+    assert data["books_read"] == 1
+    assert data["books_reading"] == 1
+    assert data["books_want_to_read"] == 1
+    assert data["books_did_not_finish"] == 1
+
+
+def test_dashboard_quote_disabled_returns_503(client: TestClient, monkeypatch):
+    monkeypatch.setattr(settings, "dashboard_quote_enabled", False)
+    resp = client.get("/api/books/dashboard-quote")
+    assert resp.status_code == 503
+
+
+def test_tag_cloud(client: TestClient):
+    _create_book(client, title="A", tags="Sci-Fi")
+    _create_book(client, title="B", tags="Sci-Fi")
+    _create_book(client, title="C", tags="Fantasy")
+
+    resp = client.get("/api/books/tags/cloud")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 2
+    # Sci-Fi should have count 2
+    sci_fi = next((t for t in data if t["tag"] == "Sci-Fi"), None)
+    assert sci_fi is not None
+    assert sci_fi["count"] == 2
+
+
+def test_suggest_tags_empty_query_returns_empty(client: TestClient):
+    _create_book(client, title="A", tags="Sci-Fi")
+    resp = client.get("/api/books/suggestions/tags?q=")
+    assert resp.status_code == 200
+    assert resp.json()["suggestions"] == []
+
+
+def test_update_book_cover_download_failed_skips_cover(client: TestClient, tmp_path, monkeypatch):
+    monkeypatch.setattr(settings, "covers_dir", str(tmp_path))
+    monkeypatch.setattr(books_router, "import_cover_from_url", _fake_download_cover_fail)
+
+    book = _create_book(client, title="Book")
+    resp = client.patch(
+        f"/api/books/{book['id']}",
+        json={"cover_url": "https://example.com/fail.jpg"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["cover_url"] is None
+
+
+def test_update_book_duplicate_isbn_returns_409(client: TestClient):
+    _create_book(client, title="First", isbn="9780441013593")
+    book2 = _create_book(client, title="Second")
+    resp = client.patch(
+        f"/api/books/{book2['id']}",
+        json={"isbn": "9780441013593"},
+    )
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "error.isbnAlreadyExists"
+
+
+def test_transition_status_not_found_returns_404(client: TestClient):
+    resp = client.post("/api/books/9999/transition-status", json={"new_status": "read"})
+    assert resp.status_code == 404
+
+
+def test_transition_status_clears_date_started(client: TestClient):
+    book = _create_book(
+        client,
+        title="Clear DS",
+        reading_status="want_to_read",
+        date_started="2024-01-01",
+    )
+    resp = client.post(
+        f"/api/books/{book['id']}/transition-status",
+        json={"new_status": "currently_reading", "clear_date_started": True, "skip_auto_date_started": True},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["book"]["date_started"] is None
+
+
+def test_delete_book_with_tags_and_progress(client: TestClient):
+    book = _create_book(client, title="Tagged", tags="Sci-Fi", page_count=100)
+    book_id = book["id"]
+
+    # Add progress
+    prog_resp = client.post(f"/api/books/{book_id}/progress", json={"page": 50})
+    assert prog_resp.status_code == 201
+
+    resp = client.delete(f"/api/books/{book_id}")
+    assert resp.status_code == 204
+
+    # Confirm gone
+    assert client.get(f"/api/books/{book_id}").status_code == 404
+
+
+def test_update_book_tags(client: TestClient):
+    book = _create_book(client, title="Tag Me", tags="Old Tag")
+    resp = client.patch(
+        f"/api/books/{book['id']}",
+        json={"tags": "New Tag"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["tags"] == "New Tag"
+
+
+def test_dashboard_quote_enabled_returns_quote(client: TestClient, monkeypatch):
+    monkeypatch.setattr(settings, "dashboard_quote_enabled", True)
+
+    async def _fake_quote():
+        return {"quote": "Hello", "author": "World"}
+
+    monkeypatch.setattr(books_router, "get_or_fetch_dashboard_quote", _fake_quote)
+    resp = client.get("/api/books/dashboard-quote")
+    assert resp.status_code == 200
+    assert resp.json()["quote"] == "Hello"
+
+
+def test_create_book_commit_integrity_error(client: TestClient, monkeypatch):
+    """Commit IntegrityError in create_book is caught and re-raised (covers lines 378-380, 119)."""
+    original_commit = Session.commit
+    call_count = 0
+
+    def _fake_commit(self):
+        nonlocal call_count
+        call_count += 1
+        # auth dependency commits first (call_count=1), create_book commits second (call_count=2)
+        if call_count == 2:
+            raise SQLAIntegrityError("stmt", {}, Exception("commit conflict"))
+        return original_commit(self)
+
+    monkeypatch.setattr(Session, "commit", _fake_commit)
+    with pytest.raises(SQLAIntegrityError):
+        client.post("/api/books", json={"title": "Commit Conflict"})
+
+
+def test_update_book_commit_integrity_error(client: TestClient, monkeypatch):
+    """Commit IntegrityError in update_book is caught and re-raised (covers lines 464-466, 119)."""
+    original_commit = Session.commit
+    call_count = 0
+
+    def _fake_commit(self):
+        nonlocal call_count
+        call_count += 1
+        # auth(1) + create_book(2) + auth(3) + update_book(4)
+        if call_count == 4:
+            raise SQLAIntegrityError("stmt", {}, Exception("commit conflict"))
+        return original_commit(self)
+
+    monkeypatch.setattr(Session, "commit", _fake_commit)
+    book = _create_book(client, title="Book")
+    with pytest.raises(SQLAIntegrityError):
+        client.patch(f"/api/books/{book['id']}", json={"tags": "Tag"})

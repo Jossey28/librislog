@@ -40,14 +40,14 @@ def _acquire_operation_lock() -> None:
     global _lock_fd
     lock_path = os.path.join(settings.backup_temp_dir, _LOCK_FILE)
     Path(settings.backup_temp_dir).mkdir(parents=True, exist_ok=True)
-    _lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
+    fd = os.open(lock_path, os.O_CREAT | os.O_RDWR, 0o600)
     import fcntl
     try:
-        fcntl.flock(_lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError as exc:
-        os.close(_lock_fd)
-        _lock_fd = None
+        os.close(fd)
         raise RuntimeError("Another backup or restore operation is already in progress") from exc
+    _lock_fd = fd
 
 
 def _release_operation_lock() -> None:
@@ -99,8 +99,15 @@ def _vacuum_into_backup(database_url: str, dest_path: str) -> None:
     db_path = _extract_db_path(database_url)
     if not os.path.isfile(db_path):
         raise FileNotFoundError(f"Database file not found: {db_path}")
-    with sqlite3.connect(db_path) as conn:
+    # NOTE: sqlite3.connect() context manager manages transactions (commit/rollback),
+    # NOT the connection itself. Using `with sqlite3.connect(...) as conn:` will
+    # leave the connection open, causing ResourceWarning. Always use explicit
+    # conn.close() in a finally block.
+    conn = sqlite3.connect(db_path)
+    try:
         conn.execute("VACUUM INTO ?", (dest_path,))
+    finally:
+        conn.close()
     if not os.path.isfile(dest_path):
         raise RuntimeError("VACUUM INTO did not produce a database file")
 
@@ -308,10 +315,15 @@ def restore_backup(
                 raise
 
             tmp_db_path = _extract_db_path(database_url)
-            with sqlite3.connect(tmp_db_path) as conn:
+            # NOTE: sqlite3.connect() context manager manages transactions, NOT
+            # the connection itself. See note in _vacuum_into_backup above.
+            conn = sqlite3.connect(tmp_db_path)
+            try:
                 conn.execute("PRAGMA integrity_check")
                 row = conn.execute("SELECT COUNT(*) FROM book").fetchone()
                 restored_books = row[0] if row else 0
+            finally:
+                conn.close()
 
             _recreate_engine()
 

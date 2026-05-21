@@ -511,19 +511,19 @@ def test_profile_delete_account_rejects_last_admin(client: TestClient):
 
 def test_profile_delete_account_deletes_regular_user_data(client: TestClient, create_user_with_key, session: Session):
     user, key = create_user_with_key(email="danger@example.com", role=UserRole.user)
-    c2 = TestClient(client.app)
-    c2.headers.update({"X-API-Key": key})
+    with TestClient(client.app) as c2:
+        c2.headers.update({"X-API-Key": key})
 
-    create = c2.post("/api/books", json={"title": "To Delete", "tags": "x"})
-    assert create.status_code == 201
-    book_id = create.json()["id"]
-    c2.post(f"/api/books/{book_id}/progress", json={"page": 7})
+        create = c2.post("/api/books", json={"title": "To Delete", "tags": "x"})
+        assert create.status_code == 201
+        book_id = create.json()["id"]
+        c2.post(f"/api/books/{book_id}/progress", json={"page": 7})
 
-    session.add(OidcLink(user_id=user.id, provider_id="google", oidc_sub="sub-123"))
-    session.commit()
+        session.add(OidcLink(user_id=user.id, provider_id="google", oidc_sub="sub-123"))
+        session.commit()
 
-    resp = c2.request("DELETE", "/api/profile/account", json={"confirmation": "DELETE MY ACCOUNT"})
-    assert resp.status_code == 204
+        resp = c2.request("DELETE", "/api/profile/account", json={"confirmation": "DELETE MY ACCOUNT"})
+        assert resp.status_code == 204
 
     assert session.get(User, user.id) is None
     assert session.exec(select(UserSettings).where(UserSettings.user_id == user.id)).first() is None
