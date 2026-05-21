@@ -5,9 +5,11 @@ import os
 from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pytest import MonkeyPatch
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session
 
@@ -18,22 +20,22 @@ from app.services import data_import as di
 
 # ── _display_value / _format_value_error ──────────────────────────────────────
 
-def test_display_value_none():
+def test_display_value_none() -> None:
     assert di._display_value(None) == "null"
 
 
-def test_display_value_empty_string():
+def test_display_value_empty_string() -> None:
     assert di._display_value("") == '""'
 
 
-def test_format_value_error_without_hint():
+def test_format_value_error_without_hint() -> None:
     msg = di._format_value_error("field", "expected", "value")
     assert "Hint" not in msg
 
 
 # ── compute_schema_fingerprint ────────────────────────────────────────────────
 
-def test_compute_schema_fingerprint():
+def test_compute_schema_fingerprint() -> None:
     fp1 = di.compute_schema_fingerprint(["a", "b"])
     fp2 = di.compute_schema_fingerprint(["b", "a"])
     assert fp1 == fp2
@@ -42,47 +44,47 @@ def test_compute_schema_fingerprint():
 
 # ── _to_flat_row ──────────────────────────────────────────────────────────────
 
-def test_to_flat_row_nested_dict_raises():
+def test_to_flat_row_nested_dict_raises() -> None:
     with pytest.raises(ValueError, match="error.importNestedValuesNotSupported"):
         di._to_flat_row({"key": {"nested": 1}})
 
 
-def test_to_flat_row_nested_list_raises():
+def test_to_flat_row_nested_list_raises() -> None:
     with pytest.raises(ValueError, match="error.importNestedValuesNotSupported"):
         di._to_flat_row({"key": [1, 2]})
 
 
 # ── parse_upload ──────────────────────────────────────────────────────────────
 
-def test_parse_upload_empty_file():
+def test_parse_upload_empty_file() -> None:
     with pytest.raises(ValueError, match="error.importEmptyFile"):
         di.parse_upload(b"", "test.csv", 1)
 
 
-def test_parse_upload_file_too_large(monkeypatch):
+def test_parse_upload_file_too_large(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "max_import_file_size_mb", 0)
     with pytest.raises(ValueError, match="error.importFileTooLarge"):
         di.parse_upload(b"x", "test.csv", 1)
 
 
-def test_parse_upload_csv_missing_header():
+def test_parse_upload_csv_missing_header() -> None:
     with pytest.raises(ValueError, match="error.importMissingHeader"):
         di.parse_upload(b"\n", "test.csv", 1)
 
 
-def test_parse_upload_json_not_array():
+def test_parse_upload_json_not_array() -> None:
     payload = json.dumps({"key": "value"}).encode()
     with pytest.raises(ValueError, match="error.importJsonMustBeArray"):
         di.parse_upload(payload, "test.json", 1)
 
 
-def test_parse_upload_json_rows_not_objects():
+def test_parse_upload_json_rows_not_objects() -> None:
     payload = json.dumps(["not_an_object"]).encode()
     with pytest.raises(ValueError, match="error.importJsonRowsMustBeObjects"):
         di.parse_upload(payload, "test.json", 1)
 
 
-def test_parse_upload_json_flat_row_keys(monkeypatch, tmp_path):
+def test_parse_upload_json_flat_row_keys(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     payload = json.dumps([{"a": 1, "b": 2}]).encode()
     result = di.parse_upload(payload, "test.json", 1)
@@ -90,24 +92,24 @@ def test_parse_upload_json_flat_row_keys(monkeypatch, tmp_path):
     assert sorted(result["source_fields"]) == ["a", "b"]
 
 
-def test_parse_upload_too_many_rows(monkeypatch):
+def test_parse_upload_too_many_rows(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "max_import_row_count", 1)
     csv = "Title\nBook1\nBook2\n"
     with pytest.raises(ValueError, match="error.importTooManyRows"):
         di.parse_upload(csv.encode(), "test.csv", 1)
 
 
-def test_parse_upload_unsupported_file_type():
+def test_parse_upload_unsupported_file_type() -> None:
     with pytest.raises(ValueError, match="error.importUnsupportedFileType"):
         di.parse_upload(b"x", "test.txt", 1)
 
 
-def test_parse_upload_temp_file_create_failed(monkeypatch, tmp_path):
+def test_parse_upload_temp_file_create_failed(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     # Force FileExistsError on every attempt
     call_count = 0
 
-    def _always_exists(*args, **kwargs):
+    def _always_exists(*args: Any, **kwargs: Any) -> Any:
         nonlocal call_count
         call_count += 1
         raise FileExistsError("exists")
@@ -120,12 +122,12 @@ def test_parse_upload_temp_file_create_failed(monkeypatch, tmp_path):
 
 # ── load_parsed_upload / delete_parsed_upload ─────────────────────────────────
 
-def test_load_parsed_upload_missing_file():
+def test_load_parsed_upload_missing_file() -> None:
     with pytest.raises(FileNotFoundError, match="error.importFileNotFound"):
         di.load_parsed_upload("nonexistent", 1)
 
 
-def test_delete_parsed_upload_missing_ok(tmp_path, monkeypatch):
+def test_delete_parsed_upload_missing_ok(tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     # Should not raise
     di.delete_parsed_upload("missing", 1)
@@ -133,115 +135,115 @@ def test_delete_parsed_upload_missing_ok(tmp_path, monkeypatch):
 
 # ── suggest_mapping ───────────────────────────────────────────────────────────
 
-def test_suggest_mapping_direct_alias():
+def test_suggest_mapping_direct_alias() -> None:
     # "book title" should directly match via _ALIASES
     result = di.suggest_mapping(["book title"])
     assert result["book title"] == "title"
 
 
-def test_suggest_mapping_compact_match():
+def test_suggest_mapping_compact_match() -> None:
     # "booktitle" should match "book title" -> "title"
     result = di.suggest_mapping(["booktitle"])
     assert result["booktitle"] == "title"
 
 
-def test_suggest_mapping_no_match():
+def test_suggest_mapping_no_match() -> None:
     result = di.suggest_mapping(["unknown_field"])
     assert "unknown_field" not in result
 
 
 # ── _parse_int ────────────────────────────────────────────────────────────────
 
-def test_parse_int_whitespace_only():
+def test_parse_int_whitespace_only() -> None:
     assert di._parse_int("   ", "field") is None
 
 
-def test_parse_int_decimal_raises():
+def test_parse_int_decimal_raises() -> None:
     with pytest.raises(ValueError, match="Whole numbers only"):
         di._parse_int("3.14", "field")
 
 
-def test_parse_int_invalid_raises():
+def test_parse_int_invalid_raises() -> None:
     with pytest.raises(ValueError, match="Use digits only"):
         di._parse_int("abc", "field")
 
 
 # ── _parse_year ───────────────────────────────────────────────────────────────
 
-def test_parse_year_from_date_string():
+def test_parse_year_from_date_string() -> None:
     assert di._parse_year("2024-05-20", "field") == 2024
 
 
-def test_parse_year_whitespace_only():
+def test_parse_year_whitespace_only() -> None:
     assert di._parse_year("   ", "field") is None
 
 
-def test_parse_year_no_year_found():
+def test_parse_year_no_year_found() -> None:
     with pytest.raises(ValueError, match="a year"):
         di._parse_year("no year here", "field")
 
 
 # ── _parse_datetime ───────────────────────────────────────────────────────────
 
-def test_parse_datetime_datetime_object():
+def test_parse_datetime_datetime_object() -> None:
     dt = datetime(2024, 1, 15, 10, 30, tzinfo=timezone.utc)
     result = di._parse_datetime(dt, "field")
     assert result == dt
 
 
-def test_parse_datetime_z_suffix():
+def test_parse_datetime_z_suffix() -> None:
     result = di._parse_datetime("2024-01-15T10:30:00Z", "field")
     assert result == datetime(2024, 1, 15, 10, 30, tzinfo=timezone.utc)
 
 
-def test_parse_datetime_invalid_iso():
+def test_parse_datetime_invalid_iso() -> None:
     with pytest.raises(ValueError, match="ISO date or datetime"):
         di._parse_datetime("not-a-date", "field")
 
 
 # ── _normalize_language ───────────────────────────────────────────────────────
 
-def test_normalize_language_empty_after_strip():
+def test_normalize_language_empty_after_strip() -> None:
     assert di._normalize_language("   ") is None
 
 
-def test_normalize_language_not_two_chars():
+def test_normalize_language_not_two_chars() -> None:
     with pytest.raises(ValueError, match="2-letter ISO code"):
         di._normalize_language("ENG")
 
 
-def test_normalize_language_not_alpha():
+def test_normalize_language_not_alpha() -> None:
     with pytest.raises(ValueError, match="2-letter ISO code"):
         di._normalize_language("E1")
 
 
-def test_normalize_language_valid():
+def test_normalize_language_valid() -> None:
     assert di._normalize_language("en") == "EN"
 
 
 # ── _parse_reading_status ─────────────────────────────────────────────────────
 
-def test_parse_reading_status_invalid():
+def test_parse_reading_status_invalid() -> None:
     with pytest.raises(ValueError, match="reading_status"):
         di._parse_reading_status("invalid_status")
 
 
 # ── _mapped_row ───────────────────────────────────────────────────────────────
 
-def test_mapped_row_skips_empty_target():
+def test_mapped_row_skips_empty_target() -> None:
     result = di._mapped_row({"A": "1"}, {"A": "", "B": "title"})
     assert result == {"title": None}  # row.get("B") returns None
 
 
 # ── _validate_mapping ─────────────────────────────────────────────────────────
 
-def test_validate_mapping_duplicate_targets():
+def test_validate_mapping_duplicate_targets() -> None:
     mapping = {"A": "title", "B": "title"}
     warnings, errors = di._validate_mapping(mapping, {"A", "B"})
     assert any("Multiple source fields map to 'title'" in w for w in warnings)
 
 
-def test_validate_mapping_source_missing():
+def test_validate_mapping_source_missing() -> None:
     mapping = {"A": "title", "C": "author"}
     warnings, errors = di._validate_mapping(mapping, {"A"})
     assert any("Mapped source field missing in file: C" in w for w in warnings)
@@ -250,6 +252,7 @@ def test_validate_mapping_source_missing():
 # ── validate_import ───────────────────────────────────────────────────────────
 
 def _create_test_user(session: Session) -> User:
+    """Create and return a test user for import tests."""
     from app.auth import get_password_hash
     user = User(
         firstname="Test",
@@ -264,7 +267,7 @@ def _create_test_user(session: Session) -> User:
     return user
 
 
-def test_validate_import_rating_out_of_range(session: Session, tmp_path, monkeypatch):
+def test_validate_import_rating_out_of_range(session: Session, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     user = _create_test_user(session)
     payload = {
@@ -280,7 +283,7 @@ def test_validate_import_rating_out_of_range(session: Session, tmp_path, monkeyp
     assert any("rating out of range" in w for w in result["warnings"])
 
 
-def test_validate_import_date_started_after_finished(session: Session, tmp_path, monkeypatch):
+def test_validate_import_date_started_after_finished(session: Session, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     user = _create_test_user(session)
     payload = {
@@ -296,7 +299,7 @@ def test_validate_import_date_started_after_finished(session: Session, tmp_path,
     assert any("date_started is after date_finished" in e for e in result["errors"])
 
 
-def test_validate_import_progress_warning_no_pages(session: Session, tmp_path, monkeypatch):
+def test_validate_import_progress_warning_no_pages(session: Session, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     user = _create_test_user(session)
     payload = {
@@ -314,7 +317,7 @@ def test_validate_import_progress_warning_no_pages(session: Session, tmp_path, m
     assert any("marked as 'read' but has no page count" in w for w in result["warnings"])
 
 
-def test_validate_import_isbn_already_exists(session: Session, tmp_path, monkeypatch):
+def test_validate_import_isbn_already_exists(session: Session, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     user = _create_test_user(session)
     # Create existing book with ISBN
@@ -335,7 +338,7 @@ def test_validate_import_isbn_already_exists(session: Session, tmp_path, monkeyp
     assert any("ISBN already exists" in w for w in result["warnings"])
 
 
-def test_validate_import_no_isbns(session: Session, tmp_path, monkeypatch):
+def test_validate_import_no_isbns(session: Session, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     """Cover the path where isbns_in_file is empty (no DB query)."""
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     user = _create_test_user(session)
@@ -352,7 +355,7 @@ def test_validate_import_no_isbns(session: Session, tmp_path, monkeypatch):
     assert result["valid"] is True
 
 
-def test_validate_import_missing_title(session: Session, tmp_path, monkeypatch):
+def test_validate_import_missing_title(session: Session, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     user = _create_test_user(session)
     payload = {
@@ -368,7 +371,7 @@ def test_validate_import_missing_title(session: Session, tmp_path, monkeypatch):
     assert any("missing required field 'title'" in e for e in result["errors"])
 
 
-def test_validate_import_value_error_caught(session: Session, tmp_path, monkeypatch):
+def test_validate_import_value_error_caught(session: Session, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     user = _create_test_user(session)
     payload = {
@@ -387,7 +390,7 @@ def test_validate_import_value_error_caught(session: Session, tmp_path, monkeypa
 # ── execute_import ────────────────────────────────────────────────────────────
 
 @pytest.mark.anyio
-async def test_execute_import_mapping_errors(session: Session, tmp_path, monkeypatch):
+async def test_execute_import_mapping_errors(session: Session, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     user = _create_test_user(session)
     payload = {
@@ -408,7 +411,7 @@ async def test_execute_import_mapping_errors(session: Session, tmp_path, monkeyp
 
 
 @pytest.mark.anyio
-async def test_execute_import_rating_out_of_range_set_to_none(session: Session, tmp_path, monkeypatch):
+async def test_execute_import_rating_out_of_range_set_to_none(session: Session, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     user = _create_test_user(session)
     payload = {
@@ -430,7 +433,7 @@ async def test_execute_import_rating_out_of_range_set_to_none(session: Session, 
 
 
 @pytest.mark.anyio
-async def test_execute_import_date_started_after_finished(session: Session, tmp_path, monkeypatch):
+async def test_execute_import_date_started_after_finished(session: Session, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     user = _create_test_user(session)
     payload = {
@@ -452,7 +455,7 @@ async def test_execute_import_date_started_after_finished(session: Session, tmp_
 
 
 @pytest.mark.anyio
-async def test_execute_import_cover_download(session: Session, tmp_path, monkeypatch):
+async def test_execute_import_cover_download(session: Session, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     monkeypatch.setattr(settings, "covers_dir", str(tmp_path / "covers"))
     user = _create_test_user(session)
@@ -465,7 +468,7 @@ async def test_execute_import_cover_download(session: Session, tmp_path, monkeyp
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload))
 
-    async def _fake_download(url, covers_dir, client, user_id):
+    async def _fake_download(url: str, covers_dir: str, client: Any, user_id: int) -> str:
         return "cover_123.jpg"
 
     monkeypatch.setattr(di, "download_cover", _fake_download)
@@ -480,7 +483,7 @@ async def test_execute_import_cover_download(session: Session, tmp_path, monkeyp
 
 
 @pytest.mark.anyio
-async def test_execute_import_progress_date_naive_tz_fix(session: Session, tmp_path, monkeypatch):
+async def test_execute_import_progress_date_naive_tz_fix(session: Session, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     user = _create_test_user(session)
     # Provide a naive datetime for date_finished to trigger tz fix at line 511
@@ -508,7 +511,7 @@ async def test_execute_import_progress_date_naive_tz_fix(session: Session, tmp_p
 
 
 @pytest.mark.anyio
-async def test_execute_import_rollback_all_commit(session: Session, tmp_path, monkeypatch):
+async def test_execute_import_rollback_all_commit(session: Session, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     user = _create_test_user(session)
     payload = {
@@ -530,7 +533,7 @@ async def test_execute_import_rollback_all_commit(session: Session, tmp_path, mo
 
 
 @pytest.mark.anyio
-async def test_execute_import_missing_title_row(session: Session, tmp_path, monkeypatch):
+async def test_execute_import_missing_title_row(session: Session, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     user = _create_test_user(session)
     payload = {
@@ -552,7 +555,7 @@ async def test_execute_import_missing_title_row(session: Session, tmp_path, monk
 
 
 @pytest.mark.anyio
-async def test_execute_import_rollback_all_error(session: Session, tmp_path, monkeypatch):
+async def test_execute_import_rollback_all_error(session: Session, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     user = _create_test_user(session)
     payload = {
@@ -573,7 +576,7 @@ async def test_execute_import_rollback_all_error(session: Session, tmp_path, mon
 
 
 @pytest.mark.anyio
-async def test_execute_import_progress_naive_date_finished(session: Session, tmp_path, monkeypatch):
+async def test_execute_import_progress_naive_date_finished(session: Session, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     """Pass a naive datetime object directly to trigger line 510-511."""
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     user = _create_test_user(session)
@@ -611,7 +614,7 @@ async def test_execute_import_progress_naive_date_finished(session: Session, tmp
 
 
 @pytest.mark.anyio
-async def test_execute_import_progress_naive_utcnow_fallback(session: Session, tmp_path, monkeypatch):
+async def test_execute_import_progress_naive_utcnow_fallback(session: Session, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
     """Mock utcnow to return a naive datetime to trigger line 510-511 via the fallback path."""
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     user = _create_test_user(session)
@@ -643,13 +646,13 @@ async def test_execute_import_progress_naive_utcnow_fallback(session: Session, t
 
 # ── cleanup_temp_files ────────────────────────────────────────────────────────
 
-def test_cleanup_temp_files_root_missing(monkeypatch):
+def test_cleanup_temp_files_root_missing(monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", "/nonexistent/path/for/cleanup")
     # Should not raise
     di.cleanup_temp_files()
 
 
-def test_cleanup_temp_files_deletes_old_files(monkeypatch, tmp_path):
+def test_cleanup_temp_files_deletes_old_files(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     # Create an old JSON file by setting its mtime to the past
     path = tmp_path / "old.json"
@@ -661,7 +664,7 @@ def test_cleanup_temp_files_deletes_old_files(monkeypatch, tmp_path):
     assert not path.exists()
 
 
-def test_cleanup_temp_files_keeps_recent_files(monkeypatch, tmp_path):
+def test_cleanup_temp_files_keeps_recent_files(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     # Create a recent JSON file
     path = tmp_path / "recent.json"
@@ -671,12 +674,12 @@ def test_cleanup_temp_files_keeps_recent_files(monkeypatch, tmp_path):
     assert path.exists()
 
 
-def test_cleanup_temp_files_oserror_on_stat(monkeypatch, tmp_path):
+def test_cleanup_temp_files_oserror_on_stat(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     # Create a JSON file
     (tmp_path / "test.json").write_text("{}")
 
-    def _raise(*args, **kwargs):
+    def _raise(*args: Any, **kwargs: Any) -> Any:
         raise OSError("stat failed")
 
     monkeypatch.setattr(Path, "stat", _raise)
@@ -684,7 +687,7 @@ def test_cleanup_temp_files_oserror_on_stat(monkeypatch, tmp_path):
     di.cleanup_temp_files()
 
 
-def test_cleanup_temp_files_oserror_on_unlink(monkeypatch, tmp_path):
+def test_cleanup_temp_files_oserror_on_unlink(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(settings, "import_temp_dir", str(tmp_path))
     # Create an old JSON file
     path = tmp_path / "test.json"
@@ -694,7 +697,7 @@ def test_cleanup_temp_files_oserror_on_unlink(monkeypatch, tmp_path):
 
     original_unlink = Path.unlink
 
-    def _raise_unlink(self, missing_ok=False):
+    def _raise_unlink(self: Path, missing_ok: bool = False) -> Any:
         if self == path:
             raise OSError("unlink failed")
         return original_unlink(self, missing_ok=missing_ok)  # pragma: no cover

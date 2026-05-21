@@ -2,14 +2,14 @@
 
 import asyncio
 import importlib
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 
-def test_periodic_temp_cleanup_logs_success():
-    """Lines 25-28: successful cleanup should log info and reset failures."""
+def test_periodic_temp_cleanup_logs_success() -> None:
+    """Successful cleanup should log info and reset failures."""
     from app.main import _periodic_temp_cleanup
 
-    async def _run():
+    async def _run() -> MagicMock:
         with patch("app.main.cleanup_temp_files"):
             with patch("app.main.asyncio.sleep", side_effect=[None, asyncio.CancelledError()]):
                 with patch("app.main.logger") as mock_logger:
@@ -24,11 +24,11 @@ def test_periodic_temp_cleanup_logs_success():
     assert "cleanup completed" in str(mock_logger.info.call_args_list[0])
 
 
-def test_periodic_temp_cleanup_logs_warning_on_first_failure():
-    """Lines 25, 29-30, 31, 33-34: first failure should log a warning."""
+def test_periodic_temp_cleanup_logs_warning_on_first_failure() -> None:
+    """First failure should log a warning."""
     from app.main import _periodic_temp_cleanup
 
-    async def _run():
+    async def _run() -> MagicMock:
         with patch("app.main.cleanup_temp_files", side_effect=RuntimeError("boom")):
             with patch("app.main.asyncio.sleep", side_effect=[None, asyncio.CancelledError()]):
                 with patch("app.main.logger") as mock_logger:
@@ -43,11 +43,11 @@ def test_periodic_temp_cleanup_logs_warning_on_first_failure():
     assert "cleanup failed" in str(mock_logger.warning.call_args_list[0]).lower()
 
 
-def test_periodic_temp_cleanup_logs_error_after_three_failures():
-    """Lines 25, 29-32: three consecutive failures should log an error."""
+def test_periodic_temp_cleanup_logs_error_after_three_failures() -> None:
+    """Three consecutive failures should log an error."""
     from app.main import _periodic_temp_cleanup
 
-    async def _run():
+    async def _run() -> MagicMock:
         with patch("app.main.cleanup_temp_files", side_effect=RuntimeError("boom")):
             with patch("app.main.asyncio.sleep", side_effect=[None, None, None, asyncio.CancelledError()]):
                 with patch("app.main.logger") as mock_logger:
@@ -62,8 +62,8 @@ def test_periodic_temp_cleanup_logs_error_after_three_failures():
     assert "consecutively" in str(mock_logger.error.call_args_list[0]).lower()
 
 
-def test_cookie_samesite_invalid_value_falls_back_to_lax():
-    """Line 77: an invalid auth_cookie_samesite value should fall back to 'lax'."""
+def test_cookie_samesite_invalid_value_falls_back_to_lax() -> None:
+    """An invalid auth_cookie_samesite value should fall back to 'lax'."""
     from app.config import settings
     import app.main as main_module
 

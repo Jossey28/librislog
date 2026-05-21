@@ -1,4 +1,8 @@
+"""Shared pytest fixtures for all tests."""
+
 import os
+from collections.abc import Generator
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,7 +18,7 @@ from app.database import get_session
 
 
 @pytest.fixture(name="session")
-def session_fixture():
+def session_fixture() -> Generator[Session, None, None]:
     """Provide an in-memory SQLite session, isolated per test."""
     engine = create_engine(
         "sqlite://",
@@ -29,7 +33,7 @@ def session_fixture():
 
 
 @pytest.fixture(name="client")
-def client_fixture(session: Session):
+def client_fixture(session: Session) -> Generator[TestClient, None, None]:
     """Provide a TestClient with the test session injected."""
     key_plain = generate_api_key()
 
@@ -56,7 +60,7 @@ def client_fixture(session: Session):
     )
     session.commit()
 
-    def override_get_session():
+    def override_get_session() -> Generator[Session, None, None]:
         yield session
 
     app.dependency_overrides[get_session] = override_get_session
@@ -68,6 +72,7 @@ def client_fixture(session: Session):
 
 @pytest.fixture(name="create_user_with_key")
 def create_user_with_key_fixture(session: Session):
+    """Return a factory that creates a user + API key and returns ``(user, key_plain)``."""
     def _create(
         *,
         firstname: str = "User",
@@ -105,6 +110,6 @@ def create_user_with_key_fixture(session: Session):
 
 
 @pytest.fixture(name="invalid_settings_kwargs")
-def invalid_settings_kwargs_fixture(request):
-    """Parametrized fixture providing (kwargs, expected_error_substring) for Settings validation."""
+def invalid_settings_kwargs_fixture(request: Any) -> tuple[dict[str, str], str]:
+    """Parametrized fixture providing ``(kwargs, expected_error_substring)`` for Settings validation."""
     return request.param

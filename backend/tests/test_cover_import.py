@@ -5,53 +5,62 @@ from unittest.mock import patch
 from app.services.cover_import import is_external_cover_url, is_safe_cover_import_url
 
 
-def test_is_external_cover_url_http_and_https():
+def test_is_external_cover_url_http_and_https() -> None:
+    """HTTP and HTTPS URLs should be recognised as external."""
     assert is_external_cover_url("https://example.com/cover.jpg") is True
     assert is_external_cover_url("http://example.com/cover.jpg") is True
 
 
-def test_is_external_cover_url_relative_and_local():
+def test_is_external_cover_url_relative_and_local() -> None:
+    """Relative paths, None, and empty strings should return False."""
     assert is_external_cover_url("/covers/abc.jpg") is False
     assert is_external_cover_url("covers/abc.jpg") is False
     assert is_external_cover_url(None) is False
     assert is_external_cover_url("") is False
 
 
-def test_is_safe_cover_import_url_valid_https():
+def test_is_safe_cover_import_url_valid_https() -> None:
+    """Standard HTTPS URLs should be considered safe."""
     assert is_safe_cover_import_url("https://example.com/cover.jpg") is True
 
 
-def test_is_safe_cover_import_url_rejects_invalid_url():
+def test_is_safe_cover_import_url_rejects_invalid_url() -> None:
+    """Malformed URLs should be rejected."""
     assert is_safe_cover_import_url("not-a-url") is False
 
 
-def test_is_safe_cover_import_url_rejects_no_hostname():
+def test_is_safe_cover_import_url_rejects_no_hostname() -> None:
+    """URLs without a valid hostname should be rejected."""
     assert is_safe_cover_import_url("https:///path") is False
 
 
-def test_is_safe_cover_import_url_rejects_localhost():
+def test_is_safe_cover_import_url_rejects_localhost() -> None:
+    """Localhost variants (names and loopback IPs) should be rejected."""
     assert is_safe_cover_import_url("http://localhost:8000/cover.jpg") is False
     assert is_safe_cover_import_url("http://127.0.0.1/cover.jpg") is False
     assert is_safe_cover_import_url("http://[::1]/cover.jpg") is False
     assert is_safe_cover_import_url("http://0.0.0.0/cover.jpg") is False
 
 
-def test_is_safe_cover_import_url_rejects_url_with_credentials():
+def test_is_safe_cover_import_url_rejects_url_with_credentials() -> None:
+    """URLs containing user:password credentials should be rejected."""
     assert is_safe_cover_import_url("https://user:pass@example.com/cover.jpg") is False
     assert is_safe_cover_import_url("https://user@example.com/cover.jpg") is False
 
 
-def test_is_safe_cover_import_url_rejects_private_ips():
+def test_is_safe_cover_import_url_rejects_private_ips() -> None:
+    """Private and link-local IP addresses should be rejected."""
     assert is_safe_cover_import_url("http://10.0.0.1/cover.jpg") is False
     assert is_safe_cover_import_url("http://172.16.0.1/cover.jpg") is False
     assert is_safe_cover_import_url("http://192.168.1.1/cover.jpg") is False
 
 
-def test_is_safe_cover_import_url_rejects_multicast():
+def test_is_safe_cover_import_url_rejects_multicast() -> None:
+    """Multicast IP addresses should be rejected."""
     assert is_safe_cover_import_url("http://224.0.0.1/cover.jpg") is False
 
 
-def test_is_safe_cover_import_url_dns_failure():
+def test_is_safe_cover_import_url_dns_failure() -> None:
     """OSError from getaddrinfo should return False."""
     with patch(
         "app.services.cover_import.socket.getaddrinfo",
@@ -60,7 +69,7 @@ def test_is_safe_cover_import_url_dns_failure():
         assert is_safe_cover_import_url("https://unresolvable.example/cover.jpg") is False
 
 
-def test_is_safe_cover_import_url_resolved_restricted_ip():
+def test_is_safe_cover_import_url_resolved_restricted_ip() -> None:
     """Resolved IP that is restricted should return False."""
     with patch(
         "app.services.cover_import.socket.getaddrinfo",
@@ -69,7 +78,7 @@ def test_is_safe_cover_import_url_resolved_restricted_ip():
         assert is_safe_cover_import_url("https://localhost-via-dns.example/cover.jpg") is False
 
 
-def test_is_safe_cover_import_url_resolved_invalid_ip():
+def test_is_safe_cover_import_url_resolved_invalid_ip() -> None:
     """Resolved address that is not a valid IP should return False."""
     with patch(
         "app.services.cover_import.socket.getaddrinfo",
@@ -78,8 +87,8 @@ def test_is_safe_cover_import_url_resolved_invalid_ip():
         assert is_safe_cover_import_url("https://invalid-addr.example/cover.jpg") is False
 
 
-def test_is_safe_cover_import_url_urlparse_exception():
-    """Lines 18-19: an exception from urlparse should return False."""
+def test_is_safe_cover_import_url_urlparse_exception() -> None:
+    """An exception from urlparse should return False."""
     with patch(
         "app.services.cover_import.urlparse",
         side_effect=ValueError("bad url"),

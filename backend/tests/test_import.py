@@ -5,11 +5,17 @@ HTTP calls are intercepted with monkeypatch — no real network requests are mad
 All test functions are modular (no classes).
 """
 
+from collections.abc import AsyncIterator
+from pathlib import Path
+from typing import Any
+
 import pytest
 import httpx
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from pytest import MonkeyPatch
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.routers import import_ as import_router
@@ -51,7 +57,7 @@ GOOGLE_BOOKS_FOUNDATION_ITEM = {
 
 # ── map_open_library unit tests ────────────────────────────────────────────────
 
-def test_map_open_library_fields():
+def test_map_open_library_fields() -> None:
     result = book_import.map_open_library(OPEN_LIBRARY_DUNE_DOC)
     assert result.title == "Dune"
     assert result.author == "Frank Herbert"
@@ -65,7 +71,7 @@ def test_map_open_library_fields():
     assert result.source == "open_library"
 
 
-def test_map_open_library_missing_optional_fields():
+def test_map_open_library_missing_optional_fields() -> None:
     minimal = {"title": "Minimal Book"}
     result = book_import.map_open_library(minimal)
     assert result.title == "Minimal Book"
@@ -78,7 +84,7 @@ def test_map_open_library_missing_optional_fields():
     assert result.source == "open_library"
 
 
-def test_map_open_library_tags_capped_at_three():
+def test_map_open_library_tags_capped_at_three() -> None:
     doc = {"title": "X", "subject": ["A", "B", "C", "D", "E"]}
     result = book_import.map_open_library(doc)
     assert result.tags == "A, B, C"
@@ -86,7 +92,7 @@ def test_map_open_library_tags_capped_at_three():
 
 # ── map_google_books unit tests ───────────────────────────────────────────────
 
-def test_map_google_books_fields():
+def test_map_google_books_fields() -> None:
     result = book_import.map_google_books(GOOGLE_BOOKS_FOUNDATION_ITEM)
     assert result.title == "Foundation"
     assert result.author == "Isaac Asimov"
@@ -100,7 +106,7 @@ def test_map_google_books_fields():
     assert result.source == "google_books"
 
 
-def test_map_google_books_missing_optional_fields():
+def test_map_google_books_missing_optional_fields() -> None:
     minimal = {"volumeInfo": {"title": "Minimal"}}
     result = book_import.map_google_books(minimal)
     assert result.title == "Minimal"
@@ -112,17 +118,17 @@ def test_map_google_books_missing_optional_fields():
     assert result.source == "google_books"
 
 
-def test_normalize_language_code_converts_iso_639_2_to_iso_639_1():
+def test_normalize_language_code_converts_iso_639_2_to_iso_639_1() -> None:
     assert book_import._normalize_language_code("eng") == "EN"
     assert book_import._normalize_language_code("fra") == "FR"
 
 
-def test_normalize_language_code_keeps_iso_639_1_uppercase():
+def test_normalize_language_code_keeps_iso_639_1_uppercase() -> None:
     assert book_import._normalize_language_code("en") == "EN"
     assert book_import._normalize_language_code(" De ") == "DE"
 
 
-def test_normalize_language_code_rejects_invalid_values():
+def test_normalize_language_code_rejects_invalid_values() -> None:
     assert book_import._normalize_language_code(None) is None
     assert book_import._normalize_language_code("") is None
     assert book_import._normalize_language_code("123") is None
@@ -130,7 +136,7 @@ def test_normalize_language_code_rejects_invalid_values():
     assert book_import._normalize_language_code("zzz") is None
 
 
-def test_map_google_books_prefers_isbn13_over_isbn10():
+def test_map_google_books_prefers_isbn13_over_isbn10() -> None:
     item = {
         "volumeInfo": {
             "title": "T",
@@ -144,7 +150,7 @@ def test_map_google_books_prefers_isbn13_over_isbn10():
     assert result.isbn == "9780553293357"
 
 
-def test_map_google_books_published_year_partial_date():
+def test_map_google_books_published_year_partial_date() -> None:
     item = {"volumeInfo": {"title": "T", "publishedDate": "1991-06"}}
     result = book_import.map_google_books(item)
     assert result.published_year == 1991
@@ -163,8 +169,8 @@ def fake_gb_result() -> list[BookImportCandidate]:
 
 
 @pytest.mark.anyio
-async def test_search_returns_open_library_results(monkeypatch, fake_ol_result):
-    async def fake_ol(query, search_type, client):
+async def test_search_returns_open_library_results(monkeypatch: MonkeyPatch, fake_ol_result: list[BookImportCandidate]) -> None:
+    async def fake_ol(query: str, search_type: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         return fake_ol_result
 
     monkeypatch.setattr(book_import, "_search_open_library", fake_ol)
@@ -176,11 +182,11 @@ async def test_search_returns_open_library_results(monkeypatch, fake_ol_result):
 
 
 @pytest.mark.anyio
-async def test_search_falls_back_to_google_books_when_ol_empty(monkeypatch, fake_gb_result):
-    async def fake_ol(query, search_type, client):
+async def test_search_falls_back_to_google_books_when_ol_empty(monkeypatch: MonkeyPatch, fake_gb_result: list[BookImportCandidate]) -> None:
+    async def fake_ol(query: str, search_type: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         return []
 
-    async def fake_gb(query, search_type, api_key, client):
+    async def fake_gb(query: str, search_type: str, api_key: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         return fake_gb_result
 
     monkeypatch.setattr(book_import, "_search_open_library", fake_ol)
@@ -194,8 +200,8 @@ async def test_search_falls_back_to_google_books_when_ol_empty(monkeypatch, fake
 
 
 @pytest.mark.anyio
-async def test_search_returns_empty_when_both_fail(monkeypatch):
-    async def fake_ol(query, search_type, client):
+async def test_search_returns_empty_when_both_fail(monkeypatch: MonkeyPatch) -> None:
+    async def fake_ol(query: str, search_type: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         return []
 
     monkeypatch.setattr(book_import, "_search_open_library", fake_ol)
@@ -228,7 +234,7 @@ HARDCOVER_EDITION = {
 }
 
 
-def test_map_hardcover_fields():
+def test_map_hardcover_fields() -> None:
     result = book_import.map_hardcover(HARDCOVER_EDITION)
     assert result is not None
     assert result.title == "Dune"
@@ -244,12 +250,12 @@ def test_map_hardcover_fields():
     assert result.source == "hardcover"
 
 
-def test_map_hardcover_missing_title():
+def test_map_hardcover_missing_title() -> None:
     result = book_import.map_hardcover({"title": ""})
     assert result is None
 
 
-def test_map_hardcover_missing_optional():
+def test_map_hardcover_missing_optional() -> None:
     minimal = {"title": "Minimal"}
     result = book_import.map_hardcover(minimal)
     assert result is not None
@@ -265,7 +271,7 @@ def test_map_hardcover_missing_optional():
     assert result.blurb is None
 
 
-def test_map_hardcover_tags_capped():
+def test_map_hardcover_tags_capped() -> None:
     edition = {"title": "X", "book": {"taggings": [
         {"tag": {"tag": "A"}}, {"tag": {"tag": "B"}},
         {"tag": {"tag": "C"}}, {"tag": {"tag": "D"}},
@@ -275,7 +281,7 @@ def test_map_hardcover_tags_capped():
     assert result.tags == "A, B, C"
 
 
-def test_map_hardcover_language_uppercased():
+def test_map_hardcover_language_uppercased() -> None:
     edition = {"title": "X", "language": {"code2": "de"}}
     result = book_import.map_hardcover(edition)
     assert result is not None
@@ -285,6 +291,7 @@ def test_map_hardcover_language_uppercased():
 # ── _merge_and_deduplicate unit tests ────────────────────────────────────────
 
 def _make_candidate(title: str, isbn: str | None = None, pages: int | None = None, lang: str | None = None) -> BookImportCandidate:
+    """Create a BookImportCandidate with default values for reuse in dedup tests."""
     return BookImportCandidate(
         title=title,
         author="Author",
@@ -295,7 +302,7 @@ def _make_candidate(title: str, isbn: str | None = None, pages: int | None = Non
     )
 
 
-def test_merge_and_dedup_same_isbn_pages_lang():
+def test_merge_and_dedup_same_isbn_pages_lang() -> None:
     a = _make_candidate("Dune", "9780441013593", 412, "EN")
     b = _make_candidate("Dune", "9780441013593", 412, "EN")
     result = book_import._merge_and_deduplicate([a], [b])
@@ -303,21 +310,21 @@ def test_merge_and_dedup_same_isbn_pages_lang():
     assert result[0].title == "Dune"
 
 
-def test_merge_and_dedup_same_isbn_diff_pages():
+def test_merge_and_dedup_same_isbn_diff_pages() -> None:
     a = _make_candidate("Dune", "9780441013593", 412, "EN")
     b = _make_candidate("Dune HC", "9780441013593", 688, "EN")
     result = book_import._merge_and_deduplicate([a], [b])
     assert len(result) == 2
 
 
-def test_merge_and_dedup_same_isbn_diff_lang():
+def test_merge_and_dedup_same_isbn_diff_lang() -> None:
     a = _make_candidate("Dune", "9780441013593", 412, "EN")
     b = _make_candidate("Dune DE", "9780441013593", 412, "DE")
     result = book_import._merge_and_deduplicate([a], [b])
     assert len(result) == 2
 
 
-def test_merge_and_dedup_ol_first_order():
+def test_merge_and_dedup_ol_first_order() -> None:
     ol = _make_candidate("OL Book", "9781111111111", 200, "EN")
     hc = _make_candidate("HC Book", "9782222222222", 300, "DE")
     result = book_import._merge_and_deduplicate([ol], [hc])
@@ -326,7 +333,7 @@ def test_merge_and_dedup_ol_first_order():
     assert result[1].title == "HC Book"
 
 
-def test_merge_and_dedup_prefers_candidate_with_cover():
+def test_merge_and_dedup_prefers_candidate_with_cover() -> None:
     a = _make_candidate("No Cover", "9780441013593", 412, "EN")
     b = _make_candidate("Has Cover", "9780441013593", 412, "EN")
     b.cover_url = "https://example.com/cover.jpg"
@@ -335,7 +342,7 @@ def test_merge_and_dedup_prefers_candidate_with_cover():
     assert result[0].title == "Has Cover"
 
 
-def test_merge_and_dedup_prefers_cover_when_primary_missing_cover():
+def test_merge_and_dedup_prefers_cover_when_primary_missing_cover() -> None:
     a = _make_candidate("OL No Cover", "9780441013593", 412, "EN")
     b = _make_candidate("HC Has Cover", "9780441013593", 412, "EN")
     b.cover_url = "https://example.com/cover.jpg"
@@ -344,7 +351,7 @@ def test_merge_and_dedup_prefers_cover_when_primary_missing_cover():
     assert result[0].title == "HC Has Cover"
 
 
-def test_merge_and_dedup_keeps_primary_cover_when_both_have_cover():
+def test_merge_and_dedup_keeps_primary_cover_when_both_have_cover() -> None:
     a = _make_candidate("OL Cover", "9780441013593", 412, "EN")
     a.cover_url = "https://ol-cover.jpg"
     b = _make_candidate("HC Cover", "9780441013593", 412, "EN")
@@ -356,13 +363,13 @@ def test_merge_and_dedup_keeps_primary_cover_when_both_have_cover():
 
 # ── _hardcover_dedup_key tests ───────────────────────────────────────────────
 
-def test_hardcover_dedup_key():
+def test_hardcover_dedup_key() -> None:
     edition = {"isbn_13": "9780441013593", "pages": 412, "language": {"code2": "en"}}
     key = book_import._hardcover_dedup_key(edition)
     assert key == ("9780441013593", 412, "en")
 
 
-def test_hardcover_dedup_key_no_isbn():
+def test_hardcover_dedup_key_no_isbn() -> None:
     key = book_import._hardcover_dedup_key({"pages": 412})
     assert key is None
 
@@ -370,16 +377,16 @@ def test_hardcover_dedup_key_no_isbn():
 # ── search() with hardcover ──────────────────────────────────────────────────
 
 @pytest.mark.anyio
-async def test_search_runs_hardcover_in_parallel(monkeypatch):
+async def test_search_runs_hardcover_in_parallel(monkeypatch: MonkeyPatch) -> None:
     ol_called = False
     hc_called = False
 
-    async def fake_ol(query, search_type, client):
+    async def fake_ol(query: str, search_type: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         nonlocal ol_called
         ol_called = True
         return [book_import.map_open_library(OPEN_LIBRARY_DUNE_DOC)]
 
-    async def fake_hc(query, search_type, api_token, client):
+    async def fake_hc(query: str, search_type: str, api_token: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         nonlocal hc_called
         hc_called = True
         return []
@@ -394,11 +401,11 @@ async def test_search_runs_hardcover_in_parallel(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_merges_ol_and_hc_results(monkeypatch):
-    async def fake_ol(query, search_type, client):
+async def test_search_merges_ol_and_hc_results(monkeypatch: MonkeyPatch) -> None:
+    async def fake_ol(query: str, search_type: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         return [_make_candidate("OL Book", "9781111111111", 200, "EN")]
 
-    async def fake_hc(query, search_type, api_token, client):
+    async def fake_hc(query: str, search_type: str, api_token: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         return [_make_candidate("HC Book", "9782222222222", 300, "DE")]
 
     monkeypatch.setattr(book_import, "_search_open_library", fake_ol)
@@ -411,10 +418,10 @@ async def test_search_merges_ol_and_hc_results(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_hardcover_skipped_without_token(monkeypatch):
+async def test_search_hardcover_skipped_without_token(monkeypatch: MonkeyPatch) -> None:
     hc_called = False
 
-    async def fake_hc(query, search_type, api_token, client):  # pragma: no cover
+    async def fake_hc(query: str, search_type: str, api_token: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:  # pragma: no cover
         nonlocal hc_called
         hc_called = True
         return []
@@ -428,13 +435,13 @@ async def test_search_hardcover_skipped_without_token(monkeypatch):
 # ── search_with_progress() with hardcover ────────────────────────────────────
 
 @pytest.mark.anyio
-async def test_search_with_progress_runs_hc_in_parallel(monkeypatch, fake_ol_result):
+async def test_search_with_progress_runs_hc_in_parallel(monkeypatch: MonkeyPatch, fake_ol_result: list[BookImportCandidate]) -> None:
     hc_called = False
 
-    async def fake_ol(query, search_type, client):
+    async def fake_ol(query: str, search_type: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         return fake_ol_result
 
-    async def fake_hc(query, search_type, api_token, client):
+    async def fake_hc(query: str, search_type: str, api_token: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         nonlocal hc_called
         hc_called = True
         return []
@@ -453,8 +460,8 @@ async def test_search_with_progress_runs_hc_in_parallel(monkeypatch, fake_ol_res
 
 
 @pytest.mark.anyio
-async def test_search_with_progress_hc_skipped_no_token(monkeypatch, fake_ol_result):
-    async def fake_ol(query, search_type, client):
+async def test_search_with_progress_hc_skipped_no_token(monkeypatch: MonkeyPatch, fake_ol_result: list[BookImportCandidate]) -> None:
+    async def fake_ol(query: str, search_type: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         return fake_ol_result
 
     monkeypatch.setattr(book_import, "_search_open_library", fake_ol)
@@ -468,11 +475,11 @@ async def test_search_with_progress_hc_skipped_no_token(monkeypatch, fake_ol_res
 
 
 @pytest.mark.anyio
-async def test_search_with_progress_hc_error_graceful(monkeypatch):
-    async def fake_ol(query, search_type, client):
+async def test_search_with_progress_hc_error_graceful(monkeypatch: MonkeyPatch) -> None:
+    async def fake_ol(query: str, search_type: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         return []
 
-    async def fake_hc(query, search_type, api_token, client):
+    async def fake_hc(query: str, search_type: str, api_token: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         raise RuntimeError("API down")
 
     monkeypatch.setattr(book_import, "_search_open_library", fake_ol)
@@ -489,10 +496,10 @@ async def test_search_with_progress_hc_error_graceful(monkeypatch):
 # ── _search_hardcover ISBN path tests ──────────────────────────────────────
 
 @pytest.mark.anyio
-async def test_search_hardcover_isbn_path(monkeypatch):
-    called_with = {}
+async def test_search_hardcover_isbn_path(monkeypatch: MonkeyPatch) -> None:
+    called_with: dict[str, list[str]] = {}
 
-    async def fake_hc_fetch(isbns, token, client):
+    async def fake_hc_fetch(isbns: list[str], token: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         called_with["isbns"] = isbns
         return [BookImportCandidate(title="Dune", isbn="9780441013593", source="hardcover")]
 
@@ -507,10 +514,10 @@ async def test_search_hardcover_isbn_path(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_hardcover_isbn_invalid(monkeypatch):
+async def test_search_hardcover_isbn_invalid(monkeypatch: MonkeyPatch) -> None:
     called = False
 
-    async def fake_hc_fetch(isbns, token, client):  # pragma: no cover
+    async def fake_hc_fetch(isbns: list[str], token: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:  # pragma: no cover
         nonlocal called
         called = True
         return []
@@ -525,8 +532,8 @@ async def test_search_hardcover_isbn_invalid(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_hardcover_isbn_not_found(monkeypatch):
-    async def fake_hc_fetch(isbns, token, client):
+async def test_search_hardcover_isbn_not_found(monkeypatch: MonkeyPatch) -> None:
+    async def fake_hc_fetch(isbns: list[str], token: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         return []
 
     monkeypatch.setattr(book_import, "_hardcover_fetch_books", fake_hc_fetch)
@@ -540,11 +547,11 @@ async def test_search_hardcover_isbn_not_found(monkeypatch):
 # ── search() with hardcover exception handling ──────────────────────────────
 
 @pytest.mark.anyio
-async def test_search_hardcover_exception_ol_still_works(monkeypatch, fake_ol_result):
-    async def fake_ol(query, search_type, client):
+async def test_search_hardcover_exception_ol_still_works(monkeypatch: MonkeyPatch, fake_ol_result: list[BookImportCandidate]) -> None:
+    async def fake_ol(query: str, search_type: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         return fake_ol_result
 
-    async def fake_hc_exc(query, search_type, api_token, client):
+    async def fake_hc_exc(query: str, search_type: str, api_token: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         raise RuntimeError("HC temporary failure")
 
     monkeypatch.setattr(book_import, "_search_open_library", fake_ol)
@@ -558,8 +565,8 @@ async def test_search_hardcover_exception_ol_still_works(monkeypatch, fake_ol_re
 
 # ── Import API endpoint tests ─────────────────────────────────────────────────
 
-def test_import_search_endpoint(client: TestClient, monkeypatch):
-    async def fake_search(query, search_type, *, api_key, hardcover_api_token, http_client):
+def test_import_search_endpoint(client: TestClient, monkeypatch: MonkeyPatch) -> None:
+    async def fake_search(query: str, search_type: str, *, api_key: str | None, hardcover_api_token: str | None, http_client: httpx.AsyncClient) -> list[BookImportCandidate]:
         return [book_import.map_open_library(OPEN_LIBRARY_DUNE_DOC)]
 
     monkeypatch.setattr(book_import, "search", fake_search)
@@ -572,12 +579,12 @@ def test_import_search_endpoint(client: TestClient, monkeypatch):
     assert data[0]["source"] == "open_library"
 
 
-def test_import_search_requires_query(client: TestClient):
+def test_import_search_requires_query(client: TestClient) -> None:
     resp = client.get("/api/import/search")
     assert resp.status_code == 422
 
 
-def test_import_book_creates_entry(client: TestClient):
+def test_import_book_creates_entry(client: TestClient) -> None:
     payload = {
         "candidate": {
             "title": "Dune",
@@ -603,7 +610,7 @@ def test_import_book_creates_entry(client: TestClient):
     assert data["id"] is not None
 
 
-def test_import_book_duplicate_isbn_returns_409(client: TestClient):
+def test_import_book_duplicate_isbn_returns_409(client: TestClient) -> None:
     payload = {
         "candidate": {
             "title": "Dune",
@@ -617,7 +624,7 @@ def test_import_book_duplicate_isbn_returns_409(client: TestClient):
     assert resp.status_code == 409
 
 
-def test_import_book_without_isbn_allows_duplicates(client: TestClient):
+def test_import_book_without_isbn_allows_duplicates(client: TestClient) -> None:
     """Books without ISBN can be added multiple times (no unique constraint)."""
     payload = {
         "candidate": {
@@ -632,7 +639,7 @@ def test_import_book_without_isbn_allows_duplicates(client: TestClient):
     assert r2.status_code == 201
 
 
-def test_import_book_with_reading_status(client: TestClient):
+def test_import_book_with_reading_status(client: TestClient) -> None:
     payload = {
         "candidate": {
             "title": "Foundation",
@@ -649,8 +656,8 @@ def test_import_book_with_reading_status(client: TestClient):
 # ── search_with_progress() tests ──────────────────────────────────────────────
 
 @pytest.mark.anyio
-async def test_search_with_progress_open_library_success(monkeypatch, fake_ol_result):
-    async def fake_ol(query, search_type, client):
+async def test_search_with_progress_open_library_success(monkeypatch: MonkeyPatch, fake_ol_result: list[BookImportCandidate]) -> None:
+    async def fake_ol(query: str, search_type: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         return fake_ol_result
 
     monkeypatch.setattr(book_import, "_search_open_library", fake_ol)
@@ -671,11 +678,11 @@ async def test_search_with_progress_open_library_success(monkeypatch, fake_ol_re
 
 
 @pytest.mark.anyio
-async def test_search_with_progress_falls_back_to_google(monkeypatch, fake_gb_result):
-    async def fake_ol(query, search_type, client):
+async def test_search_with_progress_falls_back_to_google(monkeypatch: MonkeyPatch, fake_gb_result: list[BookImportCandidate]) -> None:
+    async def fake_ol(query: str, search_type: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         return []
 
-    async def fake_gb(query, search_type, api_key, client):
+    async def fake_gb(query: str, search_type: str, api_key: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         return fake_gb_result
 
     monkeypatch.setattr(book_import, "_search_open_library", fake_ol)
@@ -699,8 +706,8 @@ async def test_search_with_progress_falls_back_to_google(monkeypatch, fake_gb_re
 
 
 @pytest.mark.anyio
-async def test_search_with_progress_skips_google_without_key(monkeypatch):
-    async def fake_ol(query, search_type, client):
+async def test_search_with_progress_skips_google_without_key(monkeypatch: MonkeyPatch) -> None:
+    async def fake_ol(query: str, search_type: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         return []
 
     monkeypatch.setattr(book_import, "_search_open_library", fake_ol)
@@ -718,14 +725,14 @@ async def test_search_with_progress_skips_google_without_key(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_with_progress_google_only_runs_google(monkeypatch, fake_gb_result):
-    calls = {"ol": 0, "gb": 0}
+async def test_search_with_progress_google_only_runs_google(monkeypatch: MonkeyPatch, fake_gb_result: list[BookImportCandidate]) -> None:
+    calls: dict[str, int] = {"ol": 0, "gb": 0}
 
-    async def fake_ol(query, search_type, client):  # pragma: no cover
+    async def fake_ol(query: str, search_type: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:  # pragma: no cover
         calls["ol"] += 1
         return []
 
-    async def fake_gb(query, search_type, api_key, client):
+    async def fake_gb(query: str, search_type: str, api_key: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:
         calls["gb"] += 1
         return fake_gb_result
 
@@ -748,10 +755,10 @@ async def test_search_with_progress_google_only_runs_google(monkeypatch, fake_gb
 
 
 @pytest.mark.anyio
-async def test_search_with_progress_google_only_without_key_skips(monkeypatch):
-    calls = {"gb": 0}
+async def test_search_with_progress_google_only_without_key_skips(monkeypatch: MonkeyPatch) -> None:
+    calls: dict[str, int] = {"gb": 0}
 
-    async def fake_gb(query, search_type, api_key, client):  # pragma: no cover
+    async def fake_gb(query: str, search_type: str, api_key: str, client: httpx.AsyncClient) -> list[BookImportCandidate]:  # pragma: no cover
         calls["gb"] += 1
         return []
 
@@ -774,7 +781,7 @@ async def test_search_with_progress_google_only_without_key_skips(monkeypatch):
 def _parse_sse(text: str) -> list[dict]:
     """Parse SSE response body into a list of event dicts."""
     import json as _json
-    events = []
+    events: list[dict] = []
     for line in text.splitlines():
         if line.startswith("data: "):
             payload = line[6:].strip()
@@ -783,10 +790,10 @@ def _parse_sse(text: str) -> list[dict]:
     return events
 
 
-def test_search_stream_endpoint(client: TestClient, monkeypatch):
-    observed_mode = {"value": None}
+def test_search_stream_endpoint(client: TestClient, monkeypatch: MonkeyPatch) -> None:
+    observed_mode: dict[str, str | None] = {"value": None}
 
-    async def fake_search_with_progress(query, search_type, *, api_key, hardcover_api_token, mode, http_client):
+    async def fake_search_with_progress(query: str, search_type: str, *, api_key: str | None, hardcover_api_token: str | None, mode: str, http_client: httpx.AsyncClient) -> AsyncIterator[dict]:
         observed_mode["value"] = mode
         yield {"stage": "open_library", "status": "searching"}
         yield {"stage": "open_library", "status": "done", "count": 1}
@@ -810,10 +817,10 @@ def test_search_stream_endpoint(client: TestClient, monkeypatch):
     assert observed_mode["value"] == "auto"
 
 
-def test_search_stream_endpoint_forwards_google_only_mode(client: TestClient, monkeypatch):
-    observed_mode = {"value": None}
+def test_search_stream_endpoint_forwards_google_only_mode(client: TestClient, monkeypatch: MonkeyPatch) -> None:
+    observed_mode: dict[str, str | None] = {"value": None}
 
-    async def fake_search_with_progress(query, search_type, *, api_key, hardcover_api_token, mode, http_client):
+    async def fake_search_with_progress(query: str, search_type: str, *, api_key: str | None, hardcover_api_token: str | None, mode: str, http_client: httpx.AsyncClient) -> AsyncIterator[dict]:
         observed_mode["value"] = mode
         yield {"stage": "google_books", "status": "searching"}
         yield {"stage": "google_books", "status": "done", "count": 0}
@@ -826,7 +833,7 @@ def test_search_stream_endpoint_forwards_google_only_mode(client: TestClient, mo
     assert observed_mode["value"] == "google_only"
 
 
-def test_search_stream_endpoint_requires_query(client: TestClient):
+def test_search_stream_endpoint_requires_query(client: TestClient) -> None:
     resp = client.get("/api/import/search/stream")
     assert resp.status_code == 422
 
@@ -836,34 +843,34 @@ def test_search_stream_endpoint_requires_query(client: TestClient):
 class _FakeResponse:
     """Minimal fake for httpx responses used in cover-resolution tests."""
 
-    def __init__(self, status_code: int = 200, headers: dict | None = None, body: dict | None = None):
-        self.status_code = status_code
-        self.headers = headers or {}
-        self._body = body or {}
-        self.is_success = 200 <= status_code < 300
+    def __init__(self, status_code: int = 200, headers: dict[str, str] | None = None, body: dict[str, Any] | None = None) -> None:
+        self.status_code: int = status_code
+        self.headers: dict[str, str] = headers or {}
+        self._body: dict[str, Any] = body or {}
+        self.is_success: bool = 200 <= status_code < 300
 
-    def raise_for_status(self):
+    def raise_for_status(self) -> None:
         if not self.is_success:
             raise httpx.HTTPStatusError("error", request=None, response=self)  # type: ignore[arg-type]
 
-    def json(self) -> dict:
+    def json(self) -> dict[str, Any]:
         return self._body
 
 
 class _FakeClient:
     """Fake httpx.AsyncClient that returns pre-registered responses by URL."""
 
-    def __init__(self, get_map: dict | None = None, head_map: dict | None = None):
-        self._get = get_map or {}
-        self._head = head_map or {}
+    def __init__(self, get_map: dict[str, _FakeResponse] | None = None, head_map: dict[str, _FakeResponse] | None = None) -> None:
+        self._get: dict[str, _FakeResponse] = get_map or {}
+        self._head: dict[str, _FakeResponse] = head_map or {}
 
-    async def get(self, url: str, **_kwargs) -> _FakeResponse:
+    async def get(self, url: str, **_kwargs: Any) -> _FakeResponse:
         resp = self._get.get(url)
         if resp is None:
             return _FakeResponse(404)
         return resp
 
-    async def head(self, url: str, **_kwargs) -> _FakeResponse:
+    async def head(self, url: str, **_kwargs: Any) -> _FakeResponse:
         resp = self._head.get(url)
         if resp is None:
             return _FakeResponse(404)  # pragma: no cover
@@ -881,7 +888,7 @@ _IMAGE_HEADERS = {"content-type": "image/jpeg", "content-length": "50000"}
 
 
 @pytest.mark.anyio
-async def test_best_cover_prefers_large_over_thumbnail():
+async def test_best_cover_prefers_large_over_thumbnail() -> None:
     """When the volume record has a 'large' URL and it validates, use it."""
     volume_resp = _FakeResponse(200, body={
         "volumeInfo": {
@@ -902,7 +909,7 @@ async def test_best_cover_prefers_large_over_thumbnail():
 
 
 @pytest.mark.anyio
-async def test_best_cover_falls_back_when_large_too_small():
+async def test_best_cover_falls_back_when_large_too_small() -> None:
     """If the large URL returns a tiny file (placeholder), fall back to medium."""
     volume_resp = _FakeResponse(200, body={
         "volumeInfo": {
@@ -924,7 +931,7 @@ async def test_best_cover_falls_back_when_large_too_small():
 
 
 @pytest.mark.anyio
-async def test_best_cover_falls_back_when_large_not_image():
+async def test_best_cover_falls_back_when_large_not_image() -> None:
     """If the large URL returns non-image content-type (book page), skip it."""
     volume_resp = _FakeResponse(200, body={
         "volumeInfo": {
@@ -946,7 +953,7 @@ async def test_best_cover_falls_back_when_large_not_image():
 
 
 @pytest.mark.anyio
-async def test_best_cover_uses_fallback_when_volume_fetch_fails():
+async def test_best_cover_uses_fallback_when_volume_fetch_fails() -> None:
     """If the volume GET fails, fall back to the search-result thumbnail."""
     fake_client = _FakeClient(
         get_map={},  # volume fetch → 404
@@ -959,7 +966,7 @@ async def test_best_cover_uses_fallback_when_volume_fetch_fails():
 
 
 @pytest.mark.anyio
-async def test_best_cover_upgrades_http_to_https():
+async def test_best_cover_upgrades_http_to_https() -> None:
     """http:// URLs are upgraded to https:// before being returned."""
     http_thumb = "http://books.google.com/thumbnail.jpg"
     volume_resp = _FakeResponse(200, body={"volumeInfo": {"imageLinks": {}}})
@@ -975,7 +982,7 @@ async def test_best_cover_upgrades_http_to_https():
 
 
 @pytest.mark.anyio
-async def test_best_cover_returns_none_when_no_candidates():
+async def test_best_cover_returns_none_when_no_candidates() -> None:
     """Returns None when no fallback is provided and volume fetch fails."""
     fake_client = _FakeClient()
     result = await book_import._best_google_books_cover(None, None, fake_client)  # type: ignore[arg-type]
@@ -984,11 +991,11 @@ async def test_best_cover_returns_none_when_no_candidates():
 
 # ── import_book cover-download integration tests ───────────────────────────────
 
-def test_import_book_downloads_cover_locally(client: TestClient, monkeypatch, tmp_path):
+def test_import_book_downloads_cover_locally(client: TestClient, monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     """When download_cover succeeds, cover_url is set to the local /api/covers/ path."""
     monkeypatch.setattr(settings, "covers_dir", str(tmp_path))
 
-    async def fake_download(url, covers_dir, http_client, user_id):
+    async def fake_download(url: str, covers_dir: str, http_client: httpx.AsyncClient, user_id: int | None) -> str | None:
         return "abc123deadbeef.jpg"
 
     monkeypatch.setattr(import_router, "download_cover", fake_download)
@@ -1007,11 +1014,11 @@ def test_import_book_downloads_cover_locally(client: TestClient, monkeypatch, tm
     assert resp.json()["cover_url"] == "/api/covers/abc123deadbeef.jpg"
 
 
-def test_import_book_cover_failure_skips_cover(client: TestClient, monkeypatch, tmp_path):
+def test_import_book_cover_failure_skips_cover(client: TestClient, monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     """When download_cover returns None, the imported book stores no cover URL."""
     monkeypatch.setattr(settings, "covers_dir", str(tmp_path))
 
-    async def fake_download(url, covers_dir, http_client, user_id):
+    async def fake_download(url: str, covers_dir: str, http_client: httpx.AsyncClient, user_id: int | None) -> str | None:
         return None  # simulate download failure
 
     monkeypatch.setattr(import_router, "download_cover", fake_download)
@@ -1031,12 +1038,12 @@ def test_import_book_cover_failure_skips_cover(client: TestClient, monkeypatch, 
     assert resp.json()["cover_url"] is None
 
 
-def test_import_book_no_cover_url_skips_download(client: TestClient, monkeypatch, tmp_path):
+def test_import_book_no_cover_url_skips_download(client: TestClient, monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     """When the candidate has no cover_url, download_cover is never called."""
     monkeypatch.setattr(settings, "covers_dir", str(tmp_path))
-    called = []
+    called: list[str] = []
 
-    async def fake_download(url, covers_dir, http_client, user_id):  # pragma: no cover
+    async def fake_download(url: str, covers_dir: str, http_client: httpx.AsyncClient, user_id: int | None) -> str | None:  # pragma: no cover
         called.append(url)
         return None
 
@@ -1057,12 +1064,12 @@ def test_import_book_no_cover_url_skips_download(client: TestClient, monkeypatch
 
 # ── import router unit tests for uncovered lines ───────────────────────────────
 
-def test_normalize_language_empty_string():
+def test_normalize_language_empty_string() -> None:
     """Whitespace-only language should be treated as None."""
     assert import_router._normalize_language("   ") is None
 
 
-def test_normalize_language_invalid_code():
+def test_normalize_language_invalid_code() -> None:
     """Non-alpha or non-2-char language should raise 422."""
     with pytest.raises(HTTPException) as exc_info:
         import_router._normalize_language("english")
@@ -1070,7 +1077,7 @@ def test_normalize_language_invalid_code():
     assert "invalidLanguageCode" in exc_info.value.detail
 
 
-def test_raise_integrity_conflict_isbn_unique():
+def test_raise_integrity_conflict_isbn_unique() -> None:
     """ISBN unique constraint violation should raise 409."""
     exc = IntegrityError("insert", "params", Exception("UNIQUE constraint failed: book.isbn"))
     with pytest.raises(HTTPException) as exc_info:
@@ -1079,7 +1086,7 @@ def test_raise_integrity_conflict_isbn_unique():
     assert "isbnAlreadyExists" in exc_info.value.detail
 
 
-def test_raise_integrity_conflict_other():
+def test_raise_integrity_conflict_other() -> None:
     """Non-ISBN integrity error should be re-raised."""
     exc = IntegrityError("insert", "params", Exception("FOREIGN KEY constraint failed"))
     with pytest.raises(IntegrityError):
@@ -1089,13 +1096,13 @@ def test_raise_integrity_conflict_other():
             import_router._raise_integrity_conflict(exc)
 
 
-def test_import_book_flush_integrity_error(client: TestClient, session: Session, monkeypatch):
+def test_import_book_flush_integrity_error(client: TestClient, session: Session, monkeypatch: MonkeyPatch) -> None:
     from sqlalchemy.exc import IntegrityError
 
-    flush_count = [0]
+    flush_count: list[int] = [0]
     original_flush = session.flush
 
-    def fake_flush(*args, **kwargs):
+    def fake_flush(*args: Any, **kwargs: Any) -> None:
         flush_count[0] += 1
         if flush_count[0] == 6:
             raise IntegrityError("insert", "params", Exception("UNIQUE constraint failed: book.isbn"))
@@ -1116,13 +1123,13 @@ def test_import_book_flush_integrity_error(client: TestClient, session: Session,
     assert "isbnAlreadyExists" in resp.json()["detail"]
 
 
-def test_import_book_commit_integrity_error(client: TestClient, session: Session, monkeypatch):
+def test_import_book_commit_integrity_error(client: TestClient, session: Session, monkeypatch: MonkeyPatch) -> None:
     from sqlalchemy.exc import IntegrityError
 
-    call_count = [0]
+    call_count: list[int] = [0]
     original_commit = session.commit
 
-    def fake_commit():
+    def fake_commit() -> None:
         call_count[0] += 1
         if call_count[0] == 2:
             raise IntegrityError("insert", "params", Exception("UNIQUE constraint failed: book.isbn"))

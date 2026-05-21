@@ -1,39 +1,52 @@
+from collections.abc import Callable
+from typing import Any
 from urllib.parse import urlparse
 
 from fastapi.responses import RedirectResponse
 from fastapi.testclient import TestClient
+from pytest import MonkeyPatch
 from sqlmodel import Session, select
 from unittest.mock import patch
 
 from app.config import settings
-from app.models import OidcLink
+from app.models import OidcLink, User
 
 
 class FakeOidcClient:
-    def __init__(self, *, token: dict | None = None, redirect_target: str = "https://issuer.example/auth"):
+    _token: dict[str, Any]
+    _redirect_target: str
+    last_redirect_uri: str | None
+
+    def __init__(
+        self,
+        *,
+        token: dict[str, Any] | None = None,
+        redirect_target: str = "https://issuer.example/auth",
+    ) -> None:
         self._token = token or {}
         self._redirect_target = redirect_target
-        self.last_redirect_uri: str | None = None
+        self.last_redirect_uri = None
 
-    async def authorize_access_token(self, _request):
+    async def authorize_access_token(self, _request: Any) -> dict[str, Any]:
         return self._token
 
-    async def authorize_redirect(self, _request, redirect_uri: str):
+    async def authorize_redirect(self, _request: Any, redirect_uri: str) -> RedirectResponse:
         self.last_redirect_uri = redirect_uri
         return RedirectResponse(url=self._redirect_target, status_code=302)
 
 
 class FakeOidcClientRedirectError(FakeOidcClient):
-    async def authorize_redirect(self, _request, redirect_uri: str):
+    async def authorize_redirect(self, _request: Any, redirect_uri: str) -> RedirectResponse:
         raise RuntimeError("redirect error")
 
 
 class FakeOidcClientTokenError(FakeOidcClient):
-    async def authorize_access_token(self, _request):
+    async def authorize_access_token(self, _request: Any) -> dict[str, Any]:
         raise RuntimeError("token error")
 
 
-def _set_oidc_enabled(monkeypatch) -> None:
+def _set_oidc_enabled(monkeypatch: MonkeyPatch) -> None:
+    """Enable OIDC via monkeypatching for tests that require OIDC to be active."""
     monkeypatch.setattr("app.routers.oidc.oidc_is_enabled", lambda: True)
     monkeypatch.setattr(settings, "oidc_provider_id", "test-oidc")
     monkeypatch.setattr(settings, "oidc_provider_name", "Test SSO")
@@ -42,7 +55,7 @@ def _set_oidc_enabled(monkeypatch) -> None:
 # ── Tests for app.oidc.get_oidc_client (lines 23-36) ───────────────────────────
 
 
-def test_get_oidc_client_returns_none_when_disabled(monkeypatch):
+def test_get_oidc_client_returns_none_when_disabled(monkeypatch: MonkeyPatch) -> None:
     """Lines 23-24: when OIDC is disabled, get_oidc_client returns None."""
     from app.oidc import get_oidc_client
 
@@ -50,7 +63,7 @@ def test_get_oidc_client_returns_none_when_disabled(monkeypatch):
     assert get_oidc_client() is None
 
 
-def test_get_oidc_client_registers_and_returns_client_when_enabled(monkeypatch):
+def test_get_oidc_client_registers_and_returns_client_when_enabled(monkeypatch: MonkeyPatch) -> None:
     """Lines 26-36: when enabled and not yet registered, oauth.register is called."""
     from app.oidc import get_oidc_client, _registered
 
@@ -72,7 +85,7 @@ def test_get_oidc_client_registers_and_returns_client_when_enabled(monkeypatch):
     mock_create.assert_called_once_with("test-oidc")
 
 
-def test_get_oidc_client_reuses_existing_registration(monkeypatch):
+def test_get_oidc_client_reuses_existing_registration(monkeypatch: MonkeyPatch) -> None:
     """Lines 26-34 skipped: when already registered, oauth.register is not called again."""
     from app.oidc import get_oidc_client
 
@@ -90,7 +103,7 @@ def test_get_oidc_client_reuses_existing_registration(monkeypatch):
     mock_create.assert_called_once_with("test-oidc")
 
 
-def test_oidc_config_enabled(client: TestClient, monkeypatch):
+def test_oidc_config_enabled(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     _set_oidc_enabled(monkeypatch)
 
     response = client.get("/api/oidc/config")
@@ -102,7 +115,7 @@ def test_oidc_config_enabled(client: TestClient, monkeypatch):
     assert data["provider_name"] == "Test SSO"
 
 
-def test_oidc_login_returns_404_when_disabled(client: TestClient, monkeypatch):
+def test_oidc_login_returns_404_when_disabled(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr("app.routers.oidc.get_oidc_client", lambda: None)
 
     response = client.get("/api/oidc/login")
@@ -111,7 +124,7 @@ def test_oidc_login_returns_404_when_disabled(client: TestClient, monkeypatch):
     assert response.json()["detail"] == "OIDC is not enabled"
 
 
-def test_oidc_callback_unlinked_redirects_to_login_warning(client: TestClient, monkeypatch):
+def test_oidc_callback_unlinked_redirects_to_login_warning(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     _set_oidc_enabled(monkeypatch)
     fake = FakeOidcClient(token={"userinfo": {"sub": "sub-unlinked"}})
     monkeypatch.setattr("app.routers.oidc.get_oidc_client", lambda: fake)
@@ -126,8 +139,8 @@ def test_oidc_callback_unlinked_redirects_to_login_warning(client: TestClient, m
 def test_oidc_callback_linked_redirects_with_cookie_session(
     client: TestClient,
     session: Session,
-    monkeypatch,
-):
+    monkeypatch: MonkeyPatch,
+) -> None:
     _set_oidc_enabled(monkeypatch)
     fake = FakeOidcClient(token={"userinfo": {"sub": "sub-linked"}})
     monkeypatch.setattr("app.routers.oidc.get_oidc_client", lambda: fake)
@@ -153,7 +166,7 @@ def test_oidc_callback_linked_redirects_with_cookie_session(
     assert parsed.query == ""
 
 
-def test_oidc_link_status_reports_unlinked(client: TestClient, monkeypatch):
+def test_oidc_link_status_reports_unlinked(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     _set_oidc_enabled(monkeypatch)
 
     response = client.get("/api/oidc/link-status")
@@ -164,7 +177,7 @@ def test_oidc_link_status_reports_unlinked(client: TestClient, monkeypatch):
     assert data["provider_name"] == "Test SSO"
 
 
-def test_oidc_link_status_reports_linked(client: TestClient, session: Session, monkeypatch):
+def test_oidc_link_status_reports_linked(client: TestClient, session: Session, monkeypatch: MonkeyPatch) -> None:
     _set_oidc_enabled(monkeypatch)
 
     me = client.get("/api/auth/me")
@@ -189,7 +202,7 @@ def test_oidc_link_status_reports_linked(client: TestClient, session: Session, m
     assert data["oidc_email"] == "status@example.com"
 
 
-def test_oidc_link_start_returns_authorize_redirect_url(client: TestClient, monkeypatch):
+def test_oidc_link_start_returns_authorize_redirect_url(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     _set_oidc_enabled(monkeypatch)
 
     response = client.post("/api/oidc/link")
@@ -198,7 +211,7 @@ def test_oidc_link_start_returns_authorize_redirect_url(client: TestClient, monk
     assert response.json()["redirect_url"] == "/api/oidc/link/authorize"
 
 
-def test_oidc_link_authorize_requires_link_session(client: TestClient, monkeypatch):
+def test_oidc_link_authorize_requires_link_session(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     _set_oidc_enabled(monkeypatch)
     fake = FakeOidcClient()
     monkeypatch.setattr("app.routers.oidc.get_oidc_client", lambda: fake)
@@ -209,7 +222,7 @@ def test_oidc_link_authorize_requires_link_session(client: TestClient, monkeypat
     assert response.headers["location"].startswith("/auth/oidc/link-callback?error=")
 
 
-def test_oidc_link_authorize_redirects_to_provider_after_start(client: TestClient, monkeypatch):
+def test_oidc_link_authorize_redirects_to_provider_after_start(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     _set_oidc_enabled(monkeypatch)
     fake = FakeOidcClient(redirect_target="https://issuer.example/authorize")
     monkeypatch.setattr("app.routers.oidc.get_oidc_client", lambda: fake)
@@ -223,7 +236,11 @@ def test_oidc_link_authorize_redirects_to_provider_after_start(client: TestClien
     assert authorize.headers["location"] == "https://issuer.example/authorize"
 
 
-def test_oidc_link_callback_creates_link(client: TestClient, session: Session, monkeypatch):
+def test_oidc_link_callback_creates_link(
+    client: TestClient,
+    session: Session,
+    monkeypatch: MonkeyPatch,
+) -> None:
     _set_oidc_enabled(monkeypatch)
     fake = FakeOidcClient(
         token={
@@ -254,9 +271,9 @@ def test_oidc_link_callback_creates_link(client: TestClient, session: Session, m
 def test_oidc_link_callback_rejects_sub_already_linked_to_another_user(
     client: TestClient,
     session: Session,
-    create_user_with_key,
-    monkeypatch,
-):
+    create_user_with_key: Callable[..., tuple[User, str]],
+    monkeypatch: MonkeyPatch,
+) -> None:
     _set_oidc_enabled(monkeypatch)
 
     other_user, _ = create_user_with_key(email="other-oidc@example.com")
@@ -283,7 +300,11 @@ def test_oidc_link_callback_rejects_sub_already_linked_to_another_user(
     assert "already+linked+to+another+user" in callback.headers["location"]
 
 
-def test_oidc_unlink_removes_existing_link(client: TestClient, session: Session, monkeypatch):
+def test_oidc_unlink_removes_existing_link(
+    client: TestClient,
+    session: Session,
+    monkeypatch: MonkeyPatch,
+) -> None:
     _set_oidc_enabled(monkeypatch)
 
     me = client.get("/api/auth/me")
@@ -306,7 +327,7 @@ def test_oidc_unlink_removes_existing_link(client: TestClient, session: Session,
     assert link is None
 
 
-def test_oidc_config_disabled(client: TestClient, monkeypatch):
+def test_oidc_config_disabled(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr("app.routers.oidc.oidc_is_enabled", lambda: False)
     response = client.get("/api/oidc/config")
     assert response.status_code == 200
@@ -316,7 +337,7 @@ def test_oidc_config_disabled(client: TestClient, monkeypatch):
     assert data["provider_name"] is None
 
 
-def test_oidc_login_with_x_forwarded_proto(client: TestClient, monkeypatch):
+def test_oidc_login_with_x_forwarded_proto(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     _set_oidc_enabled(monkeypatch)
     fake = FakeOidcClient()
     monkeypatch.setattr("app.routers.oidc.get_oidc_client", lambda: fake)
@@ -330,7 +351,7 @@ def test_oidc_login_with_x_forwarded_proto(client: TestClient, monkeypatch):
     assert fake.last_redirect_uri == "https://proxy.example/api/oidc/callback"
 
 
-def test_oidc_login_authorize_redirect_exception(client: TestClient, monkeypatch):
+def test_oidc_login_authorize_redirect_exception(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     _set_oidc_enabled(monkeypatch)
     fake = FakeOidcClientRedirectError()
     monkeypatch.setattr("app.routers.oidc.get_oidc_client", lambda: fake)
@@ -341,7 +362,7 @@ def test_oidc_login_authorize_redirect_exception(client: TestClient, monkeypatch
     assert "unavailable" in response.headers["location"]
 
 
-def test_oidc_callback_disabled(client: TestClient, monkeypatch):
+def test_oidc_callback_disabled(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr("app.routers.oidc.get_oidc_client", lambda: None)
     response = client.get("/api/oidc/callback?code=abc", follow_redirects=False)
     assert response.status_code == 302
@@ -349,7 +370,7 @@ def test_oidc_callback_disabled(client: TestClient, monkeypatch):
     assert "not+enabled" in response.headers["location"]
 
 
-def test_oidc_callback_authorize_access_token_exception(client: TestClient, monkeypatch):
+def test_oidc_callback_authorize_access_token_exception(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     _set_oidc_enabled(monkeypatch)
     fake = FakeOidcClientTokenError()
     monkeypatch.setattr("app.routers.oidc.get_oidc_client", lambda: fake)
@@ -360,7 +381,7 @@ def test_oidc_callback_authorize_access_token_exception(client: TestClient, monk
     assert "failed" in response.headers["location"]
 
 
-def test_oidc_callback_missing_sub(client: TestClient, monkeypatch):
+def test_oidc_callback_missing_sub(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     _set_oidc_enabled(monkeypatch)
     fake = FakeOidcClient(token={"userinfo": {"email": "a@b.com"}})
     monkeypatch.setattr("app.routers.oidc.get_oidc_client", lambda: fake)
@@ -371,7 +392,11 @@ def test_oidc_callback_missing_sub(client: TestClient, monkeypatch):
     assert "missing+subject" in response.headers["location"]
 
 
-def test_oidc_callback_linked_user_missing(client: TestClient, session: Session, monkeypatch):
+def test_oidc_callback_linked_user_missing(
+    client: TestClient,
+    session: Session,
+    monkeypatch: MonkeyPatch,
+) -> None:
     _set_oidc_enabled(monkeypatch)
     fake = FakeOidcClient(token={"userinfo": {"sub": "orphan-sub"}})
     monkeypatch.setattr("app.routers.oidc.get_oidc_client", lambda: fake)
@@ -393,7 +418,7 @@ def test_oidc_callback_linked_user_missing(client: TestClient, session: Session,
     assert "no+longer+exists" in response.headers["location"]
 
 
-def test_oidc_link_status_disabled(client: TestClient, monkeypatch):
+def test_oidc_link_status_disabled(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr("app.routers.oidc.oidc_is_enabled", lambda: False)
     response = client.get("/api/oidc/link-status")
     assert response.status_code == 200
@@ -404,21 +429,21 @@ def test_oidc_link_status_disabled(client: TestClient, monkeypatch):
     assert data["oidc_name"] is None
 
 
-def test_oidc_link_start_disabled(client: TestClient, monkeypatch):
+def test_oidc_link_start_disabled(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr("app.routers.oidc.oidc_is_enabled", lambda: False)
     response = client.post("/api/oidc/link")
     assert response.status_code == 404
     assert response.json()["detail"] == "OIDC is not enabled"
 
 
-def test_oidc_link_authorize_client_none(client: TestClient, monkeypatch):
+def test_oidc_link_authorize_client_none(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr("app.routers.oidc.get_oidc_client", lambda: None)
     response = client.get("/api/oidc/link/authorize")
     assert response.status_code == 404
     assert response.json()["detail"] == "OIDC is not enabled"
 
 
-def test_oidc_link_authorize_redirect_exception(client: TestClient, monkeypatch):
+def test_oidc_link_authorize_redirect_exception(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     _set_oidc_enabled(monkeypatch)
     fake = FakeOidcClientRedirectError()
     monkeypatch.setattr("app.routers.oidc.get_oidc_client", lambda: fake)
@@ -432,7 +457,7 @@ def test_oidc_link_authorize_redirect_exception(client: TestClient, monkeypatch)
     assert "unavailable" in response.headers["location"]
 
 
-def test_oidc_link_callback_disabled(client: TestClient, monkeypatch):
+def test_oidc_link_callback_disabled(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     monkeypatch.setattr("app.routers.oidc.get_oidc_client", lambda: None)
     response = client.get("/api/oidc/link-callback?code=abc", follow_redirects=False)
     assert response.status_code == 302
@@ -440,7 +465,7 @@ def test_oidc_link_callback_disabled(client: TestClient, monkeypatch):
     assert "not+enabled" in response.headers["location"]
 
 
-def test_oidc_link_callback_missing_session(client: TestClient, monkeypatch):
+def test_oidc_link_callback_missing_session(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     _set_oidc_enabled(monkeypatch)
     fake = FakeOidcClient()
     monkeypatch.setattr("app.routers.oidc.get_oidc_client", lambda: fake)
@@ -451,7 +476,7 @@ def test_oidc_link_callback_missing_session(client: TestClient, monkeypatch):
     assert "Missing+link+session" in response.headers["location"]
 
 
-def test_oidc_link_callback_authorize_access_token_exception(client: TestClient, monkeypatch):
+def test_oidc_link_callback_authorize_access_token_exception(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     _set_oidc_enabled(monkeypatch)
     fake = FakeOidcClientTokenError()
     monkeypatch.setattr("app.routers.oidc.get_oidc_client", lambda: fake)
@@ -465,7 +490,7 @@ def test_oidc_link_callback_authorize_access_token_exception(client: TestClient,
     assert "linking+failed" in response.headers["location"]
 
 
-def test_oidc_link_callback_missing_sub(client: TestClient, monkeypatch):
+def test_oidc_link_callback_missing_sub(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     _set_oidc_enabled(monkeypatch)
     fake = FakeOidcClient(token={"userinfo": {"email": "a@b.com"}})
     monkeypatch.setattr("app.routers.oidc.get_oidc_client", lambda: fake)
@@ -479,7 +504,11 @@ def test_oidc_link_callback_missing_sub(client: TestClient, monkeypatch):
     assert "missing+subject" in response.headers["location"]
 
 
-def test_oidc_link_callback_updates_existing_link(client: TestClient, session: Session, monkeypatch):
+def test_oidc_link_callback_updates_existing_link(
+    client: TestClient,
+    session: Session,
+    monkeypatch: MonkeyPatch,
+) -> None:
     _set_oidc_enabled(monkeypatch)
 
     me = client.get("/api/auth/me")

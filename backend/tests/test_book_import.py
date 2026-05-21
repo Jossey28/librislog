@@ -13,37 +13,37 @@ from app.services import book_import as bi
 
 # ── SourceBackendError ─────────────────────────────────────────────────────────
 
-def test_source_backend_error_with_status():
+def test_source_backend_error_with_status() -> None:
     exc = bi.SourceBackendError("open_library", 503)
     assert exc.source == "open_library"
     assert exc.status_code == 503
     assert "open_library backend error" in str(exc)
 
 
-def test_source_backend_error_without_status():
+def test_source_backend_error_without_status() -> None:
     exc = bi.SourceBackendError("google_books")
     assert exc.status_code is None
 
 
 # ── _truncate_api_key ──────────────────────────────────────────────────────────
 
-def test_truncate_api_key_empty():
+def test_truncate_api_key_empty() -> None:
     assert bi._truncate_api_key("") == "<empty>"
     assert bi._truncate_api_key(None) == "<empty>"
 
 
-def test_truncate_api_key_short():
+def test_truncate_api_key_short() -> None:
     assert bi._truncate_api_key("abcd") == "ab...cd"
 
 
-def test_truncate_api_key_long():
+def test_truncate_api_key_long() -> None:
     assert bi._truncate_api_key("1234567890abcdef") == "1234...cdef"
 
 
 # ── search_with_progress ──────────────────────────────────────────────────────
 
 @pytest.mark.anyio
-async def test_search_with_progress_google_only_no_key():
+async def test_search_with_progress_google_only_no_key() -> None:
     events = []
     async for e in bi.search_with_progress("query", "title", mode="google_only"):
         events.append(e)
@@ -51,7 +51,7 @@ async def test_search_with_progress_google_only_no_key():
 
 
 @pytest.mark.anyio
-async def test_search_with_progress_google_only_success(monkeypatch):
+async def test_search_with_progress_google_only_success(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_candidate = BookImportCandidate(title="Book", source="google_books")
     monkeypatch.setattr(bi, "_search_google_books", AsyncMock(return_value=[fake_candidate]))
 
@@ -64,7 +64,7 @@ async def test_search_with_progress_google_only_success(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_with_progress_google_only_error(monkeypatch):
+async def test_search_with_progress_google_only_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         bi, "_search_google_books",
         AsyncMock(side_effect=bi.SourceBackendError("google_books", 500)),
@@ -77,7 +77,7 @@ async def test_search_with_progress_google_only_error(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_with_progress_auto_ol_and_hc(monkeypatch):
+async def test_search_with_progress_auto_ol_and_hc(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_ol = BookImportCandidate(title="OL Book", source="open_library")
     monkeypatch.setattr(bi, "_search_open_library", AsyncMock(return_value=[fake_ol]))
     monkeypatch.setattr(bi, "_search_hardcover", AsyncMock(return_value=[]))
@@ -91,7 +91,7 @@ async def test_search_with_progress_auto_ol_and_hc(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_with_progress_auto_hc_skipped_no_token():
+async def test_search_with_progress_auto_hc_skipped_no_token() -> None:
     events = []
     async for e in bi.search_with_progress("query", "title"):
         events.append(e)
@@ -99,7 +99,7 @@ async def test_search_with_progress_auto_hc_skipped_no_token():
 
 
 @pytest.mark.anyio
-async def test_search_with_progress_auto_fallback_google(monkeypatch):
+async def test_search_with_progress_auto_fallback_google(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(bi, "_search_open_library", AsyncMock(return_value=[]))
     monkeypatch.setattr(bi, "_search_hardcover", AsyncMock(return_value=[]))
     fake_gb = BookImportCandidate(title="GB Book", source="google_books")
@@ -114,7 +114,7 @@ async def test_search_with_progress_auto_fallback_google(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_with_progress_auto_fallback_google_error(monkeypatch):
+async def test_search_with_progress_auto_fallback_google_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(bi, "_search_open_library", AsyncMock(return_value=[]))
     monkeypatch.setattr(bi, "_search_hardcover", AsyncMock(return_value=[]))
     monkeypatch.setattr(
@@ -129,7 +129,7 @@ async def test_search_with_progress_auto_fallback_google_error(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_with_progress_general_exception(monkeypatch):
+async def test_search_with_progress_general_exception(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(bi, "_search_open_library", AsyncMock(side_effect=RuntimeError("boom")))
 
     events = []
@@ -141,7 +141,7 @@ async def test_search_with_progress_general_exception(monkeypatch):
 # ── search ─────────────────────────────────────────────────────────────────────
 
 @pytest.mark.anyio
-async def test_search_ol_exception(monkeypatch):
+async def test_search_ol_exception(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         bi, "_search_open_library",
         AsyncMock(side_effect=bi.SourceBackendError("open_library", 503)),
@@ -153,7 +153,7 @@ async def test_search_ol_exception(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_ol_generic_exception(monkeypatch):
+async def test_search_ol_generic_exception(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         bi, "_search_open_library",
         AsyncMock(side_effect=RuntimeError("boom")),
@@ -165,7 +165,7 @@ async def test_search_ol_generic_exception(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_ol_generic_exception_with_hc(monkeypatch):
+async def test_search_ol_generic_exception_with_hc(monkeypatch: pytest.MonkeyPatch) -> None:
     """OL throws generic exception while HC succeeds — covers line 253."""
     monkeypatch.setattr(
         bi, "_search_open_library",
@@ -179,7 +179,7 @@ async def test_search_ol_generic_exception_with_hc(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_hc_exception(monkeypatch):
+async def test_search_hc_exception(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(bi, "_search_open_library", AsyncMock(return_value=[]))
     monkeypatch.setattr(
         bi, "_search_hardcover",
@@ -191,7 +191,7 @@ async def test_search_hc_exception(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_fallback_google_no_key(monkeypatch):
+async def test_search_fallback_google_no_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(bi, "_search_open_library", AsyncMock(return_value=[]))
     monkeypatch.setattr(bi, "_search_hardcover", AsyncMock(return_value=[]))
 
@@ -200,7 +200,7 @@ async def test_search_fallback_google_no_key(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_fallback_google_success(monkeypatch):
+async def test_search_fallback_google_success(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(bi, "_search_open_library", AsyncMock(return_value=[]))
     monkeypatch.setattr(bi, "_search_hardcover", AsyncMock(return_value=[]))
     fake = BookImportCandidate(title="Book", source="google_books")
@@ -211,7 +211,7 @@ async def test_search_fallback_google_success(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_fallback_google_error(monkeypatch):
+async def test_search_fallback_google_error(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(bi, "_search_open_library", AsyncMock(return_value=[]))
     monkeypatch.setattr(bi, "_search_hardcover", AsyncMock(return_value=[]))
     monkeypatch.setattr(
@@ -226,7 +226,7 @@ async def test_search_fallback_google_error(monkeypatch):
 # ── _search_open_library ───────────────────────────────────────────────────────
 
 @pytest.mark.anyio
-async def test_search_open_library_isbn(monkeypatch):
+async def test_search_open_library_isbn(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_resp = MagicMock()
     fake_resp.status_code = 200
     fake_resp.json.return_value = {
@@ -241,7 +241,7 @@ async def test_search_open_library_isbn(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_open_library_http_status_error():
+async def test_search_open_library_http_status_error() -> None:
     fake_resp = MagicMock()
     fake_resp.status_code = 503
     fake_resp.text = "error"
@@ -255,7 +255,7 @@ async def test_search_open_library_http_status_error():
 
 
 @pytest.mark.anyio
-async def test_search_open_library_http_error():
+async def test_search_open_library_http_error() -> None:
     fake_client = AsyncMock()
     fake_client.get.side_effect = httpx.ConnectError("failed")
 
@@ -266,7 +266,7 @@ async def test_search_open_library_http_error():
 
 # ── map_open_library ───────────────────────────────────────────────────────────
 
-def test_map_open_library_full():
+def test_map_open_library_full() -> None:
     doc = {
         "title": "Book",
         "author_name": ["Author"],
@@ -291,7 +291,7 @@ def test_map_open_library_full():
     assert c.source == "open_library"
 
 
-def test_map_open_library_minimal():
+def test_map_open_library_minimal() -> None:
     doc = {"title": "Book"}
     c = bi.map_open_library(doc)
     assert c.title == "Book"
@@ -303,7 +303,7 @@ def test_map_open_library_minimal():
 # ── _search_google_books ───────────────────────────────────────────────────────
 
 @pytest.mark.anyio
-async def test_search_google_books_retry_then_success(monkeypatch):
+async def test_search_google_books_retry_then_success(monkeypatch: pytest.MonkeyPatch) -> None:
     responses = []
     for i in range(2):
         resp = MagicMock()
@@ -330,7 +330,7 @@ async def test_search_google_books_retry_then_success(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_google_books_max_retries_exceeded(monkeypatch):
+async def test_search_google_books_max_retries_exceeded(monkeypatch: pytest.MonkeyPatch) -> None:
     responses = []
     for _ in range(4):
         resp = MagicMock()
@@ -348,7 +348,7 @@ async def test_search_google_books_max_retries_exceeded(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_google_books_non_retryable_error():
+async def test_search_google_books_non_retryable_error() -> None:
     resp = MagicMock()
     resp.status_code = 400
     resp.content = b"bad request"
@@ -364,7 +364,7 @@ async def test_search_google_books_non_retryable_error():
 
 
 @pytest.mark.anyio
-async def test_search_google_books_request_error():
+async def test_search_google_books_request_error() -> None:
     fake_client = AsyncMock()
     fake_client.get.side_effect = httpx.ConnectError("failed")
 
@@ -373,7 +373,7 @@ async def test_search_google_books_request_error():
 
 
 @pytest.mark.anyio
-async def test_search_google_books_error_payload(monkeypatch):
+async def test_search_google_books_error_payload(monkeypatch: pytest.MonkeyPatch) -> None:
     resp = MagicMock()
     resp.status_code = 200
     resp.content = b'{}'
@@ -388,7 +388,7 @@ async def test_search_google_books_error_payload(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_google_books_with_cover_resolution(monkeypatch):
+async def test_search_google_books_with_cover_resolution(monkeypatch: pytest.MonkeyPatch) -> None:
     resp = MagicMock()
     resp.status_code = 200
     resp.content = b'{}'
@@ -402,7 +402,8 @@ async def test_search_google_books_with_cover_resolution(monkeypatch):
     fake_client = AsyncMock()
     fake_client.get.return_value = resp
 
-    async def _fake_best_cover(item_id, fallback, client):
+    async def _fake_best_cover(item_id: str | None, fallback: str | None, client: AsyncMock) -> str:
+        """Mock cover resolution returning a fixed URL."""
         return "https://example.com/cover.jpg"
 
     monkeypatch.setattr(bi, "_best_google_books_cover", _fake_best_cover)
@@ -415,7 +416,7 @@ async def test_search_google_books_with_cover_resolution(monkeypatch):
 # ── _best_google_books_cover ───────────────────────────────────────────────────
 
 @pytest.mark.anyio
-async def test_best_google_books_cover_head_success():
+async def test_best_google_books_cover_head_success() -> None:
     fake_client = AsyncMock()
 
     vol_resp = MagicMock()
@@ -436,7 +437,7 @@ async def test_best_google_books_cover_head_success():
 
 
 @pytest.mark.anyio
-async def test_best_google_books_cover_head_non_image():
+async def test_best_google_books_cover_head_non_image() -> None:
     fake_client = AsyncMock()
 
     vol_resp = MagicMock()
@@ -457,7 +458,7 @@ async def test_best_google_books_cover_head_non_image():
 
 
 @pytest.mark.anyio
-async def test_best_google_books_cover_head_too_small():
+async def test_best_google_books_cover_head_too_small() -> None:
     fake_client = AsyncMock()
 
     vol_resp = MagicMock()
@@ -478,7 +479,7 @@ async def test_best_google_books_cover_head_too_small():
 
 
 @pytest.mark.anyio
-async def test_best_google_books_cover_head_no_content_length():
+async def test_best_google_books_cover_head_no_content_length() -> None:
     fake_client = AsyncMock()
 
     vol_resp = MagicMock()
@@ -499,7 +500,7 @@ async def test_best_google_books_cover_head_no_content_length():
 
 
 @pytest.mark.anyio
-async def test_best_google_books_cover_http_error_on_head():
+async def test_best_google_books_cover_http_error_on_head() -> None:
     fake_client = AsyncMock()
 
     vol_resp = MagicMock()
@@ -516,7 +517,7 @@ async def test_best_google_books_cover_http_error_on_head():
 
 
 @pytest.mark.anyio
-async def test_best_google_books_cover_no_item_id():
+async def test_best_google_books_cover_no_item_id() -> None:
     fake_client = AsyncMock()
 
     head_resp = MagicMock()
@@ -530,7 +531,7 @@ async def test_best_google_books_cover_no_item_id():
 
 
 @pytest.mark.anyio
-async def test_best_google_books_cover_no_candidates():
+async def test_best_google_books_cover_no_candidates() -> None:
     fake_client = AsyncMock()
 
     vol_resp = MagicMock()
@@ -545,7 +546,7 @@ async def test_best_google_books_cover_no_candidates():
 
 # ── map_google_books ───────────────────────────────────────────────────────────
 
-def test_map_google_books_full():
+def test_map_google_books_full() -> None:
     item = {
         "volumeInfo": {
             "title": "Book",
@@ -579,7 +580,7 @@ def test_map_google_books_full():
     assert c.source == "google_books"
 
 
-def test_map_google_books_minimal():
+def test_map_google_books_minimal() -> None:
     item = {"volumeInfo": {"title": "Book"}}
     c = bi.map_google_books(item)
     assert c.title == "Book"
@@ -590,7 +591,7 @@ def test_map_google_books_minimal():
     assert c.page_count is None
 
 
-def test_map_google_books_invalid_published_date():
+def test_map_google_books_invalid_published_date() -> None:
     item = {"volumeInfo": {"title": "Book", "publishedDate": "not-a-date"}}
     c = bi.map_google_books(item)
     assert c.published_year is None
@@ -599,14 +600,14 @@ def test_map_google_books_invalid_published_date():
 # ── _search_hardcover ───────────────────────────────────────────────────────────
 
 @pytest.mark.anyio
-async def test_search_hardcover_empty_token():
+async def test_search_hardcover_empty_token() -> None:
     fake_client = AsyncMock()
     results = await bi._search_hardcover("query", "title", "   ", fake_client)
     assert results == []
 
 
 @pytest.mark.anyio
-async def test_search_hardcover_title_search(monkeypatch):
+async def test_search_hardcover_title_search(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(bi, "_hardcover_search_title", AsyncMock(return_value=["9781234567897"]))
     fake = BookImportCandidate(title="Book", source="hardcover")
     monkeypatch.setattr(bi, "_hardcover_fetch_books", AsyncMock(return_value=[fake]))
@@ -617,7 +618,7 @@ async def test_search_hardcover_title_search(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_hardcover_isbn_search(monkeypatch):
+async def test_search_hardcover_isbn_search(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(bi, "_hardcover_fetch_books", AsyncMock(return_value=[]))
 
     fake_client = AsyncMock()
@@ -626,14 +627,14 @@ async def test_search_hardcover_isbn_search(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_hardcover_invalid_isbn():
+async def test_search_hardcover_invalid_isbn() -> None:
     fake_client = AsyncMock()
     results = await bi._search_hardcover("not-an-isbn", "isbn", "token", fake_client)
     assert results == []
 
 
 @pytest.mark.anyio
-async def test_search_hardcover_exception(monkeypatch):
+async def test_search_hardcover_exception(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(bi, "_hardcover_search_title", AsyncMock(side_effect=RuntimeError("boom")))
 
     fake_client = AsyncMock()
@@ -644,7 +645,7 @@ async def test_search_hardcover_exception(monkeypatch):
 # ── _hardcover_search_title ────────────────────────────────────────────────────
 
 @pytest.mark.anyio
-async def test_hardcover_search_title_success():
+async def test_hardcover_search_title_success() -> None:
     resp = MagicMock()
     resp.status_code = 200
     resp.json.return_value = {
@@ -668,7 +669,7 @@ async def test_hardcover_search_title_success():
 
 
 @pytest.mark.anyio
-async def test_hardcover_search_title_http_error():
+async def test_hardcover_search_title_http_error() -> None:
     fake_client = AsyncMock()
     fake_client.post.side_effect = httpx.ConnectError("failed")
 
@@ -677,7 +678,7 @@ async def test_hardcover_search_title_http_error():
 
 
 @pytest.mark.anyio
-async def test_hardcover_search_title_non_200():
+async def test_hardcover_search_title_non_200() -> None:
     resp = MagicMock()
     resp.status_code = 500
     resp.text = "error"
@@ -690,7 +691,7 @@ async def test_hardcover_search_title_non_200():
 
 
 @pytest.mark.anyio
-async def test_hardcover_search_title_graphql_errors():
+async def test_hardcover_search_title_graphql_errors() -> None:
     resp = MagicMock()
     resp.status_code = 200
     resp.json.return_value = {"errors": [{"message": "bad query"}]}
@@ -703,7 +704,7 @@ async def test_hardcover_search_title_graphql_errors():
 
 
 @pytest.mark.anyio
-async def test_hardcover_search_title_no_results():
+async def test_hardcover_search_title_no_results() -> None:
     resp = MagicMock()
     resp.status_code = 200
     resp.json.return_value = {
@@ -718,7 +719,7 @@ async def test_hardcover_search_title_no_results():
 
 
 @pytest.mark.anyio
-async def test_hardcover_search_title_invalid_isbn_in_hit():
+async def test_hardcover_search_title_invalid_isbn_in_hit() -> None:
     resp = MagicMock()
     resp.status_code = 200
     resp.json.return_value = {
@@ -742,7 +743,7 @@ async def test_hardcover_search_title_invalid_isbn_in_hit():
 
 
 @pytest.mark.anyio
-async def test_hardcover_search_title_non_string_isbn():
+async def test_hardcover_search_title_non_string_isbn() -> None:
     resp = MagicMock()
     resp.status_code = 200
     resp.json.return_value = {
@@ -766,7 +767,7 @@ async def test_hardcover_search_title_non_string_isbn():
 
 
 @pytest.mark.anyio
-async def test_hardcover_search_title_max_results():
+async def test_hardcover_search_title_max_results() -> None:
     hits = [{"document": {"isbns": [f"978123456789{i}"]}} for i in range(15)]
     resp = MagicMock()
     resp.status_code = 200
@@ -791,14 +792,14 @@ async def test_hardcover_search_title_max_results():
 # ── _hardcover_fetch_books ─────────────────────────────────────────────────────
 
 @pytest.mark.anyio
-async def test_hardcover_fetch_books_empty_isbns():
+async def test_hardcover_fetch_books_empty_isbns() -> None:
     fake_client = AsyncMock()
     results = await bi._hardcover_fetch_books([], "token", fake_client)
     assert results == []
 
 
 @pytest.mark.anyio
-async def test_hardcover_fetch_books_http_error():
+async def test_hardcover_fetch_books_http_error() -> None:
     fake_client = AsyncMock()
     fake_client.post.side_effect = httpx.ConnectError("failed")
 
@@ -807,7 +808,7 @@ async def test_hardcover_fetch_books_http_error():
 
 
 @pytest.mark.anyio
-async def test_hardcover_fetch_books_non_200():
+async def test_hardcover_fetch_books_non_200() -> None:
     resp = MagicMock()
     resp.status_code = 500
     resp.text = "error"
@@ -820,7 +821,7 @@ async def test_hardcover_fetch_books_non_200():
 
 
 @pytest.mark.anyio
-async def test_hardcover_fetch_books_graphql_errors():
+async def test_hardcover_fetch_books_graphql_errors() -> None:
     resp = MagicMock()
     resp.status_code = 200
     resp.json.return_value = {"errors": [{"message": "bad query"}]}
@@ -833,7 +834,7 @@ async def test_hardcover_fetch_books_graphql_errors():
 
 
 @pytest.mark.anyio
-async def test_hardcover_fetch_books_success(monkeypatch):
+async def test_hardcover_fetch_books_success(monkeypatch: pytest.MonkeyPatch) -> None:
     resp = MagicMock()
     resp.status_code = 200
     resp.json.return_value = {
@@ -862,7 +863,7 @@ async def test_hardcover_fetch_books_success(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_hardcover_fetch_books_dedup(monkeypatch):
+async def test_hardcover_fetch_books_dedup(monkeypatch: pytest.MonkeyPatch) -> None:
     resp = MagicMock()
     resp.status_code = 200
     resp.json.return_value = {
@@ -898,7 +899,7 @@ async def test_hardcover_fetch_books_dedup(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_hardcover_fetch_books_map_returns_none(monkeypatch):
+async def test_hardcover_fetch_books_map_returns_none(monkeypatch: pytest.MonkeyPatch) -> None:
     resp = MagicMock()
     resp.status_code = 200
     resp.json.return_value = {
@@ -918,7 +919,7 @@ async def test_hardcover_fetch_books_map_returns_none(monkeypatch):
 
 # ── map_hardcover ──────────────────────────────────────────────────────────────
 
-def test_map_hardcover_full():
+def test_map_hardcover_full() -> None:
     edition = {
         "title": "Book",
         "subtitle": "Subtitle",
@@ -949,11 +950,11 @@ def test_map_hardcover_full():
     assert c.source == "hardcover"
 
 
-def test_map_hardcover_no_title():
+def test_map_hardcover_no_title() -> None:
     assert bi.map_hardcover({}) is None
 
 
-def test_map_hardcover_invalid_release_date():
+def test_map_hardcover_invalid_release_date() -> None:
     edition = {
         "title": "Book",
         "release_date": "not-a-date",
@@ -962,7 +963,7 @@ def test_map_hardcover_invalid_release_date():
     assert c.published_year is None
 
 
-def test_map_hardcover_no_release_date():
+def test_map_hardcover_no_release_date() -> None:
     edition = {
         "title": "Book",
     }
@@ -970,7 +971,7 @@ def test_map_hardcover_no_release_date():
     assert c.published_year is None
 
 
-def test_map_hardcover_unsafe_cover_url(monkeypatch):
+def test_map_hardcover_unsafe_cover_url(monkeypatch: pytest.MonkeyPatch) -> None:
     edition = {
         "title": "Book",
         "image": {"url": "http://evil.com/cover.jpg"},
@@ -980,7 +981,7 @@ def test_map_hardcover_unsafe_cover_url(monkeypatch):
     assert c.cover_url is None
 
 
-def test_map_hardcover_no_author():
+def test_map_hardcover_no_author() -> None:
     edition = {
         "title": "Book",
         "contributions": [{"author": {}}],
@@ -991,18 +992,18 @@ def test_map_hardcover_no_author():
 
 # ── _hardcover_dedup_key ───────────────────────────────────────────────────────
 
-def test_hardcover_dedup_key_missing_isbn():
+def test_hardcover_dedup_key_missing_isbn() -> None:
     assert bi._hardcover_dedup_key({}) is None
 
 
-def test_hardcover_dedup_key_full():
+def test_hardcover_dedup_key_full() -> None:
     key = bi._hardcover_dedup_key({"isbn_13": "9781234567897", "pages": 300, "language": {"code2": "en"}})
     assert key == ("9781234567897", 300, "en")
 
 
 # ── _merge_and_deduplicate ─────────────────────────────────────────────────────
 
-def test_merge_and_deduplicate_cover_preference():
+def test_merge_and_deduplicate_cover_preference() -> None:
     a = BookImportCandidate(title="A", isbn="123", cover_url=None, source="ol")
     b = BookImportCandidate(title="B", isbn="123", cover_url="https://x.jpg", source="gb")
     result = bi._merge_and_deduplicate([a], [b])
@@ -1010,7 +1011,7 @@ def test_merge_and_deduplicate_cover_preference():
     assert result[0].cover_url == "https://x.jpg"
 
 
-def test_merge_and_deduplicate_no_cover_override():
+def test_merge_and_deduplicate_no_cover_override() -> None:
     a = BookImportCandidate(title="A", isbn="123", cover_url="https://a.jpg", source="ol")
     b = BookImportCandidate(title="B", isbn="123", cover_url="https://b.jpg", source="gb")
     result = bi._merge_and_deduplicate([a], [b])
@@ -1020,39 +1021,39 @@ def test_merge_and_deduplicate_no_cover_override():
 
 # ── _pick_isbn ─────────────────────────────────────────────────────────────────
 
-def test_pick_isbn_13():
+def test_pick_isbn_13() -> None:
     assert bi._pick_isbn(["978-1-234-56789-7", "1234567890"]) == "9781234567897"
 
 
-def test_pick_isbn_10():
+def test_pick_isbn_10() -> None:
     assert bi._pick_isbn(["1234567890", "invalid"]) == "1234567890"
 
 
-def test_pick_isbn_none():
+def test_pick_isbn_none() -> None:
     assert bi._pick_isbn(["invalid", "also-invalid"]) == "invalid"
 
 
-def test_pick_isbn_empty():
+def test_pick_isbn_empty() -> None:
     assert bi._pick_isbn([]) is None
 
 
 # ── _normalize_language_code ───────────────────────────────────────────────────
 
-def test_normalize_language_code_2char():
+def test_normalize_language_code_2char() -> None:
     assert bi._normalize_language_code("en") == "EN"
 
 
-def test_normalize_language_code_3char():
+def test_normalize_language_code_3char() -> None:
     assert bi._normalize_language_code("eng") == "EN"
 
 
-def test_normalize_language_code_bibliographic():
+def test_normalize_language_code_bibliographic() -> None:
     # "fre" is bibliographic for French; pycountry should map it
     result = bi._normalize_language_code("fre")
     assert result == "FR"
 
 
-def test_normalize_language_code_invalid():
+def test_normalize_language_code_invalid() -> None:
     assert bi._normalize_language_code("123") is None
     assert bi._normalize_language_code("") is None
     assert bi._normalize_language_code(None) is None
@@ -1061,7 +1062,7 @@ def test_normalize_language_code_invalid():
 
 
 @pytest.mark.anyio
-async def test_search_with_progress_ol_error_event(monkeypatch):
+async def test_search_with_progress_ol_error_event(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         bi, "_search_open_library",
         AsyncMock(side_effect=bi.SourceBackendError("open_library", 500)),
@@ -1075,7 +1076,7 @@ async def test_search_with_progress_ol_error_event(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_hardcover_title_empty_isbns(monkeypatch):
+async def test_search_hardcover_title_empty_isbns(monkeypatch: pytest.MonkeyPatch) -> None:
     """Cover line 584: _hardcover_search_title returns empty list."""
     monkeypatch.setattr(bi, "_hardcover_search_title", AsyncMock(return_value=[]))
 
@@ -1085,7 +1086,7 @@ async def test_search_hardcover_title_empty_isbns(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_hardcover_title_empty_fetch(monkeypatch):
+async def test_search_hardcover_title_empty_fetch(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(bi, "_hardcover_search_title", AsyncMock(return_value=["9781234567897"]))
     monkeypatch.setattr(bi, "_hardcover_fetch_books", AsyncMock(return_value=[]))
 
@@ -1095,7 +1096,7 @@ async def test_search_hardcover_title_empty_fetch(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_google_books_isbn_path():
+async def test_search_google_books_isbn_path() -> None:
     resp = MagicMock()
     resp.status_code = 200
     resp.content = b'{}'
@@ -1113,7 +1114,7 @@ async def test_search_google_books_isbn_path():
 
 
 @pytest.mark.anyio
-async def test_best_google_books_cover_volume_fetch_http_error():
+async def test_best_google_books_cover_volume_fetch_http_error() -> None:
     fake_client = AsyncMock()
 
     vol_resp = MagicMock()
@@ -1131,7 +1132,7 @@ async def test_best_google_books_cover_volume_fetch_http_error():
 
 
 @pytest.mark.anyio
-async def test_best_google_books_cover_head_not_200():
+async def test_best_google_books_cover_head_not_200() -> None:
     fake_client = AsyncMock()
 
     vol_resp = MagicMock()
@@ -1151,7 +1152,7 @@ async def test_best_google_books_cover_head_not_200():
 
 
 @pytest.mark.anyio
-async def test_hardcover_fetch_books_none_dedup_key(monkeypatch):
+async def test_hardcover_fetch_books_none_dedup_key(monkeypatch: pytest.MonkeyPatch) -> None:
     """Edition without isbn_13 returns None dedup key, so it should not be deduplicated."""
     resp = MagicMock()
     resp.status_code = 200
@@ -1172,7 +1173,7 @@ async def test_hardcover_fetch_books_none_dedup_key(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_search_google_books_resp_none(monkeypatch):
+async def test_search_google_books_resp_none(monkeypatch: pytest.MonkeyPatch) -> None:
     """Cover the defensive resp is None check at line 416."""
     monkeypatch.setattr(bi, "_MAX_RETRIES", -1)
     fake_client = AsyncMock()
@@ -1182,19 +1183,19 @@ async def test_search_google_books_resp_none(monkeypatch):
 
 # ── map_open_library edge cases ────────────────────────────────────────────────
 
-def test_map_open_library_no_isbn():
+def test_map_open_library_no_isbn() -> None:
     doc = {"title": "Book"}
     c = bi.map_open_library(doc)
     assert c.isbn is None
 
 
-def test_map_open_library_no_cover():
+def test_map_open_library_no_cover() -> None:
     doc = {"title": "Book"}
     c = bi.map_open_library(doc)
     assert c.cover_url is None
 
 
-def test_map_open_library_multiple_authors():
+def test_map_open_library_multiple_authors() -> None:
     doc = {"title": "Book", "author_name": ["A", "B"]}
     c = bi.map_open_library(doc)
     assert c.author == "A, B"
@@ -1203,7 +1204,7 @@ def test_map_open_library_multiple_authors():
 # ── search_with_progress hardcover done event ──────────────────────────────────
 
 @pytest.mark.anyio
-async def test_search_with_progress_hc_done_event(monkeypatch):
+async def test_search_with_progress_hc_done_event(monkeypatch: pytest.MonkeyPatch) -> None:
     fake_hc = BookImportCandidate(title="HC Book", source="hardcover")
     monkeypatch.setattr(bi, "_search_open_library", AsyncMock(return_value=[]))
     monkeypatch.setattr(bi, "_search_hardcover", AsyncMock(return_value=[fake_hc]))
@@ -1217,7 +1218,7 @@ async def test_search_with_progress_hc_done_event(monkeypatch):
 # ── search_with_progress hardcover error event ─────────────────────────────────
 
 @pytest.mark.anyio
-async def test_search_with_progress_hc_error_event(monkeypatch):
+async def test_search_with_progress_hc_error_event(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(bi, "_search_open_library", AsyncMock(return_value=[]))
     monkeypatch.setattr(
         bi, "_search_hardcover",

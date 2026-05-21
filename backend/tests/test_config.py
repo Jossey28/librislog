@@ -1,5 +1,7 @@
 """Tests for app configuration validation."""
 
+from typing import Any
+
 import pytest
 
 
@@ -11,7 +13,8 @@ import pytest
     ],
     indirect=True,
 )
-def test_api_key_encryption_key_validation(invalid_settings_kwargs):
+def test_api_key_encryption_key_validation(invalid_settings_kwargs: tuple[dict[str, str], str]) -> None:
+    """Settings should reject empty or placeholder encryption keys."""
     kwargs, expected_error = invalid_settings_kwargs
     from app.config import Settings
 

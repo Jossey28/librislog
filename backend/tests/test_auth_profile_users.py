@@ -1,3 +1,5 @@
+from collections.abc import Callable, Generator
+
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
@@ -15,7 +17,7 @@ from app.main import app
 from app.models import ApiKey, Book, OidcLink, ReadingProgress, Tag, User, UserRole, UserSettings
 
 
-def test_auth_me_returns_current_user(client: TestClient):
+def test_auth_me_returns_current_user(client: TestClient) -> None:
     resp = client.get("/api/auth/me")
     assert resp.status_code == 200
     data = resp.json()
@@ -23,20 +25,20 @@ def test_auth_me_returns_current_user(client: TestClient):
     assert data["role"] == "admin"
 
 
-def test_auth_me_rejects_invalid_api_key(client: TestClient):
+def test_auth_me_rejects_invalid_api_key(client: TestClient) -> None:
     resp = client.get("/api/auth/me", headers={"X-API-Key": "lk_invalid"})
     assert resp.status_code == 401
     assert resp.json()["detail"] == "Invalid API key"
 
 
-def test_auth_me_rejects_without_cookie_or_api_key(client: TestClient):
+def test_auth_me_rejects_without_cookie_or_api_key(client: TestClient) -> None:
     client.post("/api/auth/logout")
     client.headers.pop("X-API-Key", None)
     resp = client.get("/api/auth/me")
     assert resp.status_code == 401
 
 
-def test_auth_login_returns_user_and_api_key(client: TestClient):
+def test_auth_login_returns_user_and_api_key(client: TestClient) -> None:
     login = client.post(
         "/api/auth/login",
         json={"email": "test@example.com", "password": "test-password"},
@@ -50,7 +52,7 @@ def test_auth_login_returns_user_and_api_key(client: TestClient):
     assert me.json()["email"] == "test@example.com"
 
 
-def test_auth_logout_clears_cookie_session(client: TestClient):
+def test_auth_logout_clears_cookie_session(client: TestClient) -> None:
     before = client.get("/api/auth/me")
     assert before.status_code == 200
 
@@ -62,7 +64,7 @@ def test_auth_logout_clears_cookie_session(client: TestClient):
     assert after.status_code == 401
 
 
-def test_auth_login_rejects_wrong_password(client: TestClient):
+def test_auth_login_rejects_wrong_password(client: TestClient) -> None:
     resp = client.post(
         "/api/auth/login",
         json={"email": "test@example.com", "password": "wrong"},
@@ -70,7 +72,7 @@ def test_auth_login_rejects_wrong_password(client: TestClient):
     assert resp.status_code == 401
 
 
-def test_auth_setup_forbidden_when_admin_exists(client: TestClient):
+def test_auth_setup_forbidden_when_admin_exists(client: TestClient) -> None:
     resp = client.post(
         "/api/auth/setup",
         json={
@@ -83,8 +85,9 @@ def test_auth_setup_forbidden_when_admin_exists(client: TestClient):
     assert resp.status_code == 403
 
 
-def test_auth_setup_flow_when_no_admin(session: Session):
-    def override_get_session():
+def test_auth_setup_flow_when_no_admin(session: Session) -> None:
+    def override_get_session() -> Generator[Session, None, None]:
+        """Override the database session dependency to use the test session."""
         yield session
 
     app.dependency_overrides[get_session] = override_get_session
@@ -118,7 +121,7 @@ def test_auth_setup_flow_when_no_admin(session: Session):
         app.dependency_overrides.clear()
 
 
-def test_auth_login_allows_access_without_api_key_header(client: TestClient):
+def test_auth_login_allows_access_without_api_key_header(client: TestClient) -> None:
     client.post("/api/auth/logout")
     login = client.post(
         "/api/auth/login",
@@ -131,7 +134,7 @@ def test_auth_login_allows_access_without_api_key_header(client: TestClient):
     assert me.status_code == 200
 
 
-def test_cookie_auth_rejects_mutation_without_csrf_token(client: TestClient):
+def test_cookie_auth_rejects_mutation_without_csrf_token(client: TestClient) -> None:
     client.post("/api/auth/logout")
     client.headers.pop("X-API-Key", None)
 
@@ -146,7 +149,7 @@ def test_cookie_auth_rejects_mutation_without_csrf_token(client: TestClient):
     assert resp.json()["detail"] == "Invalid CSRF token"
 
 
-def test_cookie_auth_allows_mutation_with_csrf_token(client: TestClient):
+def test_cookie_auth_allows_mutation_with_csrf_token(client: TestClient) -> None:
     client.post("/api/auth/logout")
     client.headers.pop("X-API-Key", None)
 
@@ -169,7 +172,7 @@ def test_cookie_auth_allows_mutation_with_csrf_token(client: TestClient):
     assert resp.json()["firstname"] == "WithCsrf"
 
 
-def test_profile_patch_updates_fields(client: TestClient):
+def test_profile_patch_updates_fields(client: TestClient) -> None:
     resp = client.patch(
         "/api/profile",
         json={"firstname": "Updated", "lastname": "Name", "password": "Newpass1!"},
@@ -180,13 +183,16 @@ def test_profile_patch_updates_fields(client: TestClient):
     assert data["lastname"] == "Name"
 
 
-def test_profile_patch_ignores_email_changes(client: TestClient, create_user_with_key):
+def test_profile_patch_ignores_email_changes(
+    client: TestClient,
+    create_user_with_key: Callable[..., tuple[User, str]],
+) -> None:
     create_user_with_key(email="other@example.com")
     resp = client.patch("/api/profile", json={"email": "other@example.com"})
     assert resp.status_code == 422
 
 
-def test_profile_patch_changes_password_and_login_uses_new_password(client: TestClient):
+def test_profile_patch_changes_password_and_login_uses_new_password(client: TestClient) -> None:
     updated = client.patch("/api/profile", json={"password": "Changed1!"})
     assert updated.status_code == 200
 
@@ -203,12 +209,12 @@ def test_profile_patch_changes_password_and_login_uses_new_password(client: Test
     assert new_login.status_code == 200
 
 
-def test_profile_patch_rejects_weak_password(client: TestClient):
+def test_profile_patch_rejects_weak_password(client: TestClient) -> None:
     resp = client.patch("/api/profile", json={"password": "weak"})
     assert resp.status_code == 400
 
 
-def test_profile_settings_get_and_update(client: TestClient):
+def test_profile_settings_get_and_update(client: TestClient) -> None:
     current = client.get("/api/profile/settings")
     assert current.status_code == 200
     assert current.json()["language"] == "en"
@@ -224,7 +230,7 @@ def test_profile_settings_get_and_update(client: TestClient):
     assert tz_updated.json()["timezone"] == "Europe/Berlin"
 
 
-def test_profile_api_key_lifecycle(client: TestClient):
+def test_profile_api_key_lifecycle(client: TestClient) -> None:
     listed = client.get("/api/profile/api-keys")
     assert listed.status_code == 200
 
@@ -237,13 +243,16 @@ def test_profile_api_key_lifecycle(client: TestClient):
     delete_resp = client.delete(f"/api/profile/api-keys/{created_data['api_key']['id']}")
     assert delete_resp.status_code == 204
 
-def test_users_list_requires_admin(client: TestClient, create_user_with_key):
+def test_users_list_requires_admin(
+    client: TestClient,
+    create_user_with_key: Callable[..., tuple[User, str]],
+) -> None:
     _user, user_key = create_user_with_key(email="member@example.com", role=UserRole.user)
     resp = client.get("/api/users", headers={"X-API-Key": user_key})
     assert resp.status_code == 403
 
 
-def test_users_create_creates_user_settings(client: TestClient, session: Session):
+def test_users_create_creates_user_settings(client: TestClient, session: Session) -> None:
     resp = client.post(
         "/api/users",
         json={
@@ -266,7 +275,7 @@ def test_users_create_creates_user_settings(client: TestClient, session: Session
     assert settings.language == "en"
     assert settings.timezone == "UTC"
 
-def test_users_create_rejects_duplicate_email(client: TestClient):
+def test_users_create_rejects_duplicate_email(client: TestClient) -> None:
     resp = client.post(
         "/api/users",
         json={
@@ -280,7 +289,7 @@ def test_users_create_rejects_duplicate_email(client: TestClient):
     assert resp.status_code == 400
 
 
-def test_users_create_rejects_weak_password(client: TestClient):
+def test_users_create_rejects_weak_password(client: TestClient) -> None:
     resp = client.post(
         "/api/users",
         json={
@@ -294,7 +303,10 @@ def test_users_create_rejects_weak_password(client: TestClient):
     assert resp.status_code == 400
 
 
-def test_users_update_user_allows_admin_email_change(client: TestClient, create_user_with_key):
+def test_users_update_user_allows_admin_email_change(
+    client: TestClient,
+    create_user_with_key: Callable[..., tuple[User, str]],
+) -> None:
     user, _key = create_user_with_key(email="member-update@example.com", role=UserRole.user)
     resp = client.patch(
         f"/api/users/{user.id}",
@@ -306,20 +318,29 @@ def test_users_update_user_allows_admin_email_change(client: TestClient, create_
     assert data["firstname"] == "Renamed"
 
 
-def test_users_update_user_rejects_duplicate_email(client: TestClient, create_user_with_key):
+def test_users_update_user_rejects_duplicate_email(
+    client: TestClient,
+    create_user_with_key: Callable[..., tuple[User, str]],
+) -> None:
     user_a, _ = create_user_with_key(email="dup-a@example.com", role=UserRole.user)
     create_user_with_key(email="dup-b@example.com", role=UserRole.user)
     resp = client.patch(f"/api/users/{user_a.id}", json={"email": "dup-b@example.com"})
     assert resp.status_code == 400
 
 
-def test_users_update_user_rejects_weak_password(client: TestClient, create_user_with_key):
+def test_users_update_user_rejects_weak_password(
+    client: TestClient,
+    create_user_with_key: Callable[..., tuple[User, str]],
+) -> None:
     user, _ = create_user_with_key(email="weak-update@example.com", role=UserRole.user)
     resp = client.patch(f"/api/users/{user.id}", json={"password": "weak"})
     assert resp.status_code == 400
 
 
-def test_users_update_user_password_success(client: TestClient, create_user_with_key):
+def test_users_update_user_password_success(
+    client: TestClient,
+    create_user_with_key: Callable[..., tuple[User, str]],
+) -> None:
     """Admin updating another user's password with a valid password should succeed."""
     user, _ = create_user_with_key(email="pw-update@example.com", role=UserRole.user)
     resp = client.patch(
@@ -329,7 +350,7 @@ def test_users_update_user_password_success(client: TestClient, create_user_with
     assert resp.status_code == 200
 
 
-def test_users_update_user_rejects_self_role_demotion(client: TestClient):
+def test_users_update_user_rejects_self_role_demotion(client: TestClient) -> None:
     me = client.get("/api/auth/me")
     assert me.status_code == 200
     me_id = me.json()["id"]
@@ -338,7 +359,7 @@ def test_users_update_user_rejects_self_role_demotion(client: TestClient):
     assert resp.status_code == 403
 
 
-def test_users_delete_rejects_self_delete(client: TestClient):
+def test_users_delete_rejects_self_delete(client: TestClient) -> None:
     resp = client.get("/api/auth/me")
     assert resp.status_code == 200
     me_id = resp.json()["id"]
@@ -349,9 +370,9 @@ def test_users_delete_rejects_self_delete(client: TestClient):
 
 def test_users_delete_soft_revokes_keys_and_removes_user(
     client: TestClient,
-    create_user_with_key,
+    create_user_with_key: Callable[..., tuple[User, str]],
     session: Session,
-):
+) -> None:
     user, _key = create_user_with_key(email="delete-me@example.com", role=UserRole.user)
     user_id = user.id
 
@@ -369,7 +390,7 @@ def test_users_delete_soft_revokes_keys_and_removes_user(
     assert all(k.revoked_at is not None for k in keys)
 
 
-def test_auth_decrypt_api_key_roundtrip():
+def test_auth_decrypt_api_key_roundtrip() -> None:
     """encrypt then decrypt should return the original value."""
     original = "my-secret-api-key"
     encrypted = encrypt_api_key(original)
@@ -377,7 +398,7 @@ def test_auth_decrypt_api_key_roundtrip():
     assert decrypted == original
 
 
-def test_auth_require_user_by_api_key_missing_header(session: Session):
+def test_auth_require_user_by_api_key_missing_header(session: Session) -> None:
     """Missing API key header should raise 401."""
     with pytest.raises(HTTPException) as exc_info:
         require_user_by_api_key(x_api_key=None, session=session)
@@ -385,7 +406,7 @@ def test_auth_require_user_by_api_key_missing_header(session: Session):
     assert exc_info.value.detail == "Missing API key"
 
 
-def test_auth_require_user_by_api_key_invalid_user(session: Session):
+def test_auth_require_user_by_api_key_invalid_user(session: Session) -> None:
     """API key exists but user was deleted — should raise 401."""
     key_plain = "lk_testkey123"
     key = ApiKey(
@@ -404,7 +425,7 @@ def test_auth_require_user_by_api_key_invalid_user(session: Session):
     assert exc_info.value.detail == "Invalid API key user"
 
 
-def test_setup_email_already_registered_no_admin(session: Session):
+def test_setup_email_already_registered_no_admin(session: Session) -> None:
     """Setup with an existing user's email should return 400."""
     user = User(
         firstname="Existing",
@@ -416,7 +437,8 @@ def test_setup_email_already_registered_no_admin(session: Session):
     session.add(user)
     session.commit()
 
-    def override_get_session():
+    def override_get_session() -> Generator[Session, None, None]:
+        """Override the database session dependency to use the test session."""
         yield session
 
     app.dependency_overrides[get_session] = override_get_session
@@ -437,7 +459,7 @@ def test_setup_email_already_registered_no_admin(session: Session):
         app.dependency_overrides.clear()
 
 
-def test_csrf_token_not_authenticated(client: TestClient):
+def test_csrf_token_not_authenticated(client: TestClient) -> None:
     """CSRF endpoint without session should return 401."""
     client.post("/api/auth/logout")
     client.headers.pop("X-API-Key", None)
@@ -446,7 +468,7 @@ def test_csrf_token_not_authenticated(client: TestClient):
     assert resp.json()["detail"] == "Not authenticated"
 
 
-def test_users_list_returns_users(client: TestClient):
+def test_users_list_returns_users(client: TestClient) -> None:
     """Admin listing users should return the user list."""
     resp = client.get("/api/users")
     assert resp.status_code == 200
@@ -455,39 +477,39 @@ def test_users_list_returns_users(client: TestClient):
     assert data[0]["email"] == "test@example.com"
 
 
-def test_users_update_user_not_found(client: TestClient):
+def test_users_update_user_not_found(client: TestClient) -> None:
     """Updating a non-existent user should return 404."""
     resp = client.patch("/api/users/99999", json={"firstname": "Ghost"})
     assert resp.status_code == 404
     assert resp.json()["detail"] == "User not found"
 
 
-def test_users_delete_user_not_found(client: TestClient):
+def test_users_delete_user_not_found(client: TestClient) -> None:
     """Deleting a non-existent user should return 404."""
     resp = client.delete("/api/users/99999")
     assert resp.status_code == 404
     assert resp.json()["detail"] == "User not found"
 
 
-def test_oidc_config_disabled_by_default(client: TestClient):
+def test_oidc_config_disabled_by_default(client: TestClient) -> None:
     resp = client.get("/api/oidc/config")
     assert resp.status_code == 200
     assert resp.json()["enabled"] is False
 
 
-def test_oidc_link_status_disabled_by_default(client: TestClient):
+def test_oidc_link_status_disabled_by_default(client: TestClient) -> None:
     resp = client.get("/api/oidc/link-status")
     assert resp.status_code == 200
     assert resp.json()["linked"] is False
 
 
-def test_profile_reset_data_requires_confirmation_phrase(client: TestClient):
+def test_profile_reset_data_requires_confirmation_phrase(client: TestClient) -> None:
     resp = client.post("/api/profile/reset-data", json={"confirmation": "WRONG"})
     assert resp.status_code == 400
     assert resp.json()["detail"] == "error.invalidConfirmationPhrase"
 
 
-def test_profile_reset_data_deletes_books_tags_progress(client: TestClient):
+def test_profile_reset_data_deletes_books_tags_progress(client: TestClient) -> None:
     b1 = client.post("/api/books", json={"title": "A", "tags": "one,two"}).json()
     b2 = client.post("/api/books", json={"title": "B", "tags": "one"}).json()
     client.post(f"/api/books/{b1['id']}/progress", json={"page": 10})
@@ -503,13 +525,17 @@ def test_profile_reset_data_deletes_books_tags_progress(client: TestClient):
     assert client.get("/api/books").json() == []
 
 
-def test_profile_delete_account_rejects_last_admin(client: TestClient):
+def test_profile_delete_account_rejects_last_admin(client: TestClient) -> None:
     resp = client.request("DELETE", "/api/profile/account", json={"confirmation": "DELETE MY ACCOUNT"})
     assert resp.status_code == 403
     assert resp.json()["detail"] == "error.cannotDeleteLastAdmin"
 
 
-def test_profile_delete_account_deletes_regular_user_data(client: TestClient, create_user_with_key, session: Session):
+def test_profile_delete_account_deletes_regular_user_data(
+    client: TestClient,
+    create_user_with_key: Callable[..., tuple[User, str]],
+    session: Session,
+) -> None:
     user, key = create_user_with_key(email="danger@example.com", role=UserRole.user)
     with TestClient(client.app) as c2:
         c2.headers.update({"X-API-Key": key})

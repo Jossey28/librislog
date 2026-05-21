@@ -5,7 +5,7 @@
       "disabled": true
     },
     "ty": {
-      "command": ["uvx", "ty", "server", "--venv", "backend/.venv"],
+      "command": ["uvx", "ty", "server"],
       "extensions": [".py", ".pyi"]
     }
   }

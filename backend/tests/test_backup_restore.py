@@ -9,11 +9,14 @@ import json
 import os
 import sqlite3
 import zipfile
+from collections.abc import Generator
 from io import BytesIO
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pytest import MonkeyPatch
 
 from app.services import backup_restore as br
 
@@ -21,7 +24,7 @@ from app.services import backup_restore as br
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 @pytest.fixture(autouse=True)
-def _cleanup_lock():
+def _cleanup_lock() -> Generator[None, None, None]:
     """Ensure the operation lock is released after every test."""
     yield
     br._release_operation_lock()
@@ -30,7 +33,7 @@ def _cleanup_lock():
 
 
 @pytest.fixture()
-def tmp_db_path(tmp_path):
+def tmp_db_path(tmp_path: Path) -> str:
     """Create a real SQLite database file and return its path."""
     db_path = tmp_path / "test.db"
     conn = sqlite3.connect(str(db_path))
@@ -42,7 +45,7 @@ def tmp_db_path(tmp_path):
 
 
 @pytest.fixture()
-def backup_dirs(tmp_path, monkeypatch):
+def backup_dirs(tmp_path: Path, monkeypatch: MonkeyPatch) -> dict[str, str]:
     """Provide temporary directories for backup/restore operations.
 
     Mirrors the real app layout where covers_dir and import_temp_dir are
@@ -69,7 +72,7 @@ def backup_dirs(tmp_path, monkeypatch):
 
 
 @pytest.fixture()
-def valid_backup_zip(tmp_db_path, backup_dirs):
+def valid_backup_zip(tmp_db_path: str, backup_dirs: dict[str, str]) -> bytes:
     """Build a valid backup ZIP bytes object."""
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -82,7 +85,7 @@ def valid_backup_zip(tmp_db_path, backup_dirs):
 
 # ── Locking ───────────────────────────────────────────────────────────────────
 
-def test_acquire_and_release_lock(backup_dirs):
+def test_acquire_and_release_lock(backup_dirs: dict[str, str]) -> None:
     """Lock can be acquired and released without error."""
     br._acquire_operation_lock()
     assert br._lock_fd is not None
@@ -90,14 +93,14 @@ def test_acquire_and_release_lock(backup_dirs):
     assert br._lock_fd is None
 
 
-def test_acquire_lock_when_already_held_raises():
+def test_acquire_lock_when_already_held_raises() -> None:
     """Second concurrent lock acquisition raises RuntimeError."""
     br._acquire_operation_lock()
     with pytest.raises(RuntimeError, match="already in progress"):
         br._acquire_operation_lock()
 
 
-def test_release_lock_when_none_held_does_not_raise():
+def test_release_lock_when_none_held_does_not_raise() -> None:
     """Releasing a lock that was never acquired is a no-op."""
     br._release_operation_lock()
     assert br._lock_fd is None
@@ -105,17 +108,17 @@ def test_release_lock_when_none_held_does_not_raise():
 
 # ── _extract_db_path ──────────────────────────────────────────────────────────
 
-def test_extract_db_path_sqlite():
+def test_extract_db_path_sqlite() -> None:
     assert br._extract_db_path("sqlite:///path/to/db.db") == "path/to/db.db"
 
 
-def test_extract_db_path_non_sqlite():
+def test_extract_db_path_non_sqlite() -> None:
     assert br._extract_db_path("postgresql://host/db") == "postgresql://host/db"
 
 
 # ── _validate_zip_extraction ──────────────────────────────────────────────────
 
-def test_validate_zip_extraction_too_large_single_file():
+def test_validate_zip_extraction_too_large_single_file() -> None:
     """A ZIP with one file exceeding MAX_SINGLE_FILE_SIZE is rejected."""
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
@@ -126,7 +129,7 @@ def test_validate_zip_extraction_too_large_single_file():
             br._validate_zip_extraction(zf)
 
 
-def test_validate_zip_extraction_too_many_files():
+def test_validate_zip_extraction_too_many_files() -> None:
     """A ZIP with more than MAX_EXTRACT_FILE_COUNT entries is rejected."""
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
@@ -138,7 +141,7 @@ def test_validate_zip_extraction_too_many_files():
             br._validate_zip_extraction(zf)
 
 
-def test_validate_zip_extraction_total_size_exceeded(monkeypatch):
+def test_validate_zip_extraction_total_size_exceeded(monkeypatch: MonkeyPatch) -> None:
     """A ZIP whose total uncompressed size exceeds TOTAL_MAX_EXTRACT_SIZE is rejected."""
     original_limit = br.TOTAL_MAX_EXTRACT_SIZE
     monkeypatch.setattr(br, "TOTAL_MAX_EXTRACT_SIZE", 1)
@@ -151,7 +154,7 @@ def test_validate_zip_extraction_total_size_exceeded(monkeypatch):
             br._validate_zip_extraction(zf)
 
 
-def test_validate_zip_extraction_ok():
+def test_validate_zip_extraction_ok() -> None:
     """A normal ZIP passes validation."""
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
@@ -163,18 +166,18 @@ def test_validate_zip_extraction_ok():
 
 # ── _safe_extract_path ────────────────────────────────────────────────────────
 
-def test_safe_extract_path_normal():
+def test_safe_extract_path_normal() -> None:
     dest = Path("/tmp/dest")
     result = br._safe_extract_path(dest, "covers/book.jpg")
     assert result == Path("/tmp/dest/covers/book.jpg")
 
 
-def test_safe_extract_path_rejects_absolute():
+def test_safe_extract_path_rejects_absolute() -> None:
     with pytest.raises(ValueError, match="Absolute path not allowed"):
         br._safe_extract_path(Path("/tmp/dest"), "/etc/passwd")
 
 
-def test_safe_extract_path_rejects_traversal(monkeypatch):
+def test_safe_extract_path_rejects_traversal(monkeypatch: MonkeyPatch) -> None:
     """Path traversal is detected when resolved path escapes dest_root."""
     # Force resolve() to return a path outside dest_root by mocking os.path.isabs
     # to claim a safe-looking path is absolute, which triggers the absolute-path guard.
@@ -183,14 +186,14 @@ def test_safe_extract_path_rejects_traversal(monkeypatch):
         br._safe_extract_path(Path("/tmp/dest"), "foo.txt")
 
 
-def test_safe_extract_path_rejects_empty():
+def test_safe_extract_path_rejects_empty() -> None:
     with pytest.raises(ValueError, match="Empty path after normalization"):
         br._safe_extract_path(Path("/tmp/dest"), "")
 
 
 # ── _vacuum_into_backup ───────────────────────────────────────────────────────
 
-def test_vacuum_into_backup_success(tmp_db_path, backup_dirs):
+def test_vacuum_into_backup_success(tmp_db_path: str, backup_dirs: dict[str, str]) -> None:
     dest = os.path.join(backup_dirs["backup_temp_dir"], "vacuumed.db")
     br._vacuum_into_backup(f"sqlite:///{tmp_db_path}", dest)
     assert os.path.isfile(dest)
@@ -201,12 +204,12 @@ def test_vacuum_into_backup_success(tmp_db_path, backup_dirs):
     conn.close()
 
 
-def test_vacuum_into_backup_missing_db():
+def test_vacuum_into_backup_missing_db() -> None:
     with pytest.raises(FileNotFoundError, match="Database file not found"):
         br._vacuum_into_backup("sqlite:///nonexistent.db", "/tmp/out.db")
 
 
-def test_vacuum_into_backup_vacuum_fails(monkeypatch, tmp_path):
+def test_vacuum_into_backup_vacuum_fails(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     """If VACUUM INTO doesn't produce a file, raise RuntimeError."""
     db_path = str(tmp_path / "test_vacuum.db")
     # Create a minimal DB
@@ -221,7 +224,8 @@ def test_vacuum_into_backup_vacuum_fails(monkeypatch, tmp_path):
     # so the "did not produce a database file" check triggers.
     original_isfile = os.path.isfile
 
-    def _fake_isfile(path):
+    def _fake_isfile(path: str) -> bool:
+        """Mock os.path.isfile to return False for the destination path."""
         if path == db_path:
             return True
         if path == dest_path:
@@ -236,7 +240,7 @@ def test_vacuum_into_backup_vacuum_fails(monkeypatch, tmp_path):
 
 # ── create_backup ─────────────────────────────────────────────────────────────
 
-def test_create_backup_full_flow(tmp_db_path, backup_dirs):
+def test_create_backup_full_flow(tmp_db_path: str, backup_dirs: dict[str, str]) -> None:
     # Populate covers and import_temp
     covers_dir = backup_dirs["covers_dir"]
     import_temp_dir = backup_dirs["import_temp_dir"]
@@ -268,13 +272,13 @@ def test_create_backup_full_flow(tmp_db_path, backup_dirs):
 
 # ── validate_backup_zip ───────────────────────────────────────────────────────
 
-def test_validate_backup_zip_valid(valid_backup_zip):
+def test_validate_backup_zip_valid(valid_backup_zip: bytes) -> None:
     result = br.validate_backup_zip(valid_backup_zip)
     assert result["valid"] is True
     assert result["metadata"]["app_version"] == "1.0.0"
 
 
-def test_validate_backup_zip_missing_database():
+def test_validate_backup_zip_missing_database() -> None:
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
         zf.writestr("data/x.txt", b"x")
@@ -284,7 +288,7 @@ def test_validate_backup_zip_missing_database():
     assert "missing database.db" in result["error"]
 
 
-def test_validate_backup_zip_missing_data_dir():
+def test_validate_backup_zip_missing_data_dir() -> None:
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
         zf.writestr("database.db", b"db")
@@ -294,7 +298,7 @@ def test_validate_backup_zip_missing_data_dir():
     assert "missing data/" in result["error"]
 
 
-def test_validate_backup_zip_oversized_metadata(monkeypatch):
+def test_validate_backup_zip_oversized_metadata(monkeypatch: MonkeyPatch) -> None:
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
         zf.writestr("database.db", b"db")
@@ -304,7 +308,8 @@ def test_validate_backup_zip_oversized_metadata(monkeypatch):
     # Monkeypatch ZipFile.getinfo to claim metadata.json is huge
     original_getinfo = zipfile.ZipFile.getinfo
 
-    def _fake_getinfo(self, name):
+    def _fake_getinfo(self: zipfile.ZipFile, name: str) -> zipfile.ZipInfo:
+        """Return a ZipInfo with inflated file_size for metadata.json."""
         info = original_getinfo(self, name)
         if name == "metadata.json":
             info.file_size = 20 * 1024 * 1024  # 20 MB
@@ -317,7 +322,7 @@ def test_validate_backup_zip_oversized_metadata(monkeypatch):
     assert "metadata.json is too large" in result["error"]
 
 
-def test_validate_backup_zip_invalid_json_metadata(valid_backup_zip):
+def test_validate_backup_zip_invalid_json_metadata(valid_backup_zip: bytes) -> None:
     """Invalid JSON in metadata.json results in empty metadata but still valid."""
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
@@ -331,7 +336,7 @@ def test_validate_backup_zip_invalid_json_metadata(valid_backup_zip):
 
 # ── _save_safety_backup ───────────────────────────────────────────────────────
 
-def test_save_safety_backup_copies_db_and_data(tmp_db_path, backup_dirs):
+def test_save_safety_backup_copies_db_and_data(tmp_db_path: str, backup_dirs: dict[str, str]) -> None:
     data_dir = backup_dirs["data_dir"]
     # Create some data files (covers dir already exists from fixture)
     Path(data_dir, "covers", "a.jpg").write_bytes(b"img")
@@ -344,7 +349,7 @@ def test_save_safety_backup_copies_db_and_data(tmp_db_path, backup_dirs):
     assert os.path.isfile(os.path.join(safety, "settings.json"))
 
 
-def test_save_safety_backup_skips_backup_temp_dir(tmp_db_path, backup_dirs, monkeypatch):
+def test_save_safety_backup_skips_backup_temp_dir(tmp_db_path: str, backup_dirs: dict[str, str], monkeypatch: MonkeyPatch) -> None:
     """The backup_temp_dir should be excluded from the safety copy."""
     data_dir = backup_dirs["data_dir"]
     backup_temp = backup_dirs["backup_temp_dir"]
@@ -356,7 +361,7 @@ def test_save_safety_backup_skips_backup_temp_dir(tmp_db_path, backup_dirs, monk
 
 # ── _rollback_safety_backup ───────────────────────────────────────────────────
 
-def test_rollback_safety_backup_restores_files(tmp_db_path, backup_dirs):
+def test_rollback_safety_backup_restores_files(tmp_db_path: str, backup_dirs: dict[str, str]) -> None:
     data_dir = backup_dirs["data_dir"]
     # Setup original files
     Path(data_dir, "original.txt").write_bytes(b"original")
@@ -377,7 +382,7 @@ def test_rollback_safety_backup_restores_files(tmp_db_path, backup_dirs):
 
 # ── _cleanup_safety_backup ────────────────────────────────────────────────────
 
-def test_cleanup_safety_backup_removes_dir(tmp_path):
+def test_cleanup_safety_backup_removes_dir(tmp_path: Path) -> None:
     safety = tmp_path / "safety"
     safety.mkdir()
     (safety / "file.txt").write_bytes(b"x")
@@ -385,11 +390,12 @@ def test_cleanup_safety_backup_removes_dir(tmp_path):
     assert not safety.exists()
 
 
-def test_cleanup_safety_backup_logs_warning_on_error(monkeypatch, tmp_path):
+def test_cleanup_safety_backup_logs_warning_on_error(monkeypatch: MonkeyPatch, tmp_path: Path) -> None:
     safety = tmp_path / "safety"
     safety.mkdir()
 
-    def _raise(*args, **kwargs):
+    def _raise(*args: Any, **kwargs: Any) -> None:
+        """Raise OSError unconditionally."""
         raise OSError("permission denied")
 
     monkeypatch.setattr(br.shutil, "rmtree", _raise)
@@ -399,7 +405,7 @@ def test_cleanup_safety_backup_logs_warning_on_error(monkeypatch, tmp_path):
 
 # ── restore_backup ────────────────────────────────────────────────────────────
 
-def test_restore_backup_full_flow(valid_backup_zip, tmp_db_path, backup_dirs, monkeypatch):
+def test_restore_backup_full_flow(valid_backup_zip: bytes, tmp_db_path: str, backup_dirs: dict[str, str], monkeypatch: MonkeyPatch) -> None:
     """Restore a valid backup and verify files + database are restored."""
     data_dir = backup_dirs["data_dir"]
     covers_dir = backup_dirs["covers_dir"]
@@ -440,7 +446,7 @@ def test_restore_backup_full_flow(valid_backup_zip, tmp_db_path, backup_dirs, mo
     conn.close()
 
 
-def test_restore_backup_rolls_back_on_failure(valid_backup_zip, tmp_db_path, backup_dirs, monkeypatch):
+def test_restore_backup_rolls_back_on_failure(valid_backup_zip: bytes, tmp_db_path: str, backup_dirs: dict[str, str], monkeypatch: MonkeyPatch) -> None:
     """If restore fails mid-way, safety backup should be rolled back."""
     data_dir = backup_dirs["data_dir"]
     covers_dir = backup_dirs["covers_dir"]
@@ -457,7 +463,8 @@ def test_restore_backup_rolls_back_on_failure(valid_backup_zip, tmp_db_path, bac
     # Make ZipFile.read fail on database.db so restore fails during DB read
     original_read = zipfile.ZipFile.read
 
-    def _bad_read(self, name, pwd=None):
+    def _bad_read(self: zipfile.ZipFile, name: str, pwd: bytes | None = None) -> bytes:
+        """Raise BadZipFile when trying to read database.db."""
         if name == "database.db":
             raise zipfile.BadZipFile("corrupt")
         return original_read(self, name, pwd)
@@ -477,7 +484,7 @@ def test_restore_backup_rolls_back_on_failure(valid_backup_zip, tmp_db_path, bac
     assert Path(covers_dir, "existing.jpg").read_bytes() == b"existing"
 
 
-def test_restore_backup_path_traversal_in_zip(valid_backup_zip, tmp_db_path, backup_dirs, monkeypatch):
+def test_restore_backup_path_traversal_in_zip(valid_backup_zip: bytes, tmp_db_path: str, backup_dirs: dict[str, str], monkeypatch: MonkeyPatch) -> None:
     """A ZIP entry with path traversal should raise ValueError during restore."""
     data_dir = backup_dirs["data_dir"]
     covers_dir = backup_dirs["covers_dir"]
@@ -506,7 +513,7 @@ def test_restore_backup_path_traversal_in_zip(valid_backup_zip, tmp_db_path, bac
         )
 
 
-def test_restore_backup_single_file_too_large(valid_backup_zip, tmp_db_path, backup_dirs, monkeypatch):
+def test_restore_backup_single_file_too_large(valid_backup_zip: bytes, tmp_db_path: str, backup_dirs: dict[str, str], monkeypatch: MonkeyPatch) -> None:
     """An individual file in the ZIP exceeding MAX_SINGLE_FILE_SIZE should raise."""
     data_dir = backup_dirs["data_dir"]
     covers_dir = backup_dirs["covers_dir"]
@@ -539,7 +546,7 @@ def test_restore_backup_single_file_too_large(valid_backup_zip, tmp_db_path, bac
 
 # ── _recreate_engine ──────────────────────────────────────────────────────────
 
-def test_recreate_engine(monkeypatch):
+def test_recreate_engine(monkeypatch: MonkeyPatch) -> None:
     """_recreate_engine should replace app.database.engine."""
     import app.database as db_mod
 
@@ -567,12 +574,13 @@ def test_recreate_engine(monkeypatch):
 
 # ── Remaining edge cases ──────────────────────────────────────────────────────
 
-def test_release_lock_oserror_on_unlock(monkeypatch):
+def test_release_lock_oserror_on_unlock(monkeypatch: MonkeyPatch) -> None:
     """OSError during flock unlock should be swallowed."""
     br._acquire_operation_lock()
     assert br._lock_fd is not None
 
-    def _raise(*args, **kwargs):
+    def _raise(*args: Any, **kwargs: Any) -> None:
+        """Raise OSError unconditionally."""
         raise OSError("bad fd")
 
     import fcntl as _fcntl_mod
@@ -581,7 +589,7 @@ def test_release_lock_oserror_on_unlock(monkeypatch):
     assert br._lock_fd is None
 
 
-def test_validate_zip_extraction_skips_directories():
+def test_validate_zip_extraction_skips_directories() -> None:
     """Directory entries in the ZIP should not count toward total size."""
     buf = BytesIO()
     with zipfile.ZipFile(buf, "w") as zf:
@@ -594,7 +602,7 @@ def test_validate_zip_extraction_skips_directories():
         br._validate_zip_extraction(zf)
 
 
-def test_restore_backup_creates_directory_entries(tmp_db_path, backup_dirs, monkeypatch):
+def test_restore_backup_creates_directory_entries(tmp_db_path: str, backup_dirs: dict[str, str], monkeypatch: MonkeyPatch) -> None:
     """ZIP entries ending with '/' should create directories."""
     data_dir = backup_dirs["data_dir"]
     covers_dir = backup_dirs["covers_dir"]
@@ -625,7 +633,7 @@ def test_restore_backup_creates_directory_entries(tmp_db_path, backup_dirs, monk
     assert Path(covers_dir).is_dir()
 
 
-def test_restore_backup_cleans_up_temp_db_on_move_failure(tmp_db_path, backup_dirs, monkeypatch):
+def test_restore_backup_cleans_up_temp_db_on_move_failure(tmp_db_path: str, backup_dirs: dict[str, str], monkeypatch: MonkeyPatch) -> None:
     """If shutil.move fails, the temporary DB file should be removed."""
     data_dir = backup_dirs["data_dir"]
     covers_dir = backup_dirs["covers_dir"]
@@ -637,7 +645,8 @@ def test_restore_backup_cleans_up_temp_db_on_move_failure(tmp_db_path, backup_di
     monkeypatch.setattr(br.engine, "dispose", lambda: None)
     monkeypatch.setattr(br, "_recreate_engine", lambda: None)
 
-    def _raise_move(*args, **kwargs):
+    def _raise_move(*args: Any, **kwargs: Any) -> None:
+        """Raise OSError unconditionally."""
         raise OSError("move failed")
 
     monkeypatch.setattr(br.shutil, "move", _raise_move)
@@ -662,11 +671,12 @@ def test_restore_backup_cleans_up_temp_db_on_move_failure(tmp_db_path, backup_di
     assert not temp_files, f"Stray temp files found: {temp_files}"
 
 
-def test_safe_extract_path_rejects_traversal_via_resolve(monkeypatch):
+def test_safe_extract_path_rejects_traversal_via_resolve(monkeypatch: MonkeyPatch) -> None:
     """Path traversal detected when resolve() escapes dest_root."""
     original_resolve = Path.resolve
 
-    def _bad_resolve(self, strict=False):
+    def _bad_resolve(self: Path, strict: bool = False) -> Path:
+        """Return a path outside dest_root to simulate traversal."""
         if str(self) == "/tmp/dest":
             return original_resolve(self, strict=strict)
         return Path("/etc/passwd")
@@ -676,7 +686,7 @@ def test_safe_extract_path_rejects_traversal_via_resolve(monkeypatch):
         br._safe_extract_path(Path("/tmp/dest"), "foo.txt")
 
 
-def test_restore_backup_skips_data_root_entry(tmp_db_path, backup_dirs, monkeypatch):
+def test_restore_backup_skips_data_root_entry(tmp_db_path: str, backup_dirs: dict[str, str], monkeypatch: MonkeyPatch) -> None:
     """A ZIP entry named exactly 'data/' should be skipped."""
     data_dir = backup_dirs["data_dir"]
     covers_dir = backup_dirs["covers_dir"]
@@ -704,7 +714,7 @@ def test_restore_backup_skips_data_root_entry(tmp_db_path, backup_dirs, monkeypa
     assert result["restored_covers"] == 0
 
 
-def test_restore_backup_single_file_size_check_during_extraction(valid_backup_zip, tmp_db_path, backup_dirs, monkeypatch):
+def test_restore_backup_single_file_size_check_during_extraction(valid_backup_zip: bytes, tmp_db_path: str, backup_dirs: dict[str, str], monkeypatch: MonkeyPatch) -> None:
     """Individual file size check during extraction (line 288)."""
     data_dir = backup_dirs["data_dir"]
     covers_dir = backup_dirs["covers_dir"]
@@ -720,7 +730,8 @@ def test_restore_backup_single_file_size_check_during_extraction(valid_backup_zi
 
     original_getinfo = zipfile.ZipFile.getinfo
 
-    def _fake_getinfo(self, name):
+    def _fake_getinfo(self: zipfile.ZipFile, name: str) -> zipfile.ZipInfo:
+        """Return a ZipInfo with inflated file_size to trigger size check."""
         info = original_getinfo(self, name)
         if name == "data/huge.bin":
             info.file_size = br.MAX_SINGLE_FILE_SIZE + 1

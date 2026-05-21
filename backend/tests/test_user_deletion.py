@@ -1,11 +1,14 @@
 """Tests for app.services.user_deletion module."""
 
+from pathlib import Path
+
 from app.auth import get_password_hash
 from app.models import Book, User, UserRole
 from app.services.user_deletion import delete_user_reading_data
+from sqlmodel import Session
 
 
-def test_delete_user_reading_data_cleans_local_covers(session, tmp_path):
+def test_delete_user_reading_data_cleans_local_covers(session: Session, tmp_path: Path) -> None:
     """Books with local cover URLs should have their cover files deleted."""
     user = User(
         firstname="Test",
@@ -29,13 +32,14 @@ def test_delete_user_reading_data_cleans_local_covers(session, tmp_path):
     session.add(book)
     session.commit()
 
+    assert user.id is not None
     counts = delete_user_reading_data(session, user.id, str(tmp_path))
 
     assert counts.books == 1
     assert not (tmp_path / cover_filename).exists()
 
 
-def test_delete_user_reading_data_skips_external_covers(session, tmp_path):
+def test_delete_user_reading_data_skips_external_covers(session: Session, tmp_path: Path) -> None:
     """Books with external cover URLs should skip cover file deletion."""
     user = User(
         firstname="Test",
@@ -56,6 +60,7 @@ def test_delete_user_reading_data_skips_external_covers(session, tmp_path):
     session.add(book)
     session.commit()
 
+    assert user.id is not None    
     counts = delete_user_reading_data(session, user.id, str(tmp_path))
 
     assert counts.books == 1

@@ -1,17 +1,27 @@
+from collections.abc import Callable
+from typing import Any
+
+import pytest
 from fastapi.testclient import TestClient
+
 from app.config import settings
 import app.services.quote_cache as quote_cache
-from app.services.quote_cache import configure_quote_cache_ttl, invalidate_quote_cache
+from app.services.quote_cache import (
+    configure_quote_cache_ttl,
+    get_or_fetch_dashboard_quote,
+    invalidate_quote_cache,
+)
 
 
-def _create_book(client: TestClient, **kwargs) -> dict:
+def _create_book(client: TestClient, **kwargs: Any) -> dict[str, Any]:
+    """Helper to create a book via the API and return the JSON response."""
     payload = {"title": "Test Book", **kwargs}
     resp = client.post("/api/books", json=payload)
     assert resp.status_code == 201
     return resp.json()
 
 
-def test_book_stats_empty_library(client: TestClient):
+def test_book_stats_empty_library(client: TestClient) -> None:
     resp = client.get("/api/books/stats")
     assert resp.status_code == 200
     assert resp.json() == {
@@ -23,7 +33,7 @@ def test_book_stats_empty_library(client: TestClient):
     }
 
 
-def test_book_stats_counts_all_statuses(client: TestClient):
+def test_book_stats_counts_all_statuses(client: TestClient) -> None:
     _create_book(client, title="Want", reading_status="want_to_read")
     _create_book(client, title="Reading", reading_status="currently_reading")
     _create_book(client, title="Read", reading_status="read")
@@ -40,7 +50,7 @@ def test_book_stats_counts_all_statuses(client: TestClient):
     }
 
 
-def test_book_stats_require_auth(client: TestClient):
+def test_book_stats_require_auth(client: TestClient) -> None:
     original = client.headers.get("X-API-Key")
     client.headers.pop("X-API-Key", None)
     client.post("/api/auth/logout")
@@ -49,11 +59,10 @@ def test_book_stats_require_auth(client: TestClient):
     finally:
         if original:
             client.headers["X-API-Key"] = original
-
     assert resp.status_code == 401
 
 
-def test_book_stats_is_user_scoped(client: TestClient, create_user_with_key):
+def test_book_stats_is_user_scoped(client: TestClient, create_user_with_key: Callable[..., Any]) -> None:
     _create_book(client, title="User 1 Book", reading_status="read")
 
     _, other_key = create_user_with_key(email="other@example.com")
@@ -66,7 +75,6 @@ def test_book_stats_is_user_scoped(client: TestClient, create_user_with_key):
     finally:
         if original:
             client.headers["X-API-Key"] = original
-
     assert resp.status_code == 200
     assert resp.json() == {
         "total_books": 2,
@@ -77,88 +85,80 @@ def test_book_stats_is_user_scoped(client: TestClient, create_user_with_key):
     }
 
 
-import pytest
-
-from app.services.quote_cache import get_or_fetch_dashboard_quote, invalidate_quote_cache
-
-
-def test_dashboard_quote_returns_none_when_disabled(client: TestClient, monkeypatch):
+def test_dashboard_quote_returns_none_when_disabled(client: TestClient, monkeypatch) -> None:
     invalidate_quote_cache()
     monkeypatch.setattr(settings, "dashboard_quote_enabled", False)
-
     resp = client.get("/api/books/dashboard-quote")
-
     assert resp.status_code == 503
     assert resp.json()["detail"] == "Dashboard quote feature is disabled"
 
 
 class _FakeQuoteResponse:
-    def raise_for_status(self):
+    def raise_for_status(self) -> None:
         return None
 
-    def json(self):
+    def json(self) -> dict[str, str]:
         return {"quote": "Stay humble.", "author": "Anon"}
 
 
 class _FakeAsyncClient:
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: object, **kwargs: object) -> None:
         return None
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "_FakeAsyncClient":
         return self
 
-    async def __aexit__(self, exc_type, exc, tb):
+    async def __aexit__(self, exc_type: object, exc: object, tb: object) -> None:
         return None
 
-    async def get(self, url):
+    async def get(self, url: str) -> _FakeQuoteResponse:
         return _FakeQuoteResponse()
 
 
-def test_dashboard_quote_returns_quote(client: TestClient, monkeypatch):
+def test_dashboard_quote_returns_quote(client: TestClient, monkeypatch) -> None:
     invalidate_quote_cache()
     configure_quote_cache_ttl(86400)
     monkeypatch.setattr(settings, "dashboard_quote_enabled", True)
     monkeypatch.setattr(quote_cache.httpx, "AsyncClient", _FakeAsyncClient)
 
     resp = client.get("/api/books/dashboard-quote")
-
     assert resp.status_code == 200
     assert resp.json() == {"quote": "Stay humble.", "author": "Anon"}
 
 
 class _ChangingFakeAsyncClient:
-    calls = 0
+    calls: int = 0
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: object, **kwargs: object) -> None:
         return None
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "_ChangingFakeAsyncClient":
         return self
 
-    async def __aexit__(self, exc_type, exc, tb):
+    async def __aexit__(self, exc_type: object, exc: object, tb: object) -> None:
         return None
 
-    async def get(self, url):
+    async def get(self, url: str) -> _FakeQuoteResponse:
         _ChangingFakeAsyncClient.calls += 1
         return _FakeQuoteResponse()
 
 
 @pytest.mark.anyio
-async def test_dashboard_quote_network_error(monkeypatch):
+async def test_dashboard_quote_network_error(monkeypatch) -> None:
     """Network error during quote fetch should return None."""
     invalidate_quote_cache()
 
     class _ErrorClient:
-        def __init__(self, *args, **kwargs):
+        def __init__(self, *args: object, **kwargs: object) -> None:
             pass
 
-        async def __aenter__(self):
+        async def __aenter__(self) -> "_ErrorClient":
             return self
 
-        async def __aexit__(self, *args, **kwargs):
+        async def __aexit__(self, *args: object, **kwargs: object) -> None:
             return None
 
-        async def get(self, url):
+        async def get(self, url: str) -> None:
             raise Exception("network down")
 
     monkeypatch.setattr("app.services.quote_cache.httpx.AsyncClient", _ErrorClient)
@@ -167,28 +167,28 @@ async def test_dashboard_quote_network_error(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_dashboard_quote_non_dict_payload(monkeypatch):
+async def test_dashboard_quote_non_dict_payload(monkeypatch) -> None:
     """Non-dict JSON payload should return None."""
     invalidate_quote_cache()
 
     class _ListResponse:
-        def raise_for_status(self):
+        def raise_for_status(self) -> None:
             pass
 
-        def json(self):
+        def json(self) -> list[str]:
             return ["not", "a", "dict"]
 
     class _FakeClient:
-        def __init__(self, *args, **kwargs):
+        def __init__(self, *args: object, **kwargs: object) -> None:
             pass
 
-        async def __aenter__(self):
+        async def __aenter__(self) -> "_FakeClient":
             return self
 
-        async def __aexit__(self, *args, **kwargs):
+        async def __aexit__(self, *args: object, **kwargs: object) -> None:
             return None
 
-        async def get(self, url):
+        async def get(self, url: str) -> _ListResponse:
             return _ListResponse()
 
     monkeypatch.setattr("app.services.quote_cache.httpx.AsyncClient", _FakeClient)
@@ -197,28 +197,28 @@ async def test_dashboard_quote_non_dict_payload(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_dashboard_quote_empty_quote(monkeypatch):
+async def test_dashboard_quote_empty_quote(monkeypatch) -> None:
     """Empty or whitespace-only quote should return None."""
     invalidate_quote_cache()
 
     class _EmptyQuoteResponse:
-        def raise_for_status(self):
+        def raise_for_status(self) -> None:
             pass
 
-        def json(self):
+        def json(self) -> dict[str, str]:
             return {"quote": "   ", "author": "Anon"}
 
     class _FakeClient:
-        def __init__(self, *args, **kwargs):
+        def __init__(self, *args: object, **kwargs: object) -> None:
             pass
 
-        async def __aenter__(self):
+        async def __aenter__(self) -> "_FakeClient":
             return self
 
-        async def __aexit__(self, *args, **kwargs):
+        async def __aexit__(self, *args: object, **kwargs: object) -> None:
             return None
 
-        async def get(self, url):
+        async def get(self, url: str) -> _EmptyQuoteResponse:
             return _EmptyQuoteResponse()
 
     monkeypatch.setattr("app.services.quote_cache.httpx.AsyncClient", _FakeClient)
@@ -227,28 +227,28 @@ async def test_dashboard_quote_empty_quote(monkeypatch):
 
 
 @pytest.mark.anyio
-async def test_dashboard_quote_non_string_author(monkeypatch):
+async def test_dashboard_quote_non_string_author(monkeypatch) -> None:
     """Non-string author should be treated as None."""
     invalidate_quote_cache()
 
     class _NumAuthorResponse:
-        def raise_for_status(self):
+        def raise_for_status(self) -> None:
             pass
 
-        def json(self):
+        def json(self) -> dict[str, object]:
             return {"quote": "Hello", "author": 42}
 
     class _FakeClient:
-        def __init__(self, *args, **kwargs):
+        def __init__(self, *args: object, **kwargs: object) -> None:
             pass
 
-        async def __aenter__(self):
+        async def __aenter__(self) -> "_FakeClient":
             return self
 
-        async def __aexit__(self, *args, **kwargs):
+        async def __aexit__(self, *args: object, **kwargs: object) -> None:
             return None
 
-        async def get(self, url):
+        async def get(self, url: str) -> _NumAuthorResponse:
             return _NumAuthorResponse()
 
     monkeypatch.setattr("app.services.quote_cache.httpx.AsyncClient", _FakeClient)
@@ -258,7 +258,7 @@ async def test_dashboard_quote_non_string_author(monkeypatch):
     assert result.author is None
 
 
-def test_dashboard_quote_uses_backend_cache(client: TestClient, monkeypatch):
+def test_dashboard_quote_uses_backend_cache(client: TestClient, monkeypatch) -> None:
     invalidate_quote_cache()
     configure_quote_cache_ttl(86400)
     _ChangingFakeAsyncClient.calls = 0

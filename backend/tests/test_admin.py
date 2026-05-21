@@ -9,10 +9,13 @@ import io
 import json
 import sqlite3
 import zipfile
+from collections.abc import Generator
 from pathlib import Path
+from typing import Any, Callable
 
 import pytest
 from fastapi.testclient import TestClient
+from pytest import MonkeyPatch
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from app.auth import encrypt_api_key, generate_api_key, get_api_key_prefix, get_password_hash, hash_api_key
@@ -24,7 +27,7 @@ from app.services import backup_restore as br
 
 
 @pytest.fixture()
-def admin_client_with_file_db(tmp_path, monkeypatch):
+def admin_client_with_file_db(tmp_path: Path, monkeypatch: MonkeyPatch) -> Generator[tuple[TestClient, str], None, None]:
     """Yield a TestClient backed by a real file-based SQLite DB."""
     db_path = tmp_path / "admin_test.db"
     data_dir = tmp_path / "data"
@@ -83,9 +86,9 @@ def admin_client_with_file_db(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "import_temp_dir", str(import_temp_dir))
     monkeypatch.setattr(settings, "backup_temp_dir", str(backup_temp_dir))
 
-    def override_get_session():
-        with Session(file_engine) as session:
-            yield session
+    def override_get_session() -> Generator[Session, None, None]:
+        with Session(file_engine) as s:
+            yield s
 
     app.dependency_overrides[get_session] = override_get_session
 
@@ -110,7 +113,7 @@ def admin_client_with_file_db(tmp_path, monkeypatch):
 
 # ── Backup endpoint ───────────────────────────────────────────────────────────
 
-def test_admin_backup_download_success(admin_client_with_file_db):
+def test_admin_backup_download_success(admin_client_with_file_db: tuple[TestClient, str]) -> None:
     client, db_path = admin_client_with_file_db
 
     # Add a cover file so the backup contains data
@@ -138,7 +141,7 @@ def test_admin_backup_download_success(admin_client_with_file_db):
         assert meta["covers_count"] == 1
 
 
-def test_admin_backup_download_concurrent_lock(admin_client_with_file_db, monkeypatch):
+def test_admin_backup_download_concurrent_lock(admin_client_with_file_db: tuple[TestClient, str], monkeypatch: MonkeyPatch) -> None:
     client, _ = admin_client_with_file_db
 
     # Hold the lock manually
@@ -153,7 +156,7 @@ def test_admin_backup_download_concurrent_lock(admin_client_with_file_db, monkey
 
 # ── Validate-backup endpoint ──────────────────────────────────────────────────
 
-def test_admin_validate_backup_success(admin_client_with_file_db):
+def test_admin_validate_backup_success(admin_client_with_file_db: tuple[TestClient, str]) -> None:
     client, _ = admin_client_with_file_db
 
     buf = io.BytesIO()
@@ -171,7 +174,7 @@ def test_admin_validate_backup_success(admin_client_with_file_db):
     assert resp.json()["metadata"]["v"] == "1"
 
 
-def test_admin_validate_backup_missing_database(admin_client_with_file_db):
+def test_admin_validate_backup_missing_database(admin_client_with_file_db: tuple[TestClient, str]) -> None:
     client, _ = admin_client_with_file_db
 
     buf = io.BytesIO()
@@ -187,7 +190,7 @@ def test_admin_validate_backup_missing_database(admin_client_with_file_db):
     assert "missing database.db" in resp.json()["detail"]
 
 
-def test_admin_validate_backup_too_large(admin_client_with_file_db, monkeypatch):
+def test_admin_validate_backup_too_large(admin_client_with_file_db: tuple[TestClient, str], monkeypatch: MonkeyPatch) -> None:
     client, _ = admin_client_with_file_db
 
     import app.routers.admin as admin_module
@@ -204,7 +207,7 @@ def test_admin_validate_backup_too_large(admin_client_with_file_db, monkeypatch)
 
 # ── Restore endpoint ──────────────────────────────────────────────────────────
 
-def test_admin_restore_success(admin_client_with_file_db):
+def test_admin_restore_success(admin_client_with_file_db: tuple[TestClient, str]) -> None:
     """Full round-trip: backup -> modify DB -> restore -> verify original state."""
     client, db_path = admin_client_with_file_db
 
@@ -243,7 +246,7 @@ def test_admin_restore_success(admin_client_with_file_db):
     conn.close()
 
 
-def test_admin_restore_invalid_backup(admin_client_with_file_db):
+def test_admin_restore_invalid_backup(admin_client_with_file_db: tuple[TestClient, str]) -> None:
     client, _ = admin_client_with_file_db
 
     buf = io.BytesIO()
@@ -258,7 +261,7 @@ def test_admin_restore_invalid_backup(admin_client_with_file_db):
     assert "missing database.db" in resp.json()["detail"]
 
 
-def test_admin_restore_requires_admin(client: TestClient, create_user_with_key):
+def test_admin_restore_requires_admin(client: TestClient, create_user_with_key: Callable[..., tuple[User, str]]) -> None:
     """Non-admin users should get 403 on restore."""
     user, key = create_user_with_key(email="user@example.com", role=UserRole.user)
     client.headers["X-API-Key"] = key
@@ -277,10 +280,10 @@ def test_admin_restore_requires_admin(client: TestClient, create_user_with_key):
 
 # ── Unit tests for uncovered error branches ───────────────────────────────────
 
-def test_admin_backup_download_runtime_error(client: TestClient, monkeypatch):
+def test_admin_backup_download_runtime_error(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     import app.routers.admin as admin_module
 
-    def fake_create_backup(**kwargs):
+    def fake_create_backup(**kwargs: Any) -> bytes:
         raise RuntimeError("disk full")
 
     monkeypatch.setattr(admin_module, "create_backup", fake_create_backup)
@@ -290,10 +293,10 @@ def test_admin_backup_download_runtime_error(client: TestClient, monkeypatch):
     assert "Backup failed" in resp.json()["detail"]
 
 
-def test_admin_backup_download_generic_exception(client: TestClient, monkeypatch):
+def test_admin_backup_download_generic_exception(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     import app.routers.admin as admin_module
 
-    def fake_create_backup(**kwargs):
+    def fake_create_backup(**kwargs: Any) -> bytes:
         raise Exception("boom")
 
     monkeypatch.setattr(admin_module, "create_backup", fake_create_backup)
@@ -303,10 +306,10 @@ def test_admin_backup_download_generic_exception(client: TestClient, monkeypatch
     assert "Backup failed" in resp.json()["detail"]
 
 
-def test_admin_validate_backup_value_error(client: TestClient, monkeypatch):
+def test_admin_validate_backup_value_error(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     import app.routers.admin as admin_module
 
-    def fake_validate(contents):
+    def fake_validate(contents: bytes) -> dict[str, Any]:
         raise ValueError("bad zip")
 
     monkeypatch.setattr(admin_module, "validate_backup_zip", fake_validate)
@@ -323,7 +326,7 @@ def test_admin_validate_backup_value_error(client: TestClient, monkeypatch):
     assert "bad zip" in resp.json()["detail"]
 
 
-def test_admin_restore_too_large(client: TestClient, monkeypatch):
+def test_admin_restore_too_large(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     import app.routers.admin as admin_module
 
     monkeypatch.setattr(admin_module, "MAX_RESTORE_SIZE", 10)
@@ -336,10 +339,10 @@ def test_admin_restore_too_large(client: TestClient, monkeypatch):
     assert "exceeds maximum size" in resp.json()["detail"]
 
 
-def test_admin_restore_validate_value_error(client: TestClient, monkeypatch):
+def test_admin_restore_validate_value_error(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     import app.routers.admin as admin_module
 
-    def fake_validate(contents):
+    def fake_validate(contents: bytes) -> dict[str, Any]:
         raise ValueError("bad zip")
 
     monkeypatch.setattr(admin_module, "validate_backup_zip", fake_validate)
@@ -352,13 +355,13 @@ def test_admin_restore_validate_value_error(client: TestClient, monkeypatch):
     assert "bad zip" in resp.json()["detail"]
 
 
-def test_admin_restore_runtime_error(client: TestClient, monkeypatch):
+def test_admin_restore_runtime_error(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     import app.routers.admin as admin_module
 
-    def fake_validate(contents):
+    def fake_validate(contents: bytes) -> dict[str, Any]:
         return {"valid": True}
 
-    def fake_restore(**kwargs):
+    def fake_restore(**kwargs: Any) -> dict[str, Any]:
         raise RuntimeError("disk full")
 
     monkeypatch.setattr(admin_module, "validate_backup_zip", fake_validate)
@@ -372,13 +375,13 @@ def test_admin_restore_runtime_error(client: TestClient, monkeypatch):
     assert "disk full" in resp.json()["detail"]
 
 
-def test_admin_restore_generic_exception(client: TestClient, monkeypatch):
+def test_admin_restore_generic_exception(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     import app.routers.admin as admin_module
 
-    def fake_validate(contents):
+    def fake_validate(contents: bytes) -> dict[str, Any]:
         return {"valid": True}
 
-    def fake_restore(**kwargs):
+    def fake_restore(**kwargs: Any) -> dict[str, Any]:
         raise Exception("boom")
 
     monkeypatch.setattr(admin_module, "validate_backup_zip", fake_validate)
@@ -392,13 +395,13 @@ def test_admin_restore_generic_exception(client: TestClient, monkeypatch):
     assert "Restore failed" in resp.json()["detail"]
 
 
-def test_admin_restore_concurrent_lock(client: TestClient, monkeypatch):
+def test_admin_restore_concurrent_lock(client: TestClient, monkeypatch: MonkeyPatch) -> None:
     import app.routers.admin as admin_module
 
-    def fake_validate(contents):
+    def fake_validate(contents: bytes) -> dict[str, Any]:
         return {"valid": True}
 
-    def fake_restore(**kwargs):
+    def fake_restore(**kwargs: Any) -> dict[str, Any]:
         raise RuntimeError("already in progress")
 
     monkeypatch.setattr(admin_module, "validate_backup_zip", fake_validate)
