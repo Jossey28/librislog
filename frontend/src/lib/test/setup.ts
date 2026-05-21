@@ -1,0 +1,67 @@
+import { vi } from 'vitest';
+import '@testing-library/jest-dom/vitest';
+
+// --- Polyfill crypto.randomUUID for happy-dom ---
+if (typeof crypto !== 'undefined' && !crypto.randomUUID) {
+	// @ts-expect-error polyfill for testing environment
+	crypto.randomUUID = () => '00000000-0000-0000-0000-000000000000';
+}
+
+// --- Mock svelte-i18n ($lib/i18n) ---
+// Use a static translator based on English locale so tests can assert on real text.
+const enTranslations: Record<string, unknown> = (await import('$lib/i18n/locales/en.json')).default;
+
+function translate(key: string, options?: { values?: Record<string, unknown> }): string {
+	const keys = key.split('.');
+	let value: unknown = enTranslations;
+	for (const k of keys) {
+		value = (value as Record<string, unknown>)?.[k];
+	}
+	let result = typeof value === 'string' ? value : key;
+	if (options?.values) {
+		for (const [k, v] of Object.entries(options.values)) {
+			result = result.replace(new RegExp(`{${k}}`, 'g'), String(v));
+		}
+	}
+	return result;
+}
+
+vi.mock('$lib/i18n', async () => {
+	const { readable } = await import('svelte/store');
+	return {
+		_: readable(translate),
+		locale: readable('en'),
+		setupI18n: () => Promise.resolve(),
+		setLocale: () => {},
+		getConfiguredDefaultLocale: () => 'en',
+		SUPPORTED_LOCALES: ['en', 'de'] as const
+	};
+});
+
+// --- Mock $app/stores and $app/navigation ---
+vi.mock('$app/stores', async () => {
+	const { readable } = await import('svelte/store');
+	return {
+		page: readable({
+			url: new URL('http://localhost:5173/'),
+			params: {},
+			route: { id: null }
+		}),
+		navigating: readable(null)
+	};
+});
+
+vi.mock('$app/navigation', () => ({
+	goto: () => Promise.resolve(),
+	beforeNavigate: () => {},
+	afterNavigate: () => {},
+	onNavigate: () => () => {}
+}));
+
+// --- Reset DOM between tests ---
+import { cleanup } from '@testing-library/svelte';
+
+afterEach(() => {
+	cleanup();
+	vi.clearAllMocks();
+});
