@@ -8,7 +8,7 @@ A single-user book tracking webapp. Keep three reading lists (Want to Read, Curr
 |---|---|
 | Backend | FastAPI, SQLModel, SQLite, Alembic, Pydantic v2 |
 | Frontend | SvelteKit (SPA), Tailwind CSS v4, DaisyUI v5 |
-| Router | Traefik v3 |
+| Reverse proxy | nginx (in frontend container) |
 | Package manager | `uv` (Python), `npm` (Node) |
 
 ---
@@ -30,7 +30,7 @@ docker compose up --build -d
 
 Omitting the vars leaves the fallback `v0.0.0-dev` / `unknown`.
 
-The app is available at **http://localhost:8080**.
+The app is available at **http://localhost** (frontend) and the API at **http://localhost:8000** (backend).
 
 ---
 
@@ -90,7 +90,7 @@ See `.env.example` for all available variables:
 | Variable | Default | Description |
 |---|---|---|
 | `DATABASE_URL` | `sqlite:///./data/librislog.db` | SQLite database path |
-| `CORS_ORIGINS` | `http://localhost:5173` | Allowed CORS origins |
+| `CORS_ORIGINS` | `["http://localhost", "http://localhost:5173"]` | Allowed CORS origins |
 | `GOOGLE_BOOKS_API_KEY` | _(empty)_ | Optional Google Books API key |
 
 ---

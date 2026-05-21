@@ -1,16 +1,4 @@
 services:
-  traefik:
-    image: traefik:v3
-    command:
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
-    ports:
-      - "8080:80"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    restart: unless-stopped
-
   backend:
     build:
       context: ./backend
@@ -18,19 +6,15 @@ services:
         APP_VERSION: ${APP_VERSION:-v0.0.0-dev}
         GIT_SHA: ${GIT_SHA:-unknown}
     env_file: .env
+    ports:
+      - "8000:8000"
     volumes:
       - ./data:/app/data
-      - /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro
+      - /etc/ssl/certs/ca-certificates.crt:/etc/ssl/certs/ca-certificates.crt:ro # only needed if you use custom certificates in you environment
     environment:
-      REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt
-      SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+      REQUESTS_CA_BUNDLE: /etc/ssl/certs/ca-certificates.crt # only needed if you use custom certificates in you environment
+      SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt # only needed if you use custom certificates in you environment
     restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=PathPrefix(`/api/`)"
-      - "traefik.http.routers.backend.entrypoints=web"
-      - "traefik.http.routers.backend.priority=10"
-      - "traefik.http.services.backend.loadbalancer.server.port=8000"
 
   frontend:
     build:
@@ -39,15 +23,8 @@ services:
         PUBLIC_DEFAULT_LOCALE: ${PUBLIC_DEFAULT_LOCALE:-en}
         APP_VERSION: ${APP_VERSION:-v0.0.0-dev}
         GIT_SHA: ${GIT_SHA:-unknown}
-    restart: unless-stopped
+    ports:
+      - "80:80"
     depends_on:
       - backend
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
-      - "traefik.http.routers.frontend.entrypoints=web"
-      - "traefik.http.routers.frontend.priority=1"
-      - "traefik.http.services.frontend.loadbalancer.server.port=80"
-
-volumes:
-  db_data:
+    restart: unless-stopped
