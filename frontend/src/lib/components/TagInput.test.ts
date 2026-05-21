@@ -162,4 +162,100 @@ describe('TagInput', () => {
 
 		expect(screen.getByText('blurred')).toBeInTheDocument();
 	});
+
+	it('handles fetchSuggestions error gracefully', async () => {
+		const fetchSuggestions = vi.fn(async () => { throw new Error('Network error'); });
+
+		render(TagInput, { props: { value: '', fetchSuggestions } });
+
+		const input = screen.getByRole('textbox');
+		await fireEvent.input(input, { target: { value: 'test' } });
+		await vi.advanceTimersByTimeAsync(300);
+
+		expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+	});
+
+	it('clears suggestions when input becomes empty', async () => {
+		const fetchSuggestions = vi.fn(async () => ['result']);
+
+		render(TagInput, { props: { value: '', fetchSuggestions } });
+
+		const input = screen.getByRole('textbox');
+		await fireEvent.input(input, { target: { value: 'test' } });
+		await vi.advanceTimersByTimeAsync(300);
+
+		expect(screen.getByRole('listbox')).toBeInTheDocument();
+
+		await fireEvent.input(input, { target: { value: '' } });
+		expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+	});
+
+	it('selects suggestion on mouse click', async () => {
+		const fetchSuggestions = vi.fn(async () => ['alpha', 'beta']);
+
+		render(TagInput, { props: { value: '', fetchSuggestions } });
+
+		const input = screen.getByRole('textbox');
+		await fireEvent.input(input, { target: { value: 'al' } });
+		await vi.advanceTimersByTimeAsync(300);
+
+		const option = screen.getAllByRole('option')[0];
+		await fireEvent.mouseDown(option);
+
+		expect(screen.getByText('alpha')).toBeInTheDocument();
+	});
+
+	it('highlights suggestion on mouse enter', async () => {
+		const fetchSuggestions = vi.fn(async () => ['alpha', 'beta']);
+
+		render(TagInput, { props: { value: '', fetchSuggestions } });
+
+		const input = screen.getByRole('textbox');
+		await fireEvent.input(input, { target: { value: 'al' } });
+		await vi.advanceTimersByTimeAsync(300);
+
+		const options = screen.getAllByRole('option');
+		await fireEvent.mouseEnter(options[1]);
+
+		expect(options[1]).toHaveAttribute('aria-selected', 'true');
+	});
+
+	it('does not add tag when input is empty', async () => {
+		render(TagInput, { props: { value: '' } });
+
+		const input = screen.getByRole('textbox');
+		await fireEvent.keyDown(input, { key: 'Enter' });
+
+		expect(screen.queryByRole('button', { name: 'Remove' })).not.toBeInTheDocument();
+	});
+
+	it('does not add duplicate tag via suggestion', async () => {
+		const fetchSuggestions = vi.fn(async () => ['Fiction']);
+
+		render(TagInput, { props: { value: 'fiction', fetchSuggestions } });
+
+		const input = screen.getByRole('textbox');
+		await fireEvent.input(input, { target: { value: 'fic' } });
+		await vi.advanceTimersByTimeAsync(300);
+
+		const option = screen.getAllByRole('option')[0];
+		await fireEvent.mouseDown(option);
+
+		expect(screen.getAllByText(/fiction/i)).toHaveLength(1);
+	});
+
+	it('does not add tag beyond maxTagsCount via suggestion', async () => {
+		const fetchSuggestions = vi.fn(async () => ['extra']);
+
+		render(TagInput, { props: { value: 'one, two', maxTagsCount: 2, fetchSuggestions } });
+
+		const input = screen.getByRole('textbox');
+		await fireEvent.input(input, { target: { value: 'ext' } });
+		await vi.advanceTimersByTimeAsync(300);
+
+		const option = screen.getAllByRole('option')[0];
+		await fireEvent.mouseDown(option);
+
+		expect(screen.queryByText('extra')).not.toBeInTheDocument();
+	});
 });

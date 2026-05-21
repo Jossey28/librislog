@@ -113,4 +113,19 @@ describe('BookCard', () => {
 			container.remove();
 		}
 	});
+
+	it('does not show author when null', () => {
+		render(BookCard, {
+			props: { book: mockBook({ author: null }), onClick: vi.fn() }
+		});
+		expect(screen.queryByText('Jane Tester')).not.toBeInTheDocument();
+	});
+
+	it('shows progress bar at 100%', () => {
+		render(BookCard, {
+			props: { book: mockBook(), onClick: vi.fn(), currentPage: 300 }
+		});
+		const progress = document.querySelector('.bg-primary.rounded-full');
+		expect(progress).toHaveAttribute('style', expect.stringContaining('width: 100%'));
+	});
 });
