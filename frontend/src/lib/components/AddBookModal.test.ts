@@ -27,24 +27,27 @@ vi.mock('$lib/toasts', () => ({
 	}
 }));
 
-// Mock html5-qrcode for BarcodeScanner
-vi.mock('html5-qrcode', () => ({
-	Html5Qrcode: class MockHtml5Qrcode {
-		async start() {}
-		async stop() {}
-		clear() {}
-		static async getCameras() {
-			return [];
+// Mock html5-qrcode subpath imports for BarcodeScanner
+vi.mock('html5-qrcode/esm/core', () => {
+	const BaseLoggger = class {
+		log() {} warn() {} logError() {} logErrors() {}
+	};
+	return {
+		Html5QrcodeSupportedFormats: {
+			EAN_13: 9, EAN_8: 10, UPC_A: 14, UPC_E: 15, CODE_128: 5, QR_CODE: 0
+		},
+		BaseLoggger
+	};
+});
+
+vi.mock('html5-qrcode/esm/code-decoder', () => {
+	const Html5QrcodeShim = class {
+		constructor() {
+			this.decodeAsync = function () { return Promise.resolve({ text: '' }); };
 		}
-	},
-	Html5QrcodeSupportedFormats: {
-		EAN_13: 1,
-		EAN_8: 2,
-		UPC_A: 3,
-		UPC_E: 4,
-		CODE_128: 5
-	}
-}));
+	};
+	return { Html5QrcodeShim };
+});
 
 describe('AddBookModal', () => {
 	beforeEach(() => {
