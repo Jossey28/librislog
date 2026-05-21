@@ -29,6 +29,16 @@
 		}
 	}
 
+	function localizeError(err: unknown, fallback: string): string {
+		if (err instanceof Error) {
+			if (err.message.startsWith('error.')) {
+				return $_(err.message);
+			}
+			return err.message;
+		}
+		return fallback;
+	}
+
 	async function validateAndConfirmRestore() {
 		if (!restoreFile) return;
 		try {
@@ -40,7 +50,7 @@
 				toasts.add(validation.error || $_('admin.restore.invalidBackup'), 'error');
 			}
 		} catch (err: unknown) {
-			toasts.add(err instanceof Error ? err.message : $_('admin.restore.validationFailed'), 'error');
+			toasts.add(localizeError(err, $_('admin.restore.validationFailed')), 'error');
 		}
 	}
 
@@ -53,7 +63,7 @@
 			toasts.add($_('admin.restore.success', { values: { books: String(result.restored_books) } }), 'success');
 			setTimeout(() => window.location.reload(), 2000);
 		} catch (err: unknown) {
-			toasts.add(err instanceof Error ? err.message : $_('admin.restore.failed'), 'error');
+			toasts.add(localizeError(err, $_('admin.restore.failed')), 'error');
 		} finally {
 			restoreInProgress = false;
 			restoreFile = null;

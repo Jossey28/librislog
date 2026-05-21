@@ -22,9 +22,6 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
-MAX_RESTORE_SIZE: int = settings.max_restore_size_mb * 1024 * 1024
-
-
 @router.get("/backup")
 def backup_download(
     _admin: User = Depends(require_admin),
@@ -64,9 +61,7 @@ def validate_backup(
     _admin: User = Depends(require_admin),
 ):
     """Validate a backup ZIP without restoring it."""
-    contents = file.file.read(MAX_RESTORE_SIZE + 1)
-    if len(contents) > MAX_RESTORE_SIZE:
-        raise HTTPException(status_code=400, detail="Backup file exceeds maximum size")
+    contents = file.file.read()
 
     try:
         result = validate_backup_zip(contents)
@@ -85,9 +80,7 @@ def restore(
     _admin: User = Depends(require_admin),
 ):
     """Restore a backup ZIP, with automatic rollback on failure."""
-    contents = file.file.read(MAX_RESTORE_SIZE + 1)
-    if len(contents) > MAX_RESTORE_SIZE:
-        raise HTTPException(status_code=400, detail="Backup file exceeds maximum size")
+    contents = file.file.read()
 
     try:
         validation = validate_backup_zip(contents)

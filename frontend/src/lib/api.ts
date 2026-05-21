@@ -583,6 +583,9 @@ export const api = {
 				body: form
 			});
 			if (!res.ok) {
+				if (res.status === 413) {
+					throw new Error('error.fileTooLarge');
+				}
 				const detail = await res.json().catch(() => ({}));
 				throw new Error((detail as { detail?: string })?.detail ?? `HTTP ${res.status}`);
 			}
@@ -603,6 +606,9 @@ export const api = {
 				body: form
 			});
 			if (!res.ok) {
+				if (res.status === 413) {
+					throw new Error('error.fileTooLarge');
+				}
 				const detail = await res.json().catch(() => ({}));
 				throw new Error((detail as { detail?: string })?.detail ?? `HTTP ${res.status}`);
 			}

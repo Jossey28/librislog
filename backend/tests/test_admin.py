@@ -190,21 +190,6 @@ def test_admin_validate_backup_missing_database(admin_client_with_file_db: tuple
     assert "missing database.db" in resp.json()["detail"]
 
 
-def test_admin_validate_backup_too_large(admin_client_with_file_db: tuple[TestClient, str], monkeypatch: MonkeyPatch) -> None:
-    client, _ = admin_client_with_file_db
-
-    import app.routers.admin as admin_module
-    monkeypatch.setattr(admin_module, "MAX_RESTORE_SIZE", 1 * 1024 * 1024)
-    huge = b"x" * (2 * 1024 * 1024)  # 2 MB
-
-    resp = client.post(
-        "/api/admin/validate-backup",
-        files={"file": ("huge.zip", huge, "application/zip")},
-    )
-    assert resp.status_code == 400
-    assert "exceeds maximum size" in resp.json()["detail"]
-
-
 # ── Restore endpoint ──────────────────────────────────────────────────────────
 
 def test_admin_restore_success(admin_client_with_file_db: tuple[TestClient, str]) -> None:
@@ -324,19 +309,6 @@ def test_admin_validate_backup_value_error(client: TestClient, monkeypatch: Monk
     )
     assert resp.status_code == 400
     assert "bad zip" in resp.json()["detail"]
-
-
-def test_admin_restore_too_large(client: TestClient, monkeypatch: MonkeyPatch) -> None:
-    import app.routers.admin as admin_module
-
-    monkeypatch.setattr(admin_module, "MAX_RESTORE_SIZE", 10)
-
-    resp = client.post(
-        "/api/admin/restore",
-        files={"file": ("huge.zip", b"x" * 20, "application/zip")},
-    )
-    assert resp.status_code == 400
-    assert "exceeds maximum size" in resp.json()["detail"]
 
 
 def test_admin_restore_validate_value_error(client: TestClient, monkeypatch: MonkeyPatch) -> None:

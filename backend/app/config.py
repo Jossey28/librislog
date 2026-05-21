@@ -34,7 +34,6 @@ class Settings(BaseSettings):
     max_import_file_size_mb: int = 100
     max_import_row_count: int = 10000
     import_temp_dir: str = "./data/import_temp"
-    max_restore_size_mb: int = 500
     backup_temp_dir: str = "./data/backup_temp"
     data_dir: str = "./data"
     cover_candidate_timeout_seconds: int = 5
