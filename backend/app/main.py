@@ -1,3 +1,5 @@
+"""FastAPI application factory and middleware setup."""
+
 import asyncio
 import logging
 from contextlib import asynccontextmanager
@@ -18,6 +20,14 @@ configure_logging(settings.log_level)
 
 
 async def _periodic_temp_cleanup(interval_hours: int = 1) -> None:
+    """Periodically clean up stale temporary import files.
+
+    Runs every *interval_hours* hours. After three consecutive failures the
+    log level escalates from warning to error.
+
+    Args:
+        interval_hours: Hours between cleanup cycles. Defaults to 1.
+    """
     loop = asyncio.get_running_loop()
     failures = 0
     while True:
@@ -36,6 +46,7 @@ async def _periodic_temp_cleanup(interval_hours: int = 1) -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """Application lifespan: create required directories and start background tasks."""
     Path(settings.covers_dir).mkdir(parents=True, exist_ok=True)
     Path(settings.import_temp_dir).mkdir(parents=True, exist_ok=True)
     cleanup_temp_files()
@@ -67,15 +78,16 @@ app.add_middleware(
 
 
 def _clean_env_value(value: str) -> str:
+    """Strip inline comments and whitespace from an env-var string."""
     return value.split("#", 1)[0].strip()
 
 
-cookie_domain_raw = _clean_env_value(settings.auth_cookie_domain)
-cookie_domain = cookie_domain_raw or None
-cookie_samesite = _clean_env_value(settings.auth_cookie_samesite).lower()
+cookie_domain_raw: str = _clean_env_value(settings.auth_cookie_domain)
+cookie_domain: str | None = cookie_domain_raw or None
+cookie_samesite: str = _clean_env_value(settings.auth_cookie_samesite).lower()
 if cookie_samesite not in {"lax", "strict", "none"}:
     cookie_samesite = "lax"
-cookie_name = _clean_env_value(settings.auth_cookie_name) or "librislog_session"
+cookie_name: str = _clean_env_value(settings.auth_cookie_name) or "librislog_session"
 app.add_middleware(
     SessionMiddleware,
     secret_key=settings.api_key_encryption_key,

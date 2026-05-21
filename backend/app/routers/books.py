@@ -1,3 +1,5 @@
+"""Book CRUD, status transitions, suggestions, tag cloud, and dashboard quote endpoints."""
+
 import logging
 from datetime import datetime, timezone
 from typing import List, Literal, Optional
@@ -35,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/books", tags=["books"])
 
-STATUS_DEFAULT_SORT_COLUMN = {
+STATUS_DEFAULT_SORT_COLUMN: dict[ReadingStatus, object] = {
     ReadingStatus.want_to_read: Book.date_added,
     ReadingStatus.currently_reading: Book.date_started,
     ReadingStatus.read: Book.date_finished,
@@ -44,6 +46,7 @@ STATUS_DEFAULT_SORT_COLUMN = {
 
 
 def _utcnow() -> datetime:
+    """Return current UTC datetime (wrapper for testability)."""
     return utcnow()
 
 
@@ -53,6 +56,7 @@ def _apply_status_transition_dates(
     update_data: dict,
     skip_auto_date_started: bool = False,
 ) -> None:
+    """Auto-fill date_started / date_finished when transitioning to a new status."""
     if target_status == book.reading_status:
         return
 
@@ -68,6 +72,7 @@ def _apply_status_transition_dates(
 
 
 def _validate_dates(data: dict) -> None:
+    """Validate that date fields are not in the future and are logically ordered."""
     now = _utcnow()
     for field in ("date_started", "date_finished"):
         val = data.get(field)
@@ -91,6 +96,7 @@ def _validate_date_finished_for_read(
     update_data: dict,
     target_status: ReadingStatus,
 ) -> None:
+    """Ensure date_finished is not explicitly cleared while the book is read."""
     if "date_finished" not in update_data:
         return
     if update_data["date_finished"] is not None:
@@ -102,6 +108,7 @@ def _validate_date_finished_for_read(
 
 
 def _normalize_language(language: str | None) -> str | None:
+    """Normalize a language code to uppercase ISO 639-1, raising HTTP 422 on invalid input."""
     if language is None:
         return None
     normalized = language.strip().upper()
@@ -113,6 +120,7 @@ def _normalize_language(language: str | None) -> str | None:
 
 
 def _raise_integrity_conflict(exc: IntegrityError) -> None:
+    """Convert ISBN unique-constraint violations to HTTP 409."""
     message = str(exc.orig).lower() if exc.orig else str(exc).lower()
     if "book.isbn" in message and "unique" in message:
         raise HTTPException(status_code=409, detail="error.isbnAlreadyExists") from exc
@@ -133,13 +141,15 @@ def list_books(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> List[BookRead]:
+    """List books for the authenticated user with filtering, sorting, and pagination.
+
+    ``smart_sort`` overrides *sort*/*order* when a status filter is active:
+    want_to_read → date_added, currently_reading → date_started,
+    read → date_finished, did_not_finish → date_started (all descending).
+    """
     logger.debug(
         "list_books — status=%r q=%r sort=%s order=%s smart_sort=%s",
-        status,
-        q,
-        sort,
-        order,
-        smart_sort,
+        status, q, sort, order, smart_sort,
     )
     statement = select(Book).where(Book.user_id == current_user.id)
 
@@ -154,7 +164,7 @@ def list_books(
         )
         statement = statement.where(
             or_(
-                Book.title.ilike(pattern),  # type: ignore[union-attr]
+                Book.title.ilike(pattern),
                 Book.subtitle.ilike(pattern),
                 Book.author.ilike(pattern),
                 Book.blurb.ilike(pattern),
@@ -181,9 +191,9 @@ def list_books(
         sort_col = Book.date_added
         sort_order = order
 
-    sort_expression = sort_col.desc() if sort_order == "desc" else sort_col.asc()  # type: ignore[union-attr]
+    sort_expression = sort_col.desc() if sort_order == "desc" else sort_col.asc()
     if sort_col in (Book.date_started, Book.date_finished):
-        sort_expression = sort_expression.nullslast()  # type: ignore[assignment]
+        sort_expression = sort_expression.nullslast()
 
     statement = statement.order_by(sort_expression).offset(offset)
     if limit is not None:
@@ -199,6 +209,7 @@ def get_library_stats(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> LibraryStats:
+    """Return aggregate library statistics for the authenticated user."""
     total_books = session.exec(
         select(func.count()).select_from(Book).where(Book.user_id == current_user.id)
     ).one()
@@ -240,6 +251,10 @@ def get_library_stats(
 async def get_dashboard_quote(
     current_user: User = Depends(require_user),
 ) -> DashboardQuote | None:
+    """Return the cached dashboard quote or fetch a fresh one.
+
+    Raises HTTP 503 if the feature is disabled.
+    """
     if not settings.dashboard_quote_enabled:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -255,6 +270,7 @@ def get_tag_cloud(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> List[TagCloudEntry]:
+    """Return tags sorted by usage count (descending) for the authenticated user."""
     rows = session.exec(
         select(Tag.name, func.count(BookTag.book_id))
         .join(BookTag, BookTag.tag_id == Tag.id)
@@ -273,6 +289,7 @@ def _suggest_field(
     q: str,
     limit: int,
 ) -> list[str]:
+    """Return distinct values for a Book column matching the query."""
     if not q.strip():
         return []
     pattern = f"%{q}%"
@@ -298,6 +315,7 @@ def suggest_authors(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> SuggestionList:
+    """Autocomplete author names from the user's existing books."""
     suggestions = _suggest_field(session, current_user.id, "author", q, limit)
     return SuggestionList(suggestions=suggestions)
 
@@ -309,6 +327,7 @@ def suggest_publishers(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> SuggestionList:
+    """Autocomplete publisher names from the user's existing books."""
     suggestions = _suggest_field(session, current_user.id, "publisher", q, limit)
     return SuggestionList(suggestions=suggestions)
 
@@ -320,6 +339,7 @@ def suggest_tags(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> SuggestionList:
+    """Autocomplete tag names from the user's existing tags."""
     if not q.strip():
         return SuggestionList(suggestions=[])
     pattern = f"%{q}%"
@@ -342,6 +362,7 @@ async def create_book(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> BookRead:
+    """Create a new book, downloading the cover if an external URL is provided."""
     logger.debug("create_book — title=%r", book_in.title)
 
     cover_url = book_in.cover_url
@@ -389,6 +410,7 @@ def get_book(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> BookRead:
+    """Return a single book by ID (scoped to the authenticated user)."""
     logger.debug("get_book — id=%s", book_id)
     book = session.get(Book, book_id)
     if not book or book.user_id != current_user.id:
@@ -404,6 +426,7 @@ async def update_book(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> BookRead:
+    """Partially update a book, handling cover download and tag sync."""
     logger.debug("update_book — id=%s fields=%s", book_id, list(book_in.model_dump(exclude_unset=True)))
     book = session.get(Book, book_id)
     if not book or book.user_id != current_user.id:
@@ -417,7 +440,7 @@ async def update_book(
     tags_raw = update_data.pop("tags", None) if tags_provided else None
     target_status = update_data.get("reading_status", book.reading_status)
 
-    # Download external cover URL → local file.
+    # Download external cover URL -> local file.
     if "cover_url" in update_data and is_external_cover_url(update_data["cover_url"]):
         filename = await import_cover_from_url(
             update_data["cover_url"],
@@ -476,12 +499,10 @@ def transition_status(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> StatusTransitionResponse:
+    """Change a book's reading status with date-conflict detection and resolution."""
     logger.debug(
         "transition_status — id=%s new_status=%s force_date_started=%r force_date_finished=%r",
-        book_id,
-        transition.new_status,
-        transition.force_date_started,
-        transition.force_date_finished,
+        book_id, transition.new_status, transition.force_date_started, transition.force_date_finished,
     )
     book = session.get(Book, book_id)
     if not book or book.user_id != current_user.id:
@@ -577,10 +598,7 @@ def transition_status(
     ):
         update_data["date_finished"] = None
 
-    # Apply user-provided date overrides outside conflict paths
-    # (conflict paths handle force_* inside their own blocks before
-    # returning early, so by the time we reach here force_* values
-    # come from non-conflict user edits).
+    # Apply user-provided date overrides outside conflict paths.
     if transition.force_date_started is not None:
         update_data["date_started"] = transition.force_date_started
     if transition.force_date_finished is not None:
@@ -602,6 +620,7 @@ def delete_book(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> None:
+    """Delete a book, its tags, progress entries, and orphaned cover files."""
     logger.debug("delete_book — id=%s", book_id)
     book = session.get(Book, book_id)
     if not book or book.user_id != current_user.id:

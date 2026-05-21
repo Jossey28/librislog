@@ -18,9 +18,11 @@ def _dispose_engine() -> None:
 
 
 def create_db_and_tables() -> None:
+    """Create all database tables defined by SQLModel metadata."""
     SQLModel.metadata.create_all(engine)
 
 
 def get_session() -> Generator[Session, None, None]:
+    """Yield a SQLModel Session for the lifespan of the request."""
     with Session(engine) as session:
         yield session

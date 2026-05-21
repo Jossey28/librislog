@@ -10,12 +10,13 @@ import hashlib
 import logging
 import os
 from pathlib import Path
+from typing import Optional
 
 import httpx
 
 logger = logging.getLogger(__name__)
 
-_MIN_COVER_BYTES = 1_000
+_MIN_COVER_BYTES: int = 1_000
 
 _CONTENT_TYPE_TO_EXT: dict[str, str] = {
     "image/jpeg": ".jpg",
@@ -33,20 +34,14 @@ async def download_cover(
 ) -> str | None:
     """Download a cover image and persist it locally.
 
-    Parameters
-    ----------
-    url:
-        External URL of the cover image.
-    covers_dir:
-        Directory where cover files are stored.
-    client:
-        An ``httpx.AsyncClient`` to use for the download.
+    Args:
+        url: External URL of the cover image.
+        covers_dir: Directory where cover files are stored.
+        client: An httpx.AsyncClient to use for the download.
 
-    Returns
-    -------
-    str | None
+    Returns:
         The local filename (e.g. ``"abc123def456.jpg"``) on success, or
-        ``None`` if the download failed or the image did not pass validation.
+        None if the download failed or the image did not pass validation.
     """
     covers_path = Path(covers_dir)
 
@@ -98,7 +93,15 @@ async def download_cover(
 
 
 def local_cover_filename(cover_url: str | None) -> str | None:
-    """Extract a local cover filename from a stored `/api/covers/...` URL."""
+    """Extract a local cover filename from a stored ``/api/covers/...`` URL.
+
+    Args:
+        cover_url: A URL path like ``/api/covers/abc123.jpg`` or None.
+
+    Returns:
+        The filename portion (e.g. ``"abc123.jpg"``) or None if the URL does
+        not match the expected pattern.
+    """
     if not cover_url or not cover_url.startswith("/api/covers/"):
         return None
 
@@ -106,14 +109,30 @@ def local_cover_filename(cover_url: str | None) -> str | None:
 
 
 def safe_cover_filename(filename: str | None) -> str | None:
-    """Validate a cover filename and reject path traversal attempts."""
+    """Validate a cover filename and reject path traversal attempts.
+
+    Args:
+        filename: A candidate filename or None.
+
+    Returns:
+        The filename if safe, or None if it contains path separators or
+        parent directory references.
+    """
     if not filename or "/" in filename or "\\" in filename or ".." in filename:
         return None
     return filename
 
 
 def resolve_cover_path(covers_dir: str | Path, filename: str | None) -> Path | None:
-    """Return the absolute path for a safe cover filename."""
+    """Return the absolute path for a safe cover filename.
+
+    Args:
+        covers_dir: Directory where cover files are stored.
+        filename: A candidate filename or None.
+
+    Returns:
+        An absolute Path if the filename is safe, or None otherwise.
+    """
     safe_filename = safe_cover_filename(filename)
     if not safe_filename:
         return None
@@ -128,19 +147,13 @@ def save_uploaded_cover(
 ) -> str | None:
     """Persist an uploaded cover image locally.
 
-    Parameters
-    ----------
-    body:
-        Raw image bytes from the upload.
-    content_type:
-        MIME type declared by the client (e.g. ``"image/jpeg"``).
-    covers_dir:
-        Directory where cover files are stored.
+    Args:
+        body: Raw image bytes from the upload.
+        content_type: MIME type declared by the client (e.g. ``"image/jpeg"``).
+        covers_dir: Directory where cover files are stored.
 
-    Returns
-    -------
-    str | None
-        The local filename on success, or ``None`` if validation failed.
+    Returns:
+        The local filename on success, or None if validation failed.
     """
     ct = content_type.split(";")[0].strip()
     if not ct.startswith("image/"):
@@ -179,7 +192,15 @@ def save_uploaded_cover(
 
 
 def delete_cover_file(filename: str, covers_dir: str | Path) -> bool:
-    """Delete a cached cover file if it exists."""
+    """Delete a cached cover file if it exists.
+
+    Args:
+        filename: The cover filename to delete.
+        covers_dir: Directory where cover files are stored.
+
+    Returns:
+        True if the file was deleted or did not exist, False on error.
+    """
     path = resolve_cover_path(covers_dir, filename)
     if path is None:
         return False

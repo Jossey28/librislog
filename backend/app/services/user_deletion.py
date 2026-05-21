@@ -1,4 +1,7 @@
+"""User data and account deletion utilities."""
+
 from dataclasses import dataclass
+from typing import Optional
 
 from fastapi import HTTPException, status
 from sqlmodel import Session, func, select
@@ -10,12 +13,14 @@ from app.services.cover_storage import delete_cover_file, local_cover_filename
 
 @dataclass
 class ReadingDataDeletionCounts:
+    """Counts of items deleted during a reading-data or account deletion."""
     books: int
     tags: int
     progress_entries: int
 
 
 def assert_not_last_admin(session: Session, target_user: User) -> None:
+    """Raise HTTP 403 if *target_user* is the last remaining admin."""
     if target_user.role != UserRole.admin:
         return
     admin_count = session.exec(
@@ -29,6 +34,10 @@ def assert_not_last_admin(session: Session, target_user: User) -> None:
 
 
 def delete_user_reading_data(session: Session, user_id: int, covers_dir: str) -> ReadingDataDeletionCounts:
+    """Delete all reading data (books, tags, progress) for a user.
+
+    Cover files that are not shared with other users are also deleted.
+    """
     user_books = session.exec(select(Book).where(Book.user_id == user_id)).all()
     book_ids = [book.id for book in user_books if book.id is not None]
 
@@ -70,6 +79,10 @@ def delete_user_reading_data(session: Session, user_id: int, covers_dir: str) ->
 
 
 def delete_user_account_data(session: Session, user: User, covers_dir: str) -> ReadingDataDeletionCounts:
+    """Delete a user and all associated data.
+
+    Revokes API keys, unlinks OIDC, removes settings, then deletes the user.
+    """
     deletion_counts = delete_user_reading_data(session, user.id, covers_dir)
 
     for key in session.exec(select(ApiKey).where(ApiKey.user_id == user.id)).all():

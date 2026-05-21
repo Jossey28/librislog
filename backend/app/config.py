@@ -1,9 +1,12 @@
 from typing import List
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    """Application settings loaded from .env file with pydantic-settings."""
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     database_url: str = "sqlite:///./data/librislog.db"
@@ -43,6 +46,7 @@ class Settings(BaseSettings):
     @field_validator("api_key_encryption_key")
     @classmethod
     def validate_api_key_encryption_key(cls, value: str) -> str:
+        """Ensure the API key encryption key is set and not the default placeholder."""
         if not value.strip():
             raise ValueError("API_KEY_ENCRYPTION_KEY must be set")
         if value == "CHANGE_ME_TO_32PLUS_CHARS":
@@ -50,4 +54,4 @@ class Settings(BaseSettings):
         return value
 
 
-settings = Settings()
+settings: Settings = Settings()

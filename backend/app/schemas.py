@@ -1,3 +1,5 @@
+"""Pydantic / SQLModel request and response schemas for the API."""
+
 from typing import Optional
 from datetime import datetime
 from typing import Literal
@@ -9,10 +11,12 @@ from app.models import ReadingStatus, UserRole
 
 
 class ReadingProgressCreate(SQLModel):
+    """Request body to create a reading progress entry."""
     page: int = Field(ge=0)
 
 
 class ReadingProgressRead(SQLModel):
+    """Response schema for a reading progress entry."""
     id: int
     book_id: int
     page: int
@@ -21,11 +25,13 @@ class ReadingProgressRead(SQLModel):
 
 
 class ReadingProgressLatest(SQLModel):
+    """Latest reading progress for a single book."""
     book_id: int
     current_page: int
 
 
 class BookCreate(SQLModel):
+    """Request body to create a new book."""
     title: str
     subtitle: Optional[str] = None
     author: Optional[str] = None
@@ -45,6 +51,7 @@ class BookCreate(SQLModel):
 
 
 class BookUpdate(SQLModel):
+    """Request body to partially update a book."""
     title: Optional[str] = None
     subtitle: Optional[str] = None
     author: Optional[str] = None
@@ -80,6 +87,7 @@ class BookImportCandidate(SQLModel):
 
 
 class CoverCandidate(SQLModel):
+    """A single cover image candidate discovered by the auto-search."""
     source: str
     url: str
     available: bool
@@ -90,11 +98,13 @@ class CoverCandidate(SQLModel):
 
 
 class CoverCandidateList(SQLModel):
+    """List of cover candidates returned by the search endpoint."""
     candidates: list[CoverCandidate]
     query_isbn: str
 
 
 class CoverCandidateImportRequest(SQLModel):
+    """Request body to import a cover candidate by URL."""
     url: str
 
 
@@ -105,6 +115,7 @@ class BookImportRequest(SQLModel):
 
 
 class BookRead(SQLModel):
+    """Response schema for a single book."""
     id: int
     title: str
     subtitle: Optional[str]
@@ -126,15 +137,18 @@ class BookRead(SQLModel):
 
 
 class TagCloudEntry(SQLModel):
+    """A single tag with its usage count."""
     tag: str
     count: int
 
 
 class SuggestionList(SQLModel):
+    """List of autocomplete suggestions."""
     suggestions: list[str]
 
 
 class LibraryStats(SQLModel):
+    """Aggregated library statistics."""
     total_books: int
     books_read: int
     books_reading: int
@@ -143,16 +157,19 @@ class LibraryStats(SQLModel):
 
 
 class DashboardQuote(SQLModel):
+    """A motivational quote shown on the dashboard."""
     quote: str
     author: Optional[str] = None
 
 
 class LanguageDistribution(SQLModel):
+    """Language distribution entry."""
     language: Optional[str]
     count: int
 
 
 class StatusDistribution(SQLModel):
+    """Count of books per reading status."""
     want_to_read: int
     currently_reading: int
     read: int
@@ -160,39 +177,46 @@ class StatusDistribution(SQLModel):
 
 
 class PageBuckets(SQLModel):
+    """Page count buckets for the statistics dashboard."""
     pages_to_read: int
     pages_read: int
     pages_wasted: int
 
 
 class MonthlyPages(SQLModel):
+    """Pages read in a given month."""
     month: str
     pages: int
 
 
 class MonthlyBooks(SQLModel):
+    """Books finished in a given month."""
     month: str
     count: int
 
 
 class YearlyBooks(SQLModel):
+    """Books finished in a given year."""
     year: int
     count: int
 
 
 class TopAuthor(SQLModel):
+    """An author with the most books in the library."""
     author: str
     book_count: int
     covers: list["TopAuthorCover"]
 
 
 class TopAuthorCover(SQLModel):
+    """Cover reference for a book by a top author."""
     book_id: int
     reading_status: ReadingStatus
     cover_url: str
 
 
 class StatisticsResponse(SQLModel):
+    """Full statistics dashboard response."""
     avg_books_per_month: Optional[float]
     busiest_month: Optional[str]
     busiest_month_count: Optional[int]
@@ -209,11 +233,13 @@ class StatisticsResponse(SQLModel):
 
 
 class UserLogin(SQLModel):
+    """Login request body."""
     email: str
     password: str
 
 
 class SetupRequest(SQLModel):
+    """Initial admin setup request body."""
     firstname: str
     lastname: str
     email: str
@@ -221,6 +247,7 @@ class SetupRequest(SQLModel):
 
 
 class UserCreate(SQLModel):
+    """Admin-only user creation request."""
     firstname: str
     lastname: str
     email: str
@@ -229,6 +256,7 @@ class UserCreate(SQLModel):
 
 
 class UserRead(SQLModel):
+    """User read response."""
     id: int
     firstname: str
     lastname: str
@@ -238,6 +266,7 @@ class UserRead(SQLModel):
 
 
 class UserUpdate(SQLModel):
+    """Admin-only user update request."""
     firstname: Optional[str] = None
     lastname: Optional[str] = None
     email: Optional[str] = None
@@ -245,6 +274,7 @@ class UserUpdate(SQLModel):
 
 
 class ProfileUpdate(SQLModel):
+    """Profile update request (non-admin)."""
     model_config = ConfigDict(extra="forbid")
 
     firstname: Optional[str] = None
@@ -253,6 +283,7 @@ class ProfileUpdate(SQLModel):
 
 
 class UserAdminUpdate(SQLModel):
+    """Admin-only user update request with role support."""
     firstname: Optional[str] = None
     lastname: Optional[str] = None
     email: Optional[str] = None
@@ -261,6 +292,7 @@ class UserAdminUpdate(SQLModel):
 
 
 class UserSettingsRead(SQLModel):
+    """User settings read response."""
     user_id: int
     language: str
     timezone: str
@@ -268,30 +300,36 @@ class UserSettingsRead(SQLModel):
 
 
 class UserSettingsUpdate(SQLModel):
+    """User settings update request."""
     language: Optional[str] = None
     timezone: Optional[str] = None
 
 
 class ConfirmationPhrase(SQLModel):
+    """A confirmation phrase required for destructive actions."""
     confirmation: str
 
 
 class DataResetDeleted(SQLModel):
+    """Counts of deleted items after a data reset."""
     books: int
     tags: int
     progress_entries: int
 
 
 class DataResetResponse(SQLModel):
+    """Response after a data reset."""
     message: str
     deleted: DataResetDeleted
 
 
 class ApiKeyCreate(SQLModel):
+    """API key creation request."""
     description: Optional[str] = None
 
 
 class ApiKeyRead(SQLModel):
+    """API key read response (without the raw key value)."""
     id: int
     key_prefix: str
     description: Optional[str]
@@ -300,11 +338,13 @@ class ApiKeyRead(SQLModel):
 
 
 class ApiKeyCreateResponse(SQLModel):
+    """API key creation response containing the raw key (shown once)."""
     key: str
     api_key: ApiKeyRead
 
 
 class StatusTransitionRequest(SQLModel):
+    """Request body for changing a book's reading status."""
     new_status: ReadingStatus
     force_date_started: Optional[datetime] = None
     force_date_finished: Optional[datetime] = None
@@ -314,23 +354,27 @@ class StatusTransitionRequest(SQLModel):
 
 
 class DateConflict(SQLModel):
+    """Describes a date conflict in a status transition."""
     field: str
     existing_date: datetime
     suggested_date: datetime
 
 
 class StatusTransitionResponse(SQLModel):
+    """Response after a status transition, possibly with a date conflict."""
     book: BookRead
     date_conflict: Optional[DateConflict] = None
 
 
 class OidcConfigRead(SQLModel):
+    """OIDC provider configuration."""
     enabled: bool
     provider_id: Optional[str] = None
     provider_name: Optional[str] = None
 
 
 class OidcLinkRead(SQLModel):
+    """OIDC link status."""
     linked: bool
     provider_name: Optional[str] = None
     oidc_email: Optional[str] = None
@@ -338,15 +382,18 @@ class OidcLinkRead(SQLModel):
 
 
 class OidcLoginResponse(SQLModel):
+    """OIDC login response."""
     user: UserRead
 
 
 class DailyPages(SQLModel):
+    """Pages read on a single day."""
     date: str
     pages: int
 
 
 class DailyPagesResponse(SQLModel):
+    """Daily pages breakdown response."""
     data: list[DailyPages]
     total_days: int
     days_with_activity: int
@@ -354,11 +401,13 @@ class DailyPagesResponse(SQLModel):
 
 
 class DataExportRequest(SQLModel):
+    """Data export request body."""
     datasets: list[Literal["books", "progress", "tags", "covers"]]
     format: Literal["csv", "json"]
 
 
 class DataImportParseResponse(SQLModel):
+    """Response after parsing an uploaded import file."""
     file_id: str
     format: Literal["csv", "json"]
     source_fields: list[str]
@@ -367,12 +416,14 @@ class DataImportParseResponse(SQLModel):
 
 
 class DataImportMappingSave(SQLModel):
+    """Request body to save an import column mapping."""
     name: str
     source_fields: list[str]
     mapping: dict[str, str]
 
 
 class DataImportMappingRead(SQLModel):
+    """Saved import mapping read response."""
     id: int
     name: str
     source_fields: list[str]
@@ -382,6 +433,7 @@ class DataImportMappingRead(SQLModel):
 
 
 class DataImportMappingListItem(SQLModel):
+    """Summary of a saved import mapping for list views."""
     id: int
     name: str
     created_at: datetime
@@ -389,6 +441,7 @@ class DataImportMappingListItem(SQLModel):
 
 
 class DataImportRunRequest(SQLModel):
+    """Request body to execute an import."""
     file_id: str
     mapping: dict[str, str]
     import_mode: Literal["rollback_all", "continue_on_error"] = "rollback_all"
@@ -396,21 +449,25 @@ class DataImportRunRequest(SQLModel):
 
 
 class DataImportSuggestRequest(SQLModel):
+    """Request body to get a suggested mapping."""
     file_id: str
 
 
 class DataImportSuggestResponse(SQLModel):
+    """Suggested column mapping response."""
     suggested_mapping: dict[str, str]
     db_fields: list[str]
 
 
 class DataImportValidateRequest(SQLModel):
+    """Request body to validate an import."""
     file_id: str
     mapping: dict[str, str]
     create_progress_for_read: bool = False
 
 
 class DataImportValidateResponse(SQLModel):
+    """Import validation response."""
     valid: bool
     row_count: int
     warnings: list[str]
@@ -418,6 +475,7 @@ class DataImportValidateResponse(SQLModel):
 
 
 class DataImportExecuteResult(SQLModel):
+    """Import execution result summary."""
     imported: int
     failed: int
     failures: list[dict]

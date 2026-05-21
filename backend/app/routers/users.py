@@ -1,3 +1,5 @@
+"""Admin user management endpoints — list, create, update, delete users."""
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session, select
 
@@ -16,7 +18,11 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 
 
 @router.get("", response_model=list[UserRead])
-def list_users(_admin: User = Depends(require_admin), session: Session = Depends(get_session)) -> list[User]:
+def list_users(
+    _admin: User = Depends(require_admin),
+    session: Session = Depends(get_session),
+) -> list[User]:
+    """List all users (admin only)."""
     users = session.exec(select(User).order_by(User.created_at)).all()
     return list(users)
 
@@ -27,6 +33,7 @@ def create_user(
     _admin: User = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> dict:
+    """Create a new user (admin only)."""
     existing = session.exec(select(User).where(User.email == user_in.email)).first()
     if existing:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -56,13 +63,17 @@ def update_user(
     admin: User = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> User:
+    """Update a user's profile fields (admin only)."""
     user = session.get(User, user_id)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
     update_data = user_in.model_dump(exclude_unset=True)
     if admin.id == user_id and "role" in update_data and update_data["role"] != UserRole.admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot change your own admin role")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Cannot change your own admin role",
+        )
 
     if "email" in update_data and update_data["email"] != user.email:
         existing = session.exec(select(User).where(User.email == update_data["email"])).first()
@@ -86,8 +97,12 @@ def delete_user(
     admin: User = Depends(require_admin),
     session: Session = Depends(get_session),
 ) -> None:
+    """Delete a user account (admin only, cannot delete self)."""
     if admin.id == user_id:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="error.cannotDeleteOwnAccountHere")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="error.cannotDeleteOwnAccountHere",
+        )
 
     user = session.get(User, user_id)
     if not user:

@@ -1,3 +1,5 @@
+"""Authentication endpoints — login, logout, setup, session, and CSRF."""
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlmodel import Session, select
 
@@ -18,12 +20,18 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 @router.get("/setup-required")
 def setup_required(session: Session = Depends(get_session)) -> dict:
+    """Return whether initial admin setup is required."""
     admin = session.exec(select(User).where(User.role == UserRole.admin).limit(1)).first()
     return {"required": admin is None}
 
 
 @router.post("/setup")
-def setup(request: SetupRequest, http_request: Request, session: Session = Depends(get_session)) -> dict:
+def setup(
+    request: SetupRequest,
+    http_request: Request,
+    session: Session = Depends(get_session),
+) -> dict:
+    """Perform initial admin setup (creates the first admin user)."""
     admin_exists = session.exec(select(User).where(User.role == UserRole.admin).limit(1)).first()
     if admin_exists:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Setup already completed")
@@ -53,7 +61,12 @@ def setup(request: SetupRequest, http_request: Request, session: Session = Depen
 
 
 @router.post("/login")
-def login(credentials: UserLogin, http_request: Request, session: Session = Depends(get_session)) -> dict:
+def login(
+    credentials: UserLogin,
+    http_request: Request,
+    session: Session = Depends(get_session),
+) -> dict:
+    """Authenticate with email and password, starting a browser session."""
     user = session.exec(select(User).where(User.email == credentials.email)).first()
     if not user or not verify_password(credentials.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password")
@@ -64,17 +77,20 @@ def login(credentials: UserLogin, http_request: Request, session: Session = Depe
 
 @router.post("/logout")
 def logout(http_request: Request) -> dict:
+    """Clear the browser session."""
     clear_browser_session(http_request)
     return {"message": "Logged out"}
 
 
 @router.get("/me", response_model=UserRead)
 def me(current_user: User = Depends(require_user)) -> User:
+    """Return the currently authenticated user."""
     return current_user
 
 
 @router.get("/csrf")
 def csrf_token(request: Request) -> dict:
+    """Return the current CSRF token from the browser session."""
     token = request.session.get("csrf_token")
     if not token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")

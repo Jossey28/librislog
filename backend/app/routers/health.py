@@ -1,6 +1,9 @@
+"""Health check endpoint — database connectivity, schema, writable data dir, and quote service."""
+
 import logging
 import os as os_module
 from pathlib import Path
+from typing import Any
 
 from app._build_info import __git_sha__, __version__
 
@@ -19,6 +22,11 @@ router = APIRouter()
 
 @router.get("/api/health", tags=["meta"])
 async def health(db_session: Session = Depends(get_session)) -> dict:
+    """Return the health status of the application and its dependencies.
+
+    Checks: database connectivity, schema integrity, data directory writability,
+    and external quote service availability.
+    """
     checks: dict[str, dict] = {}
     overall_healthy = True
 

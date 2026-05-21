@@ -1,3 +1,7 @@
+"""Tag parsing, synchronization, and query helpers."""
+
+from typing import Optional
+
 from sqlmodel import Session, select
 
 from app.models import Book, BookTag, Tag
@@ -6,6 +10,14 @@ from app.time_utils import utcnow
 
 
 def parse_tags(raw_tags: str | None) -> list[str]:
+    """Parse and deduplicate a comma-separated tag string.
+
+    Args:
+        raw_tags: Comma-separated tag names or None.
+
+    Returns:
+        A list of normalized, unique tag name strings.
+    """
     if not raw_tags:
         return []
 
@@ -24,6 +36,16 @@ def parse_tags(raw_tags: str | None) -> list[str]:
 
 
 def sync_book_tags(session: Session, user_id: int, book_id: int, raw_tags: str | None) -> None:
+    """Synchronize the tag associations for a book to match *raw_tags*.
+
+    Creates new tags as needed and removes stale BookTag links.
+
+    Args:
+        session: Active database session.
+        user_id: Owner of the tags.
+        book_id: Target book.
+        raw_tags: Comma-separated tag names or None (clears all tags).
+    """
     parsed = parse_tags(raw_tags)
 
     existing_links = list(session.exec(select(BookTag).where(BookTag.book_id == book_id)).all())
@@ -58,6 +80,7 @@ def sync_book_tags(session: Session, user_id: int, book_id: int, raw_tags: str |
 
 
 def cleanup_orphan_tags(session: Session, user_id: int) -> None:
+    """Delete tags that are no longer associated with any book for this user."""
     tags = list(session.exec(select(Tag).where(Tag.user_id == user_id)).all())
     for tag in tags:
         has_link = session.exec(select(BookTag).where(BookTag.tag_id == tag.id)).first()
@@ -66,6 +89,7 @@ def cleanup_orphan_tags(session: Session, user_id: int) -> None:
 
 
 def tags_text_for_book(session: Session, book_id: int) -> str | None:
+    """Return a comma-separated tag string for a given book, or None."""
     names = list(
         session.exec(
             select(Tag.name)
@@ -80,6 +104,7 @@ def tags_text_for_book(session: Session, book_id: int) -> str | None:
 
 
 def build_book_read(session: Session, book: Book) -> BookRead:
+    """Build a BookRead response schema from a Book model, populating tags."""
     payload = book.model_dump()
     payload.pop("user_id", None)
     payload["tags"] = tags_text_for_book(session, book.id) if book.id is not None else None

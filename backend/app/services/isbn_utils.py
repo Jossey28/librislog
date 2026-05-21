@@ -1,10 +1,27 @@
-import re
+"""ISBN-13/ISBN-10 conversion and normalization utilities."""
 
-_ISBN10_RE = re.compile(r"^\d{9}[\dX]$")
-_ISBN13_RE = re.compile(r"^\d{13}$")
+import re
+from typing import Optional
+
+_ISBN10_RE: re.Pattern = re.compile(r"^\d{9}[\dX]$")
+_ISBN13_RE: re.Pattern = re.compile(r"^\d{13}$")
 
 
 def normalize_isbn(isbn: str) -> str:
+    """Normalize an ISBN to its ISBN-13 representation.
+
+    Strips whitespace and hyphens, then converts ISBN-10 to ISBN-13
+    if needed. Raises ValueError for invalid input.
+
+    Args:
+        isbn: Raw ISBN string (ISBN-10 or ISBN-13).
+
+    Returns:
+        Normalized ISBN-13 string.
+
+    Raises:
+        ValueError: If the input is not a valid ISBN.
+    """
     compact = re.sub(r"[^0-9Xx]", "", isbn).upper()
     if _ISBN13_RE.fullmatch(compact):
         return compact
@@ -18,6 +35,15 @@ def normalize_isbn(isbn: str) -> str:
 
 
 def isbn13_to_isbn10(isbn13: str) -> str | None:
+    """Convert an ISBN-13 starting with '978' to its ISBN-10 equivalent.
+
+    Args:
+        isbn13: A 13-digit ISBN-13 string.
+
+    Returns:
+        The 10-character ISBN-10 string (last char may be 'X'), or None
+        if conversion is not possible (non-978 prefix or invalid format).
+    """
     if not _ISBN13_RE.fullmatch(isbn13):
         return None
     if not isbn13.startswith("978"):

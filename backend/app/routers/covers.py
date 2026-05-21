@@ -1,6 +1,4 @@
-"""
-Router for serving and uploading locally cached cover images.
-"""
+"""Router for serving and uploading locally cached cover images."""
 
 import logging
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
@@ -19,7 +17,10 @@ router = APIRouter(prefix="/api/covers", tags=["covers"])
 
 
 @router.post("/upload")
-async def upload_cover(file: UploadFile = File(...), user: User = Depends(require_user)) -> dict:
+async def upload_cover(
+    file: UploadFile = File(...),
+    user: User = Depends(require_user),
+) -> dict:
     """Accept a multipart image upload and return its local cover URL.
 
     Returns ``{"cover_url": "/api/covers/<filename>"}`` on success, or
@@ -28,6 +29,7 @@ async def upload_cover(file: UploadFile = File(...), user: User = Depends(requir
     body = await file.read()
     content_type = file.content_type or ""
 
+    assert user.id is not None
     filename = save_uploaded_cover(body, content_type, settings.covers_dir, user.id)
     if filename is None:
         raise HTTPException(
@@ -41,8 +43,10 @@ async def upload_cover(file: UploadFile = File(...), user: User = Depends(requir
 
 @router.get("/{filename}")
 async def get_cover(filename: str) -> FileResponse:
-    """Serve a locally cached cover image by filename."""
-    # Path-traversal guard: reject any filename that tries to escape the directory.
+    """Serve a locally cached cover image by filename.
+
+    Path-traversal guard rejects filenames containing ``/``, ``\\``, or ``..``.
+    """
     if "/" in filename or "\\" in filename or ".." in filename:
         raise HTTPException(status_code=400, detail="Invalid filename.")
 
@@ -58,13 +62,21 @@ async def get_cover(filename: str) -> FileResponse:
 
 
 @router.post("/import-url")
-async def import_cover_url(payload: CoverCandidateImportRequest, user: User = Depends(require_user)) -> dict:
+async def import_cover_url(
+    payload: CoverCandidateImportRequest,
+    user: User = Depends(require_user),
+) -> dict:
+    """Download a cover image from an external URL and cache it locally.
+
+    The URL is validated against private/restricted IP ranges to prevent SSRF.
+    """
     url = payload.url.strip()
     if not (url.startswith("http://") or url.startswith("https://")):
         raise HTTPException(status_code=422, detail="Invalid cover URL")
     if not is_safe_cover_import_url(url):
         raise HTTPException(status_code=422, detail="URL points to restricted network range")
 
+    assert user.id is not None
     filename = await import_cover_from_url(
         url,
         settings.covers_dir,

@@ -1,3 +1,5 @@
+"""User profile endpoints — profile, settings, data reset, account deletion, API keys."""
+
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -28,23 +30,29 @@ from app.schemas import (
     UserSettingsUpdate,
 )
 from app.time_utils import utcnow
-from app.services.user_deletion import assert_not_last_admin, delete_user_account_data, delete_user_reading_data
+from app.services.user_deletion import (
+    assert_not_last_admin,
+    delete_user_account_data,
+    delete_user_reading_data,
+)
 
 router = APIRouter(prefix="/api/profile", tags=["profile"])
 logger = logging.getLogger(__name__)
 
 
-RESET_DATA_PHRASE = "DELETE ALL MY DATA"
-DELETE_ACCOUNT_PHRASE = "DELETE MY ACCOUNT"
+RESET_DATA_PHRASE: str = "DELETE ALL MY DATA"
+DELETE_ACCOUNT_PHRASE: str = "DELETE MY ACCOUNT"
 
 
 def _validate_confirmation(confirmation: str, expected_phrase: str) -> None:
+    """Validate that *confirmation* matches *expected_phrase* exactly."""
     if confirmation.strip() != expected_phrase:
         raise HTTPException(status_code=400, detail="error.invalidConfirmationPhrase")
 
 
 @router.get("", response_model=UserRead)
 def get_profile(current_user: User = Depends(require_user)) -> User:
+    """Return the current user's profile."""
     return current_user
 
 
@@ -54,6 +62,7 @@ def update_profile(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> User:
+    """Update the current user's profile fields."""
     update_data = user_in.model_dump(exclude_unset=True)
     if "password" in update_data:
         ensure_password_complexity(update_data["password"])
@@ -72,7 +81,10 @@ def get_settings(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> UserSettingsRead:
-    settings = session.exec(select(UserSettings).where(UserSettings.user_id == current_user.id)).first()
+    """Return the current user's settings."""
+    settings = session.exec(
+        select(UserSettings).where(UserSettings.user_id == current_user.id)
+    ).first()
     if not settings:
         settings = UserSettings(user_id=current_user.id, language="en")
         session.add(settings)
@@ -92,7 +104,10 @@ def update_settings(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> UserSettingsRead:
-    settings = session.exec(select(UserSettings).where(UserSettings.user_id == current_user.id)).first()
+    """Update the current user's settings."""
+    settings = session.exec(
+        select(UserSettings).where(UserSettings.user_id == current_user.id)
+    ).first()
     if not settings:
         settings = UserSettings(user_id=current_user.id, language="en")
     settings.sqlmodel_update(body.model_dump(exclude_unset=True))
@@ -129,10 +144,7 @@ def reset_data(
 
     logger.warning(
         "User %s reset personal data: books=%s tags=%s progress_entries=%s",
-        current_user.id,
-        deleted.books,
-        deleted.tags,
-        deleted.progress_entries,
+        current_user.id, deleted.books, deleted.tags, deleted.progress_entries,
     )
 
     return DataResetResponse(
@@ -176,8 +188,12 @@ def list_api_keys(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> list[ApiKeyRead]:
+    """List non-revoked API keys for the current user."""
     keys = session.exec(
-        select(ApiKey).where(ApiKey.user_id == current_user.id, ApiKey.revoked_at.is_(None))
+        select(ApiKey).where(
+            ApiKey.user_id == current_user.id,
+            ApiKey.revoked_at.is_(None),
+        )
     ).all()
     return [ApiKeyRead.model_validate(k) for k in keys]
 
@@ -188,6 +204,7 @@ def create_api_key(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> ApiKeyCreateResponse:
+    """Create a new API key for the current user."""
     plain_key = generate_api_key()
     key = ApiKey(
         user_id=current_user.id,
@@ -207,6 +224,7 @@ def delete_api_key(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> None:
+    """Revoke an API key by ID."""
     key = session.get(ApiKey, api_key_id)
     if not key or key.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="API key not found")

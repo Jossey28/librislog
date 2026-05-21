@@ -23,14 +23,14 @@ from app.services.isbn_utils import normalize_isbn
 
 logger = logging.getLogger(__name__)
 
-OPEN_LIBRARY_SEARCH_URL = "https://openlibrary.org/search.json"
-OPEN_LIBRARY_COVER_URL = "https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
+OPEN_LIBRARY_SEARCH_URL: str = "https://openlibrary.org/search.json"
+OPEN_LIBRARY_COVER_URL: str = "https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
 
-GOOGLE_BOOKS_SEARCH_URL = "https://www.googleapis.com/books/v1/volumes"
+GOOGLE_BOOKS_SEARCH_URL: str = "https://www.googleapis.com/books/v1/volumes"
 
-HARDCOVER_GRAPHQL_URL = "https://api.hardcover.app/v1/graphql"
+HARDCOVER_GRAPHQL_URL: str = "https://api.hardcover.app/v1/graphql"
 
-HARDCOVER_SEARCH_QUERY = """
+HARDCOVER_SEARCH_QUERY: str = """
 query SearchQuery($q: String!) {
   search(query: $q, query_type: "book", per_page: 1, page: 1) {
     results
@@ -38,7 +38,7 @@ query SearchQuery($q: String!) {
 }
 """
 
-HARDCOVER_BOOK_MAPPINGS_QUERY = """
+HARDCOVER_BOOK_MAPPINGS_QUERY: str = """
 query BookMappingsQuery($where: book_mappings_bool_exp!) {
   book_mappings(limit: 10, where: $where) {
     edition {
@@ -65,24 +65,26 @@ query BookMappingsQuery($where: book_mappings_bool_exp!) {
 """
 
 # 5xx codes that are worth retrying (transient backend / rate-limit errors)
-_RETRYABLE_STATUSES = {429, 500, 502, 503, 504}
-_MAX_RETRIES = 3          # up to 3 extra attempts after the first try
-_RETRY_BASE_DELAY = 1.0   # seconds — doubles each attempt (1 → 2 → 4)
+_RETRYABLE_STATUSES: set[int] = {429, 500, 502, 503, 504}
+_MAX_RETRIES: int = 3
+_RETRY_BASE_DELAY: float = 1.0
 
 # Google Books imageLinks size keys in preference order (largest first)
-_COVER_SIZE_PREFERENCE = ["extraLarge", "large", "medium", "small", "thumbnail", "smallThumbnail"]
-# Minimum acceptable file size — anything smaller is likely a placeholder/error page
-_MIN_COVER_BYTES = 1_000
+_COVER_SIZE_PREFERENCE: list[str] = ["extraLarge", "large", "medium", "small", "thumbnail", "smallThumbnail"]
+_MIN_COVER_BYTES: int = 1_000
 
 
 class SourceBackendError(Exception):
-    def __init__(self, source: Literal["open_library", "google_books"], status_code: int | None = None):
+    """Raised when an external book source returns an error response."""
+
+    def __init__(self, source: Literal["open_library", "google_books"], status_code: int | None = None) -> None:
         self.source = source
         self.status_code = status_code
         super().__init__(f"{source} backend error")
 
 
 def _truncate_api_key(api_key: str) -> str:
+    """Return a truncated version of an API key suitable for logging."""
     if not api_key:
         return "<empty>"
     if len(api_key) <= 8:
@@ -91,6 +93,7 @@ def _truncate_api_key(api_key: str) -> str:
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
+
 
 async def search_with_progress(
     query: str,
@@ -101,9 +104,7 @@ async def search_with_progress(
     mode: Literal["auto", "google_only"] = "auto",
     http_client: Optional[httpx.AsyncClient] = None,
 ) -> AsyncGenerator[dict, None]:
-    """
-    Async generator that performs the same search as search() but yields
-    progress events as dicts so the caller can stream them to the client.
+    """Search external book sources and yield progress events as dicts.
 
     Event shapes (stage / extra fields):
       open_library  / status=searching
@@ -119,6 +120,17 @@ async def search_with_progress(
       google_books  / status=error, reason=str
       complete      / results=list[dict]
       error         / message=str
+
+    Args:
+        query: Search query string.
+        search_type: ``"title"`` or ``"isbn"``.
+        api_key: Google Books API key (optional).
+        hardcover_api_token: Hardcover.app API token (optional).
+        mode: ``"auto"`` (OL + HC, fallback to GB) or ``"google_only"``.
+        http_client: Reusable httpx client (created internally if omitted).
+
+    Yields:
+        Progress event dicts, and finally a ``complete`` event with results.
     """
     logger.debug(
         "search_with_progress() called — query=%r search_type=%r has_api_key=%s has_hc_token=%s",
@@ -159,7 +171,7 @@ async def search_with_progress(
             if hardcover_api_token.strip():
                 yield {"stage": "hardcover", "status": "searching"}
 
-            async def _run_ol():
+            async def _run_ol() -> None:
                 nonlocal ol_results, ol_events
                 try:
                     r = await _search_open_library(query, search_type, client)
@@ -168,7 +180,7 @@ async def search_with_progress(
                 except SourceBackendError as exc:
                     ol_events.append({"stage": "open_library", "status": "error", "reason": "backend_error"})
 
-            async def _run_hc():
+            async def _run_hc() -> None:
                 nonlocal hc_results, hc_events
                 if not hardcover_api_token.strip():
                     hc_events.append({"stage": "hardcover", "status": "skipped", "reason": "no_api_token"})
@@ -227,7 +239,18 @@ async def search(
     hardcover_api_token: str = "",
     http_client: Optional[httpx.AsyncClient] = None,
 ) -> list[BookImportCandidate]:
-    """Search Open Library in parallel with Hardcover; fall back to Google Books if both empty."""
+    """Search Open Library in parallel with Hardcover; fall back to Google Books if both empty.
+
+    Args:
+        query: Search query string.
+        search_type: ``"title"`` or ``"isbn"``.
+        api_key: Google Books API key (optional).
+        hardcover_api_token: Hardcover.app API token (optional).
+        http_client: Reusable httpx client (created internally if omitted).
+
+    Returns:
+        A deduplicated list of BookImportCandidate objects.
+    """
     logger.debug("search() called — query=%r search_type=%r has_api_key=%s has_hc_token=%s",
                  query, search_type, bool(api_key), bool(hardcover_api_token))
 
@@ -284,13 +307,19 @@ async def search(
 
 # ── Open Library ──────────────────────────────────────────────────────────────
 
+
 async def _search_open_library(
     query: str,
     search_type: str,
     client: httpx.AsyncClient,
 ) -> list[BookImportCandidate]:
+    """Search Open Library by title or ISBN.
+
+    Raises:
+        SourceBackendError: On HTTP errors from Open Library.
+    """
     if search_type == "isbn":
-        params = {
+        params: dict = {
             "q": f"isbn:{query}",
             "fields": "title,author_name,isbn,publisher,first_publish_year,number_of_pages_median,subject,cover_i,language",
             "limit": 5,
@@ -367,12 +396,18 @@ def map_open_library(doc: dict) -> BookImportCandidate:
 
 # ── Google Books ──────────────────────────────────────────────────────────────
 
+
 async def _search_google_books(
     query: str,
     search_type: str,
     api_key: str,
     client: httpx.AsyncClient,
 ) -> list[BookImportCandidate]:
+    """Search Google Books by title or ISBN with retry logic for transient errors.
+
+    Raises:
+        SourceBackendError: On non-retryable HTTP errors.
+    """
     if search_type == "isbn":
         q = f"isbn:{query}"
     else:
@@ -456,10 +491,10 @@ async def _best_google_books_cover(
     fallback_url: str | None,
     client: httpx.AsyncClient,
 ) -> str | None:
-    """
-    Fetch the full volume record to get high-res imageLinks, then probe each
-    size URL (extraLarge → large → medium → small → thumbnail → smallThumbnail)
-    via a HEAD request.  A URL is accepted when it returns HTTP 200 with either:
+    """Fetch the full volume record to get high-res imageLinks, then probe each
+    size URL (extraLarge to smallThumbnail) via a HEAD request.
+
+    A URL is accepted when it returns HTTP 200 with either:
       - a content-type of image/* and no content-length (CDN omits it), or
       - a content-length exceeding _MIN_COVER_BYTES (filters placeholder pages).
     Falls back to the search-result thumbnail when nothing better is available.
@@ -567,13 +602,18 @@ def map_google_books(item: dict) -> BookImportCandidate:
 
 # ── Hardcover.app ──────────────────────────────────────────────────────────────
 
+
 async def _search_hardcover(
     query: str,
     search_type: str,
     api_token: str,
     client: httpx.AsyncClient,
 ) -> list[BookImportCandidate]:
-    """Search hardcover.app via GraphQL."""
+    """Search hardcover.app via GraphQL.
+
+    For title searches, first performs a search query to obtain ISBN-13 values,
+    then fetches full book metadata. For ISBN searches, fetches metadata directly.
+    """
     if not api_token.strip():
         return []
 
@@ -713,7 +753,10 @@ def _hardcover_dedup_key(edition: dict) -> tuple | None:
 
 
 def map_hardcover(edition: dict) -> BookImportCandidate | None:
-    """Map a hardcover edition node to BookImportCandidate."""
+    """Map a hardcover edition node to BookImportCandidate.
+
+    Returns None if the edition has no title.
+    """
     title = edition.get("title")
     if not title:
         return None
@@ -774,14 +817,17 @@ def map_hardcover(edition: dict) -> BookImportCandidate | None:
 
 # ── Merge / Deduplicate ───────────────────────────────────────────────────────
 
+
 def _merge_and_deduplicate(
     primary: list[BookImportCandidate],
     secondary: list[BookImportCandidate],
 ) -> list[BookImportCandidate]:
     """Merge two candidate lists, deduplicating by (isbn, page_count, language).
+
     Primary list items come first in the result.
-    Same ISBN with different page_count/language → kept as separate candidates.
-    When two candidates collide, the one with a cover image is preferred."""
+    Same ISBN with different page_count/language is kept as separate candidates.
+    When two candidates collide, the one with a cover image is preferred.
+    """
     seen: dict[str, BookImportCandidate] = {}
 
     def _key(c: BookImportCandidate) -> str:
@@ -803,6 +849,7 @@ def _merge_and_deduplicate(
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
+
 def _pick_isbn(isbns: list[str]) -> Optional[str]:
     """Return the first ISBN-13 found, or the first ISBN-10, or None."""
     for isbn in isbns:
@@ -817,6 +864,10 @@ def _pick_isbn(isbns: list[str]) -> Optional[str]:
 
 
 def _normalize_language_code(code: str | None) -> str | None:
+    """Convert an ISO language code (ISO 639-1 or 639-2) to uppercase ISO 639-1.
+
+    Returns None if the code cannot be resolved.
+    """
     if not code:
         return None
     normalized = code.strip().lower()

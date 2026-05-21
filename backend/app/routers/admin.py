@@ -1,4 +1,8 @@
+"""Admin-only backup, validation, and restore endpoints."""
+
 import logging
+from datetime import datetime, timezone
+from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
@@ -18,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
-MAX_RESTORE_SIZE = settings.max_restore_size_mb * 1024 * 1024
+MAX_RESTORE_SIZE: int = settings.max_restore_size_mb * 1024 * 1024
 
 
 @router.get("/backup")
@@ -26,6 +30,7 @@ def backup_download(
     _admin: User = Depends(require_admin),
     _session: Session = Depends(get_session),
 ):
+    """Create and download a full backup ZIP of the database, covers, and temp files."""
     try:
         data = create_backup(
             database_url=settings.database_url,
@@ -42,7 +47,6 @@ def backup_download(
         logger.exception("Backup failed")
         raise HTTPException(status_code=500, detail=f"Backup failed: {exc}")
 
-    from datetime import datetime, timezone
     timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H-%M-%SZ")
     return StreamingResponse(
         iter([data]),
@@ -59,6 +63,7 @@ def validate_backup(
     file: UploadFile,
     _admin: User = Depends(require_admin),
 ):
+    """Validate a backup ZIP without restoring it."""
     contents = file.file.read(MAX_RESTORE_SIZE + 1)
     if len(contents) > MAX_RESTORE_SIZE:
         raise HTTPException(status_code=400, detail="Backup file exceeds maximum size")
@@ -79,6 +84,7 @@ def restore(
     file: UploadFile,
     _admin: User = Depends(require_admin),
 ):
+    """Restore a backup ZIP, with automatic rollback on failure."""
     contents = file.file.read(MAX_RESTORE_SIZE + 1)
     if len(contents) > MAX_RESTORE_SIZE:
         raise HTTPException(status_code=400, detail="Backup file exceeds maximum size")

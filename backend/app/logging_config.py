@@ -10,8 +10,8 @@ Every other module obtains its logger with:
 
 import logging
 
-_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S"
+_FORMAT: str = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+_DATE_FORMAT: str = "%Y-%m-%dT%H:%M:%S"
 
 
 def configure_logging(level: str = "INFO") -> None:
@@ -19,6 +19,9 @@ def configure_logging(level: str = "INFO") -> None:
 
     uvicorn configures its own loggers separately; we leave those untouched so
     we don't end up with duplicate access-log lines.
+
+    Args:
+        level: Log level string (e.g. "INFO", "DEBUG"). Defaults to "INFO".
     """
     numeric = getattr(logging, level.upper(), logging.INFO)
 

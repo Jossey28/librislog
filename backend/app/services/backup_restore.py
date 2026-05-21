@@ -1,3 +1,5 @@
+"""Full backup and restore service — VACUUM INTO, ZIP creation, safety rollback."""
+
 import json
 import logging
 import os
@@ -16,15 +18,19 @@ from app.database import engine
 logger = logging.getLogger(__name__)
 
 
-TOTAL_MAX_EXTRACT_SIZE = 1024 * 1024 * 1024  # 1 GB
-MAX_EXTRACT_FILE_COUNT = 100_000
-MAX_SINGLE_FILE_SIZE = 500 * 1024 * 1024
+TOTAL_MAX_EXTRACT_SIZE: int = 1024 * 1024 * 1024  # 1 GB
+MAX_EXTRACT_FILE_COUNT: int = 100_000
+MAX_SINGLE_FILE_SIZE: int = 500 * 1024 * 1024
 
 _lock_fd: int | None = None
-_LOCK_FILE = "backup_restore.lock"
+_LOCK_FILE: str = "backup_restore.lock"
 
 
-def _recreate_engine():
+def _recreate_engine() -> None:
+    """Replace the global SQLAlchemy engine with a fresh one.
+
+    Called after restoring the database on disk so the app picks up the new data.
+    """
     from app.database import create_engine as _create_engine
     from sqlmodel import SQLModel
     import app.database as db_mod
@@ -37,6 +43,7 @@ def _recreate_engine():
 
 
 def _acquire_operation_lock() -> None:
+    """Acquire an exclusive file lock to prevent concurrent backup/restore."""
     global _lock_fd
     lock_path = os.path.join(settings.backup_temp_dir, _LOCK_FILE)
     Path(settings.backup_temp_dir).mkdir(parents=True, exist_ok=True)
@@ -51,6 +58,7 @@ def _acquire_operation_lock() -> None:
 
 
 def _release_operation_lock() -> None:
+    """Release the exclusive file lock."""
     global _lock_fd
     if _lock_fd is not None:
         import fcntl
@@ -63,12 +71,18 @@ def _release_operation_lock() -> None:
 
 
 def _extract_db_path(database_url: str) -> str:
+    """Extract the filesystem path from a ``sqlite:///`` URL."""
     if database_url.startswith("sqlite:///"):
         return database_url[len("sqlite:///"):]
     return database_url
 
 
 def _validate_zip_extraction(zf: ZipFile) -> None:
+    """Validate a ZIP archive against size and count limits.
+
+    Raises:
+        ValueError: If any limit is exceeded.
+    """
     total_size = 0
     for info in zf.infolist():
         if info.is_dir():
@@ -83,6 +97,11 @@ def _validate_zip_extraction(zf: ZipFile) -> None:
 
 
 def _safe_extract_path(dest_root: Path, arcname: str) -> Path:
+    """Resolve *arcname* relative to *dest_root*, rejecting path traversal.
+
+    Raises:
+        ValueError: On absolute paths, empty paths, or traversal attempts.
+    """
     if os.path.isabs(arcname):
         raise ValueError(f"Absolute path not allowed: {arcname}")
     parts = arcname.replace("\\", "/").split("/")
@@ -96,13 +115,14 @@ def _safe_extract_path(dest_root: Path, arcname: str) -> Path:
 
 
 def _vacuum_into_backup(database_url: str, dest_path: str) -> None:
+    """Run ``VACUUM INTO`` on the database to create a compact backup copy.
+
+    NOTE: sqlite3.connect() context manager manages transactions, NOT
+    the connection itself. Always use explicit conn.close() in a finally block.
+    """
     db_path = _extract_db_path(database_url)
     if not os.path.isfile(db_path):
         raise FileNotFoundError(f"Database file not found: {db_path}")
-    # NOTE: sqlite3.connect() context manager manages transactions (commit/rollback),
-    # NOT the connection itself. Using `with sqlite3.connect(...) as conn:` will
-    # leave the connection open, causing ResourceWarning. Always use explicit
-    # conn.close() in a finally block.
     conn = sqlite3.connect(db_path)
     try:
         conn.execute("VACUUM INTO ?", (dest_path,))
@@ -118,6 +138,17 @@ def create_backup(
     covers_dir: str,
     import_temp_dir: str,
 ) -> bytes:
+    """Create a full backup ZIP containing the database, covers, and import temp files.
+
+    Args:
+        database_url: SQLAlchemy database URL.
+        data_dir: Root data directory.
+        covers_dir: Cover storage directory.
+        import_temp_dir: Import temporary files directory.
+
+    Returns:
+        ZIP archive as bytes.
+    """
     _acquire_operation_lock()
     try:
         covers_path = Path(covers_dir)
@@ -174,6 +205,14 @@ def create_backup(
 
 
 def validate_backup_zip(zip_bytes: bytes) -> dict[str, Any]:
+    """Validate a backup ZIP archive without extracting it.
+
+    Args:
+        zip_bytes: Raw ZIP file bytes.
+
+    Returns:
+        A dict with ``"valid"`` bool and optional ``"error"`` or ``"metadata"``.
+    """
     metadata: dict[str, Any] = {}
     has_database = False
     has_data = False
@@ -206,6 +245,7 @@ def validate_backup_zip(zip_bytes: bytes) -> dict[str, Any]:
 
 
 def _save_safety_backup(database_url: str, data_dir: str) -> str:
+    """Copy the current data directory to a temporary safety backup before restoring."""
     safety_dir = tempfile.mkdtemp(prefix="librislog_safety_", dir=data_dir)
     db_path = _extract_db_path(database_url)
     if os.path.isfile(db_path):
@@ -227,6 +267,7 @@ def _save_safety_backup(database_url: str, data_dir: str) -> str:
 
 
 def _rollback_safety_backup(safety_dir: str, database_url: str, data_dir: str) -> None:
+    """Restore files from the safety backup directory."""
     db_path = _extract_db_path(database_url)
     safety_db = os.path.join(safety_dir, "database.db")
     if os.path.isfile(safety_db):
@@ -245,6 +286,7 @@ def _rollback_safety_backup(safety_dir: str, database_url: str, data_dir: str) -
 
 
 def _cleanup_safety_backup(safety_dir: str) -> None:
+    """Remove the safety backup directory."""
     try:
         shutil.rmtree(safety_dir)
     except OSError as exc:
@@ -258,6 +300,18 @@ def restore_backup(
     covers_dir: str,
     import_temp_dir: str,
 ) -> dict[str, Any]:
+    """Restore a backup ZIP archive, with rollback on failure.
+
+    Args:
+        backup_zip_bytes: Raw backup ZIP file bytes.
+        database_url: SQLAlchemy database URL.
+        data_dir: Root data directory.
+        covers_dir: Cover storage directory.
+        import_temp_dir: Import temporary files directory.
+
+    Returns:
+        A dict with ``"restored_books"`` and ``"restored_covers"`` counts.
+    """
     _acquire_operation_lock()
     try:
         safety_dir = _save_safety_backup(database_url, data_dir)

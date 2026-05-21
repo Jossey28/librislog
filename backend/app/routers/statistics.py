@@ -1,7 +1,10 @@
+"""Statistics dashboard — full stats, pages-per-day breakdown, and book-level fallback."""
+
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from statistics import mean
 from types import SimpleNamespace
+from typing import Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import APIRouter, Depends, Query
@@ -29,6 +32,7 @@ router = APIRouter(prefix="/api/statistics", tags=["statistics"])
 
 
 def _user_timezone(session: Session, user_id: int) -> ZoneInfo:
+    """Return the user's configured timezone, falling back to UTC."""
     settings = session.exec(select(UserSettings).where(UserSettings.user_id == user_id)).first()
     timezone_name = settings.timezone if settings and settings.timezone else "UTC"
     try:
@@ -38,11 +42,13 @@ def _user_timezone(session: Session, user_id: int) -> ZoneInfo:
 
 
 def _month_key(dt: datetime, tz: ZoneInfo) -> str:
+    """Format a datetime as ``YYYY-MM`` in the given timezone."""
     local = dt.astimezone(tz)
     return f"{local.year:04d}-{local.month:02d}"
 
 
 def _month_range(start_key: str, end_key: str) -> list[str]:
+    """Generate a list of ``YYYY-MM`` keys from *start_key* to *end_key* inclusive."""
     start_year, start_month = map(int, start_key.split("-"))
     end_year, end_month = map(int, end_key.split("-"))
     keys: list[str] = []
@@ -56,9 +62,8 @@ def _month_range(start_key: str, end_key: str) -> list[str]:
     return keys
 
 
-def _extract_progress_daily_pages(
-    entries: list, tz: ZoneInfo
-) -> Counter[str]:
+def _extract_progress_daily_pages(entries: list, tz: ZoneInfo) -> Counter[str]:
+    """Distribute reading progress page-deltas across calendar days."""
     daily: Counter[str] = Counter()
     grouped: dict[int, list] = {}
     for entry in entries:
@@ -84,6 +89,7 @@ def _extract_progress_daily_pages(
 
 
 def _extract_book_level_daily_pages(books: list[Book], tz: ZoneInfo) -> Counter[str]:
+    """Distribute page counts across the reading period for books finished without progress entries."""
     daily: Counter[str] = Counter()
     for book in books:
         if not (book.date_started and book.date_finished and book.page_count):
@@ -108,6 +114,11 @@ def get_pages_per_day(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> DailyPagesResponse:
+    """Return a daily page-count breakdown for the last N days.
+
+    Combines reading progress entries with book-level fallback for finished
+    books that have no fine-grained progress entries.
+    """
     tz = _user_timezone(session, current_user.id)
     end_date = datetime.now(tz)
     start_date = end_date - timedelta(days=days)
@@ -185,6 +196,7 @@ def get_statistics(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> StatisticsResponse:
+    """Return the full statistics dashboard for the authenticated user."""
     tz = _user_timezone(session, current_user.id)
     books = list(session.exec(select(Book).where(Book.user_id == current_user.id)).all())
 
@@ -312,7 +324,6 @@ def get_statistics(
 
         covers_by_author: dict[str, list[TopAuthorCover]] = {}
         for author_name in top_author_names:
-            # Multiple books by the same author can share cover_url; distinct keeps the stack diverse.
             author_cover_rows = session.exec(
                 select(Book.id, Book.reading_status, Book.cover_url)
                 .where(

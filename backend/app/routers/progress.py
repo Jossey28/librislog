@@ -1,3 +1,5 @@
+"""Reading progress CRUD endpoints and batch latest-progress query."""
+
 import logging
 from typing import List
 
@@ -22,6 +24,10 @@ def create_progress_entry(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> ReadingProgressRead:
+    """Record a reading progress entry (page reached) for a book.
+
+    The page must not exceed the book's page_count (if set).
+    """
     book = session.get(Book, book_id)
     if not book or book.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -56,6 +62,7 @@ def list_progress_entries(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> List[ReadingProgressRead]:
+    """List all progress entries for a book, newest first."""
     book = session.get(Book, book_id)
     if not book or book.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -87,6 +94,7 @@ def delete_progress_entry(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> None:
+    """Delete a single progress entry."""
     entry = session.get(ReadingProgress, entry_id)
     if not entry or entry.book_id != book_id or entry.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Progress entry not found")
@@ -102,6 +110,7 @@ def get_latest_progress_batch(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> List[ReadingProgressLatest]:
+    """Return the latest progress page for each book in a comma-separated list of IDs."""
     ids = [int(i.strip()) for i in book_ids.split(",") if i.strip()]
     if not ids:
         return []

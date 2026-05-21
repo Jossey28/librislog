@@ -1,3 +1,5 @@
+"""External book search and import endpoints — search, stream, and persist candidates."""
+
 import json
 import logging
 from typing import List, Literal
@@ -23,6 +25,7 @@ router = APIRouter(prefix="/api/import", tags=["import"])
 
 
 def _raise_integrity_conflict(exc: IntegrityError) -> None:
+    """Convert ISBN unique-constraint violations to HTTP 409."""
     message = str(exc.orig).lower() if exc.orig else str(exc).lower()
     if "book.isbn" in message and "unique" in message:
         raise HTTPException(status_code=409, detail="error.isbnAlreadyExists") from exc
@@ -30,6 +33,7 @@ def _raise_integrity_conflict(exc: IntegrityError) -> None:
 
 
 def _normalize_language(language: str | None) -> str | None:
+    """Normalize a language code to uppercase ISO 639-1, raising HTTP 422 on invalid input."""
     if language is None:
         return None
     normalized = language.strip().upper()
@@ -67,7 +71,11 @@ async def search_books_stream(
     mode: Literal["auto", "google_only"] = Query(default="auto"),
     _user: User = Depends(require_user),
 ) -> StreamingResponse:
-    """Stream import search progress as Server-Sent Events (text/event-stream)."""
+    """Stream import search progress as Server-Sent Events (text/event-stream).
+
+    Yields progress events for each source (open_library, hardcover, google_books)
+    and finally a ``complete`` event with the merged results.
+    """
     logger.debug("Stream search request — q=%r type=%r", q, type)
 
     async def event_generator():
@@ -98,7 +106,10 @@ async def import_book(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> BookRead:
-    """Persist an import candidate into the local database."""
+    """Persist an import candidate into the local database.
+
+    Checks for duplicate ISBNs, downloads cover images, and syncs tags.
+    """
     c = body.candidate
 
     # Reject duplicates by ISBN when an ISBN is present

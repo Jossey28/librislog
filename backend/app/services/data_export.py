@@ -1,8 +1,11 @@
+"""Data export service — builds ZIP archives with CSV or JSON datasets."""
+
 import csv
 import io
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from sqlmodel import Session, select
@@ -13,7 +16,7 @@ from app.time_utils import utcnow
 from app.services.cover_storage import local_cover_filename, resolve_cover_path
 from app.services.tags import tags_text_for_book
 
-BOOK_CSV_FIELDS = [
+BOOK_CSV_FIELDS: list[str] = [
     "title",
     "subtitle",
     "author",
@@ -33,17 +36,19 @@ BOOK_CSV_FIELDS = [
     "cover_url",
 ]
 
-PROGRESS_CSV_FIELDS = ["book_id", "book_title", "page", "created_at", "updated_at"]
-TAG_CSV_FIELDS = ["id", "name", "book_count", "created_at"]
+PROGRESS_CSV_FIELDS: list[str] = ["book_id", "book_title", "page", "created_at", "updated_at"]
+TAG_CSV_FIELDS: list[str] = ["id", "name", "book_count", "created_at"]
 
 
 def _serialize_datetime(value: datetime | None) -> str | None:
+    """Format a datetime as ISO-8601 with trailing Z."""
     if value is None:
         return None
     return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
 def _book_to_dict(session: Session, book: Book) -> dict:
+    """Convert a Book model to a flat export dict."""
     return {
         "title": book.title,
         "subtitle": book.subtitle,
@@ -66,6 +71,7 @@ def _book_to_dict(session: Session, book: Book) -> dict:
 
 
 def _progress_to_dict(entry: ReadingProgress, book_titles: dict[int, str]) -> dict:
+    """Convert a ReadingProgress entry to a flat export dict."""
     return {
         "book_id": entry.book_id,
         "book_title": book_titles.get(entry.book_id),
@@ -76,6 +82,7 @@ def _progress_to_dict(entry: ReadingProgress, book_titles: dict[int, str]) -> di
 
 
 def _tag_to_dict(tag: Tag, counts: dict[int, int]) -> dict:
+    """Convert a Tag model to a flat export dict."""
     return {
         "id": tag.id,
         "name": tag.name,
@@ -85,6 +92,7 @@ def _tag_to_dict(tag: Tag, counts: dict[int, int]) -> dict:
 
 
 def _dump_csv(rows: list[dict], fields: list[str]) -> str:
+    """Render a list of dicts as a CSV string."""
     out = io.StringIO()
     writer = csv.DictWriter(out, fieldnames=fields)
     writer.writeheader()
@@ -100,6 +108,18 @@ def build_export_zip(
     export_format: str,
     covers_dir: str,
 ) -> tuple[bytes, str]:
+    """Build a ZIP archive containing the requested datasets.
+
+    Args:
+        session: Active DB session.
+        user: The user whose data to export.
+        datasets: List of dataset names (``"books"``, ``"progress"``, ``"tags"``, ``"covers"``).
+        export_format: ``"csv"`` or ``"json"``.
+        covers_dir: Path to the cover storage directory.
+
+    Returns:
+        Tuple of ``(zip_bytes, filename)``.
+    """
     now = utcnow()
     timestamp = now.strftime("%Y-%m-%dT%H-%M-%SZ")
     filename = f"librislog-export-{timestamp}.zip"

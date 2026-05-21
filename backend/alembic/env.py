@@ -1,8 +1,14 @@
+"""Alembic migration environment configuration.
+
+Imports SQLModel metadata and all table models so Alembic can autogenerate
+migrations. The database URL is overridden from app settings to keep a single
+source of truth.
+"""
+
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
-
 from alembic import context
 
 # this is the Alembic Config object, which provides
@@ -27,7 +33,11 @@ config.set_main_option("sqlalchemy.url", settings.database_url)
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode."""
+    """Run migrations in 'offline' mode.
+
+    Offline mode generates SQL scripts without connecting to a database.
+    This is useful for code review or when the database is not reachable.
+    """
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -41,7 +51,11 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode."""
+    """Run migrations in 'online' mode.
+
+    Online mode connects directly to the database and executes migrations
+    against the live schema.
+    """
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

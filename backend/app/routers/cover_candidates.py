@@ -1,5 +1,8 @@
+"""Cover auto-search endpoint — probes AbeBooks, OpenLibrary, Amazon, Hardcover, Thalia."""
+
 import asyncio
 import logging
+from typing import Optional
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -15,13 +18,14 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/cover-candidates", tags=["cover-candidates"])
 
-_PROBE_SEMAPHORE = asyncio.Semaphore(20)
+_PROBE_SEMAPHORE: asyncio.Semaphore = asyncio.Semaphore(20)
 
-_THALIA_SEMAPHORE = asyncio.Semaphore(3)
-_THALIA_FETCHER_CLASS = None
+_THALIA_SEMAPHORE: asyncio.Semaphore = asyncio.Semaphore(3)
+_THALIA_FETCHER_CLASS: object = None
 
 
-def _get_thalia_fetcher_class():
+def _get_thalia_fetcher_class() -> object:
+    """Lazily import and configure the Scrapling Fetcher for Thalia.de."""
     global _THALIA_FETCHER_CLASS
     if _THALIA_FETCHER_CLASS is None:
         from pathlib import Path
@@ -37,12 +41,11 @@ def _get_thalia_fetcher_class():
     return _THALIA_FETCHER_CLASS
 
 
-def _extract_css_adaptive(page, selector: str, attr: str | None = None):
-    """
-    Extract a CSS value with adaptive fallback.
+def _extract_css_adaptive(page: object, selector: str, attr: str | None = None) -> str | None:
+    """Extract a CSS value with adaptive fallback.
 
-    First tries exact selector with auto_save (to refresh stored fingerprint).
-    If the selector returns nothing, retries with adaptive=True to re-find
+    First tries exact selector with ``auto_save`` (to refresh stored fingerprint).
+    If the selector returns nothing, retries with ``adaptive=True`` to re-find
     elements after website structure changes.
 
     When *attr* is given, extracts that attribute from the matched element.
@@ -74,6 +77,7 @@ def _extract_css_adaptive(page, selector: str, attr: str | None = None):
 
 
 def _rewrite_thalia_image_url(url: str) -> str | None:
+    """Rewrite a Thalia image URL to use the higher-resolution variant."""
     if not url.startswith("https://images.thalia.media/"):
         logger.debug("thalia URL does not match expected pattern: %s", url)
         return None
@@ -91,6 +95,10 @@ def _rewrite_thalia_image_url(url: str) -> str | None:
 
 
 def _fetch_thalia_page_sync(isbn13: str, timeout_seconds: int) -> str | None:
+    """Fetch a Thalia.de search page synchronously and extract the cover image URL.
+
+    Uses the Scrapling Fetcher with browser impersonation.
+    """
     search_url = f"https://www.thalia.de/suche?sq={isbn13}"
 
     try:
@@ -166,6 +174,7 @@ async def _probe_thalia_candidate(
     min_size_bytes: int,
     timeout_seconds: int,
 ) -> CoverCandidate:
+    """Probe Thalia.de for a cover image candidate by ISBN-13."""
     async with _THALIA_SEMAPHORE:
         image_url = await asyncio.to_thread(_fetch_thalia_page_sync, isbn13, timeout_seconds)
 
@@ -192,6 +201,7 @@ async def _query_hardcover_graphql(
     client: httpx.AsyncClient,
     api_token: str,
 ) -> str | None:
+    """Query the Hardcover.app GraphQL API for a cover image URL by ISBN-13."""
     query = """
     query CoverQuery($isbn: String!) {
       book_mappings(limit: 1, where: {edition: {isbn_13: {_eq: $isbn}}}) {
@@ -250,6 +260,7 @@ async def _probe_hardcover_candidate(
     api_token: str,
     min_size_bytes: int,
 ) -> CoverCandidate:
+    """Probe Hardcover.app for a cover image candidate by ISBN-13."""
     image_url = await _query_hardcover_graphql(isbn13, client, api_token)
 
     if not image_url:
@@ -276,6 +287,12 @@ async def _probe_candidate(
     client: httpx.AsyncClient,
     min_size_bytes: int,
 ) -> CoverCandidate:
+    """Probe a single cover image URL with a HEAD request and build a CoverCandidate.
+
+    The candidate is considered available when the server returns HTTP 200 with
+    an ``image/*`` content-type and a content-length at least *min_size_bytes*
+    (or missing content-length — some CDNs omit it).
+    """
     try:
         async with _PROBE_SEMAPHORE:
             resp = await client.head(url, follow_redirects=False)
@@ -295,14 +312,7 @@ async def _probe_candidate(
 
         logger.debug(
             "cover probe source=%s url=%s status=%s content_type=%s filesize=%s is_image=%s large_enough=%s available=%s",
-            source,
-            url,
-            status_code,
-            content_type,
-            filesize,
-            is_image,
-            large_enough,
-            available,
+            source, url, status_code, content_type, filesize, is_image, large_enough, available,
         )
 
         if resp.status_code != 200:
@@ -326,6 +336,7 @@ async def _probe_source_candidates(
     client: httpx.AsyncClient,
     min_size_bytes: int,
 ) -> CoverCandidate:
+    """Probe multiple candidate URLs for a single source, returning the first available one."""
     first_candidate: CoverCandidate | None = None
     first_available: CoverCandidate | None = None
     logger.debug("cover source probe start source=%s urls=%s", source, urls)
@@ -351,6 +362,11 @@ async def search_cover_candidates(
     isbn: str = Query(min_length=1),
     _current_user: User = Depends(require_user),
 ) -> CoverCandidateList:
+    """Search for cover images by ISBN across multiple providers.
+
+    Probes AbeBooks, OpenLibrary, Amazon, Hardcover (if token configured),
+    and Thalia (if enabled). Returns the query ISBN along with the candidates.
+    """
     try:
         normalized_isbn13 = normalize_isbn(isbn)
     except ValueError:
@@ -358,9 +374,7 @@ async def search_cover_candidates(
     isbn10 = isbn13_to_isbn10(normalized_isbn13)
     logger.debug(
         "cover candidate search isbn_input=%s normalized_isbn13=%s isbn10=%s",
-        isbn,
-        normalized_isbn13,
-        isbn10,
+        isbn, normalized_isbn13, isbn10,
     )
 
     provider_urls: dict[str, list[str]] = {

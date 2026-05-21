@@ -1,3 +1,5 @@
+"""CSV/JSON data import pipeline — parsing, validation, mapping, and execution."""
+
 import csv
 import hashlib
 import json
@@ -5,6 +7,7 @@ import re
 import secrets
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Optional
 
 import httpx
 from sqlalchemy.exc import IntegrityError
@@ -16,7 +19,7 @@ from app.time_utils import utcnow
 from app.services.cover_storage import download_cover
 from app.services.tags import sync_book_tags
 
-BOOK_IMPORT_FIELDS = [
+BOOK_IMPORT_FIELDS: list[str] = [
     "title",
     "subtitle",
     "author",
@@ -77,6 +80,7 @@ _ALIASES: dict[str, str] = {
 
 
 def _display_value(value: object) -> str:
+    """Format a value for display in error messages."""
     if value is None:
         return "null"
     text = str(value)
@@ -86,6 +90,7 @@ def _display_value(value: object) -> str:
 
 
 def _format_value_error(field: str, expected: str, value: object, hint: str | None = None) -> str:
+    """Format a validation error message."""
     message = f"Invalid value for '{field}'. Expected: {expected}. Given: {_display_value(value)}."
     if hint:
         return f"{message} Hint: {hint}."
@@ -93,23 +98,28 @@ def _format_value_error(field: str, expected: str, value: object, hint: str | No
 
 
 def compute_schema_fingerprint(source_fields: list[str]) -> str:
+    """Compute a SHA-256 fingerprint for a set of source fields."""
     payload = json.dumps(sorted(source_fields), separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def _user_temp_dir(user_id: int) -> Path:
+    """Return the temp directory for a specific user."""
     return Path(settings.import_temp_dir) / str(user_id)
 
 
 def _temp_file_path(user_id: int, file_id: str) -> Path:
+    """Return the path to a parsed upload file."""
     return _user_temp_dir(user_id) / f"{file_id}.json"
 
 
 def delete_parsed_upload(file_id: str, user_id: int) -> None:
+    """Delete a previously-uploaded and parsed import file."""
     _temp_file_path(user_id, file_id).unlink(missing_ok=True)
 
 
 def _to_flat_row(row: dict) -> dict[str, str | int | float | bool | None]:
+    """Flatten a row dict, rejecting nested values."""
     flat: dict[str, str | int | float | bool | None] = {}
     for key, value in row.items():
         if isinstance(value, (dict, list)):
@@ -119,6 +129,19 @@ def _to_flat_row(row: dict) -> dict[str, str | int | float | bool | None]:
 
 
 def parse_upload(content: bytes, filename: str, user_id: int) -> dict:
+    """Parse an uploaded CSV or JSON file and persist the parsed result to disk.
+
+    Args:
+        content: Raw file bytes.
+        filename: Original filename (used to detect format).
+        user_id: Owner of the upload.
+
+    Returns:
+        A dict with file_id, format, source_fields, sample_rows, and row_count.
+
+    Raises:
+        ValueError: On validation failures.
+    """
     if not content:
         raise ValueError("error.importEmptyFile")
     if len(content) > settings.max_import_file_size_mb * 1024 * 1024:
@@ -156,7 +179,6 @@ def parse_upload(content: bytes, filename: str, user_id: int) -> dict:
     user_dir = _user_temp_dir(user_id)
     user_dir.mkdir(parents=True, exist_ok=True)
 
-    payload: dict[str, object]
     file_id = ""
     for _ in range(5):
         file_id = secrets.token_urlsafe(18)
@@ -187,6 +209,7 @@ def parse_upload(content: bytes, filename: str, user_id: int) -> dict:
 
 
 def load_parsed_upload(file_id: str, user_id: int) -> dict:
+    """Load a previously-parsed upload from disk."""
     path = _temp_file_path(user_id, file_id)
     if not path.exists():
         raise FileNotFoundError("error.importFileNotFound")
@@ -194,6 +217,14 @@ def load_parsed_upload(file_id: str, user_id: int) -> dict:
 
 
 def suggest_mapping(source_fields: list[str]) -> dict[str, str]:
+    """Suggest a column mapping based on known field name aliases.
+
+    Args:
+        source_fields: List of field names from the import file.
+
+    Returns:
+        Dict mapping each recognised source field to its target field.
+    """
     suggested: dict[str, str] = {}
     for field in source_fields:
         key = " ".join(field.strip().lower().replace("_", " ").split())
@@ -208,10 +239,11 @@ def suggest_mapping(source_fields: list[str]) -> dict[str, str]:
     return suggested
 
 
-_YEAR_PATTERN = re.compile(r"\b(\d{4})\b")
+_YEAR_PATTERN: re.Pattern = re.compile(r"\b(\d{4})\b")
 
 
-def _parse_int(value, field: str) -> int | None:
+def _parse_int(value: object, field: str) -> int | None:
+    """Parse an integer value, raising a descriptive error on failure."""
     if value is None or value == "":
         return None
     raw = str(value).strip()
@@ -239,7 +271,8 @@ def _parse_int(value, field: str) -> int | None:
         )
 
 
-def _parse_year(value, field: str) -> int | None:
+def _parse_year(value: object, field: str) -> int | None:
+    """Parse a year value, accepting 4-digit integers and date strings."""
     if value is None or value == "":
         return None
     raw = str(value).strip()
@@ -262,7 +295,8 @@ def _parse_year(value, field: str) -> int | None:
     )
 
 
-def _parse_datetime(value, field: str) -> datetime | None:
+def _parse_datetime(value: object, field: str) -> datetime | None:
+    """Parse an ISO-8601 datetime value."""
     if value is None or value == "":
         return None
     if isinstance(value, datetime):
@@ -288,6 +322,7 @@ def _parse_datetime(value, field: str) -> datetime | None:
 
 
 def _normalize_language(language: str | None) -> str | None:
+    """Normalize a language code to uppercase ISO 639-1."""
     if language is None:
         return None
     normalized = language.strip().upper()
@@ -306,6 +341,7 @@ def _normalize_language(language: str | None) -> str | None:
 
 
 def _parse_reading_status(value: object) -> ReadingStatus:
+    """Parse a reading status value, defaulting to want_to_read."""
     if value is None or str(value).strip() == "":
         return ReadingStatus.want_to_read
 
@@ -325,6 +361,7 @@ def _parse_reading_status(value: object) -> ReadingStatus:
 
 
 def _mapped_row(row: dict, mapping: dict[str, str]) -> dict:
+    """Apply a field mapping to a single row."""
     mapped: dict[str, object] = {}
     for source, target in mapping.items():
         if not target:
@@ -334,6 +371,7 @@ def _mapped_row(row: dict, mapping: dict[str, str]) -> dict:
 
 
 def _validate_mapping(mapping: dict[str, str], source_fields: set[str]) -> tuple[list[str], list[str]]:
+    """Validate an import mapping, returning (warnings, errors)."""
     warnings: list[str] = []
     errors: list[str] = []
     mapped_targets = [target for target in mapping.values() if target]
@@ -359,7 +397,25 @@ def _validate_mapping(mapping: dict[str, str], source_fields: set[str]) -> tuple
     return warnings, errors
 
 
-def validate_import(file_id: str, user: User, mapping: dict[str, str], session: Session, create_progress_for_read: bool = False) -> dict:
+def validate_import(
+    file_id: str,
+    user: User,
+    mapping: dict[str, str],
+    session: Session,
+    create_progress_for_read: bool = False,
+) -> dict:
+    """Validate a parsed import file against the DB schema and existing data.
+
+    Args:
+        file_id: Upload file ID.
+        user: Target user.
+        mapping: Column mapping dict.
+        session: Active DB session.
+        create_progress_for_read: Whether to flag missing page counts for read books.
+
+    Returns:
+        A dict with keys: valid, row_count, warnings, errors.
+    """
     parsed = load_parsed_upload(file_id, user.id)
     rows = parsed.get("rows", [])
     source_fields = set(parsed.get("source_fields", []))
@@ -433,6 +489,19 @@ async def execute_import(
     import_mode: str,
     create_progress_for_read: bool = False,
 ):
+    """Execute an import, yielding progress and result events.
+
+    Args:
+        file_id: Upload file ID.
+        user: Target user.
+        mapping: Column mapping dict.
+        session: Active DB session.
+        import_mode: ``"rollback_all"`` or ``"continue_on_error"``.
+        create_progress_for_read: Auto-create progress entries for read books.
+
+    Yields:
+        Dicts with event type and data.
+    """
     parsed = load_parsed_upload(file_id, user.id)
     rows: list[dict] = parsed.get("rows", [])
     total = len(rows)
@@ -505,7 +574,6 @@ async def execute_import(
                 session.flush()
 
                 if create_progress_for_read and reading_status == ReadingStatus.read and page_count is not None:
-                    # Use imported finish date when available; otherwise use current time.
                     log_date = date_finished if date_finished is not None else utcnow()
                     if log_date.tzinfo is None:
                         log_date = log_date.replace(tzinfo=timezone.utc)
@@ -559,6 +627,11 @@ async def execute_import(
 
 
 def cleanup_temp_files(max_age_hours: int = 24) -> None:
+    """Delete temporary import files older than *max_age_hours*.
+
+    Args:
+        max_age_hours: Maximum age in hours before a file is deleted.
+    """
     root = Path(settings.import_temp_dir)
     if not root.exists():
         return

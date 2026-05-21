@@ -1,5 +1,8 @@
+"""Data export and import endpoints — export ZIP, import parse/validate/execute with SSE streaming."""
+
 import json
 import asyncio
+from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
 from fastapi.responses import StreamingResponse
@@ -39,6 +42,7 @@ router = APIRouter(prefix="/api/data", tags=["data"])
 
 
 def _mapping_read(model: ImportMapping) -> DataImportMappingRead:
+    """Convert an ImportMapping DB model to its response schema."""
     return DataImportMappingRead(
         id=model.id or 0,
         name=model.name,
@@ -55,6 +59,7 @@ def export_data(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> Response:
+    """Export user data as a ZIP archive with CSV or JSON datasets."""
     if not body.datasets:
         raise HTTPException(status_code=400, detail="error.exportNoDatasets")
     zip_bytes, filename = build_export_zip(
@@ -76,6 +81,7 @@ async def parse_import_file(
     file: UploadFile = File(...),
     current_user: User = Depends(require_user),
 ) -> DataImportParseResponse:
+    """Parse an uploaded CSV or JSON import file and return field info and samples."""
     allowed_content_types = {
         "text/csv",
         "application/csv",
@@ -97,6 +103,7 @@ def suggest_import_mapping(
     body: DataImportSuggestRequest,
     current_user: User = Depends(require_user),
 ) -> DataImportSuggestResponse:
+    """Suggest a field-name mapping based on the parsed import file."""
     try:
         parsed = load_parsed_upload(body.file_id, current_user.id)
     except FileNotFoundError as exc:
@@ -114,6 +121,7 @@ def save_import_mapping(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> DataImportMappingRead:
+    """Create or update a saved column-mapping configuration."""
     now = utcnow()
     schema_fingerprint = compute_schema_fingerprint(body.source_fields)
 
@@ -158,6 +166,7 @@ def list_import_mappings(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> list[DataImportMappingListItem]:
+    """List saved import mappings, newest first."""
     rows = list(
         session.exec(
             select(ImportMapping)
@@ -182,6 +191,7 @@ def get_import_mapping(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> DataImportMappingRead:
+    """Return a single saved import mapping by ID."""
     row = session.get(ImportMapping, mapping_id)
     if not row or row.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="error.importMappingNotFound")
@@ -194,6 +204,7 @@ def delete_import_mapping(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> None:
+    """Delete a saved import mapping."""
     row = session.get(ImportMapping, mapping_id)
     if not row or row.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="error.importMappingNotFound")
@@ -207,8 +218,12 @@ def validate_import_data(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> DataImportValidateResponse:
+    """Validate an import file against the DB schema and existing data."""
     try:
-        payload = validate_import(body.file_id, current_user, body.mapping, session, create_progress_for_read=body.create_progress_for_read)
+        payload = validate_import(
+            body.file_id, current_user, body.mapping, session,
+            create_progress_for_read=body.create_progress_for_read,
+        )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return DataImportValidateResponse.model_validate(payload)
@@ -220,6 +235,7 @@ async def execute_import_data(
     current_user: User = Depends(require_user),
     session_template: Session = Depends(get_session),
 ) -> StreamingResponse:
+    """Execute an import, streaming progress and results as Server-Sent Events."""
     stream_bind = session_template.get_bind() or engine
 
     async def event_generator():

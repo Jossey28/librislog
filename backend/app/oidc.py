@@ -1,13 +1,19 @@
-from authlib.integrations.starlette_client import OAuth
+"""OIDC / SSO integration — provider registration and client creation."""
+
+from typing import Optional
+
+from authlib.integrations.starlette_client import OAuth, StarletteOAuth2App
+from authlib.oauth2.client import OAuth2Client
 
 from app.config import settings
 
 
-oauth = OAuth()
-_registered = False
+oauth: OAuth = OAuth()
+_registered: bool = False
 
 
 def oidc_is_enabled() -> bool:
+    """Return True if OIDC is configured and ready to use."""
     return (
         settings.oidc_enabled
         and bool(settings.oidc_provider_id.strip())
@@ -17,7 +23,11 @@ def oidc_is_enabled() -> bool:
     )
 
 
-def get_oidc_client():
+def get_oidc_client() -> Optional[StarletteOAuth2App]:
+    """Return the OIDC client, registering it on first call.
+
+    Returns None if OIDC is not enabled.
+    """
     global _registered
 
     if not oidc_is_enabled():

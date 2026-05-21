@@ -1,6 +1,9 @@
+"""SSRF-safe external cover image import utilities."""
+
 import ipaddress
 import socket
 from pathlib import Path
+from typing import Optional
 from urllib.parse import urlparse
 
 import httpx
@@ -9,10 +12,15 @@ from app.services.cover_storage import download_cover
 
 
 def is_external_cover_url(url: str | None) -> bool:
+    """Return True if *url* is a valid http:// or https:// URL."""
     return bool(url and (url.startswith("http://") or url.startswith("https://")))
 
 
 def is_safe_cover_import_url(url: str) -> bool:
+    """Validate that *url* does not point to a private or loopback address.
+
+    Performs both direct IP checks and DNS resolution to prevent SSRF attacks.
+    """
     try:
         parsed = urlparse(url)
     except Exception:
@@ -50,6 +58,7 @@ def is_safe_cover_import_url(url: str) -> bool:
 
 
 def _is_restricted_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """Return True if the IP address is a restricted/private range."""
     return (
         ip.is_private
         or ip.is_loopback
@@ -66,5 +75,18 @@ async def import_cover_from_url(
     user_id: int,
     timeout_seconds: int,
 ) -> str | None:
+    """Download a cover image from *url* and persist it locally.
+
+    Delegates to :func:`download_cover` for the actual storage logic.
+
+    Args:
+        url: External cover image URL.
+        covers_dir: Local directory for cover storage.
+        user_id: Owner of the cover.
+        timeout_seconds: HTTP request timeout in seconds.
+
+    Returns:
+        The local filename on success, or None on failure.
+    """
     async with httpx.AsyncClient(timeout=timeout_seconds, follow_redirects=False) as client:
         return await download_cover(url, covers_dir, client, user_id)

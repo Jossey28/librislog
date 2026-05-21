@@ -1,3 +1,5 @@
+"""Custom Swagger UI and ReDoc documentation endpoints with CSS theming."""
+
 import logging
 
 from fastapi import APIRouter, Request
@@ -10,6 +12,7 @@ router = APIRouter()
 
 
 def _wrap_docs_html(html: str) -> HTMLResponse:
+    """Inject custom CSS into the Swagger/ReDoc HTML page for consistent theming."""
     custom_css = """
 <style>
   :root {
@@ -79,6 +82,7 @@ def _wrap_docs_html(html: str) -> HTMLResponse:
 
 @router.get("/api/docs", include_in_schema=False)
 def custom_swagger_docs(request: Request) -> HTMLResponse:
+    """Serve a custom-themed Swagger UI page."""
     html = get_swagger_ui_html(
         openapi_url=request.app.openapi_url,
         title=f"{request.app.title} - Swagger UI",
@@ -93,6 +97,7 @@ def custom_swagger_docs(request: Request) -> HTMLResponse:
 
 @router.get("/api/redoc", include_in_schema=False)
 def custom_redoc_docs(request: Request) -> HTMLResponse:
+    """Serve a custom-themed ReDoc page."""
     html = get_redoc_html(
         openapi_url=request.app.openapi_url,
         title=f"{request.app.title} - ReDoc",
