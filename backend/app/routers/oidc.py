@@ -51,11 +51,14 @@ def _link_error_redirect(message: str) -> RedirectResponse:
     return RedirectResponse(url=f"/auth/oidc/link-callback?error={quote_plus(message)}", status_code=302)
 
 
-def _resolve_callback_redirect_uri(request: Request, callback_path: str, route_name: str) -> str:
-    """Determine the callback redirect URI, respecting X-Forwarded-Proto."""
-    forwarded_proto = request.headers.get("x-forwarded-proto")
-    if forwarded_proto:
-        return f"{forwarded_proto}://{request.headers.get('host')}{callback_path}"
+def _resolve_callback_redirect_uri(request: Request, route_name: str) -> str:
+    """Resolve the callback redirect URI via the ASGI router.
+
+    The ``proxy_headers_middleware`` in ``main.py`` already patches
+    ``request.scope["scheme"]`` from ``X-Forwarded-Proto``, so
+    ``url_for`` returns the correct scheme (``https``) behind a TLS
+    termination proxy.
+    """
     return str(request.url_for(route_name))
 
 
@@ -78,7 +81,7 @@ async def oidc_login(request: Request):
     if not client:
         raise HTTPException(status_code=404, detail="OIDC is not enabled")
 
-    redirect_uri = _resolve_callback_redirect_uri(request, "/api/oidc/callback", "oidc_callback")
+    redirect_uri = _resolve_callback_redirect_uri(request, "oidc_callback")
     try:
         return await client.authorize_redirect(request, redirect_uri)
     except Exception:
@@ -189,9 +192,7 @@ async def oidc_link_authorize(request: Request):
         logger.warning("OIDC link authorize called without link session")
         return _link_error_redirect("Missing link session. Please start linking again.")
 
-    redirect_uri = _resolve_callback_redirect_uri(
-        request, "/api/oidc/link-callback", "oidc_link_callback",
-    )
+    redirect_uri = _resolve_callback_redirect_uri(request, "oidc_link_callback")
     try:
         return await client.authorize_redirect(request, redirect_uri)
     except Exception:
