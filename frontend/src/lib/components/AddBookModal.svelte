@@ -7,6 +7,7 @@
 	import BarcodeScanner from './BarcodeScanner.svelte';
 	import CoverPicker from './CoverPicker.svelte';
 	import TagInput from './TagInput.svelte';
+	import SuggestionInput from './SuggestionInput.svelte';
 
 	let {
 		open = $bindable(false),
@@ -60,16 +61,18 @@
 
 	async function submitManual() {
 		if (!title.trim()) return;
+		if (!author.trim()) return;
+		if (!page_count) return;
 		submitting = true;
 		try {
 			const book = await api.books.create({
 				title: title.trim(),
 				subtitle: subtitle || null,
-				author: author || null,
+				author: author.trim(),
 				isbn: isbn || null,
 				publisher: publisher || null,
 				published_year: published_year ? parseInt(published_year) : null,
-				page_count: page_count ? parseInt(page_count) : null,
+				page_count: parseInt(page_count),
 				language: language || null,
 				tags: tags || null,
 				notes: notes || null,
@@ -135,25 +138,29 @@
 						<input class="input input-bordered input-sm" bind:value={subtitle} />
 					</label>
 					<div class="grid grid-cols-2 gap-2">
-						<label class="form-control">
-							<span class="label label-text">{$_('book.author')}</span>
-							<input class="input input-bordered input-sm" bind:value={author} />
-						</label>
+						<SuggestionInput
+							bind:value={author}
+							label={$_('book.author') + ' *'}
+							placeholder={$_('book.author')}
+							fetchSuggestions={(q) => api.books.suggestions.authors(q)}
+						/>
 						<label class="form-control">
 							<span class="label label-text">{$_('book.isbn')}</span>
 							<input class="input input-bordered input-sm" bind:value={isbn} />
 						</label>
-						<label class="form-control">
-							<span class="label label-text">{$_('book.publisher')}</span>
-							<input class="input input-bordered input-sm" bind:value={publisher} />
-						</label>
+						<SuggestionInput
+							bind:value={publisher}
+							label={$_('book.publisher')}
+							placeholder={$_('book.publisher')}
+							fetchSuggestions={(q) => api.books.suggestions.publishers(q)}
+						/>
 						<label class="form-control">
 							<span class="label label-text">{$_('book.year')}</span>
 							<input type="number" class="input input-bordered input-sm" bind:value={published_year} min="1000" max="2100" />
 						</label>
 						<label class="form-control">
-							<span class="label label-text">{$_('book.pages')}</span>
-							<input type="number" class="input input-bordered input-sm" bind:value={page_count} min="1" />
+							<span class="label label-text">{$_('book.pages')} <span class="text-error">*</span></span>
+							<input type="number" class="input input-bordered input-sm" bind:value={page_count} min="1" required />
 						</label>
 						<label class="form-control">
 							<span class="label label-text">{$_('book.language')}</span>
@@ -170,7 +177,7 @@
 							<input type="number" class="input input-bordered input-sm" bind:value={rating} min="1" max="5" />
 						</label>
 					</div>
-					<TagInput bind:value={tags} disabled={submitting} />
+					<TagInput bind:value={tags} disabled={submitting} fetchSuggestions={(q) => api.books.suggestions.tags(q)} />
 					<label class="form-control">
 						<span class="label label-text">{$_('book.status')}</span>
 						<select class="select select-bordered select-sm" bind:value={status}>

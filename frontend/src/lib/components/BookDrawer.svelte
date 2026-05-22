@@ -12,6 +12,7 @@
 	import TagInput from './TagInput.svelte';
 	import DateConflictDialog from './DateConflictDialog.svelte';
 	import AutoSearchCoverModal from './AutoSearchCoverModal.svelte';
+	import BarcodeScanner from './BarcodeScanner.svelte';
 
 	let {
 		book = $bindable(null),
@@ -38,6 +39,7 @@
 	let autoSearchError = $state<string | null>(null);
 	let autoSearchCandidates = $state<CoverCandidate[]>([]);
 	let autoSearchRequestId = 0;
+	let scannerOpen = $state(false);
 
 	// Editable fields
 	let title = $state('');
@@ -85,11 +87,11 @@
 		const payload: Partial<Book> = {
 			title,
 			subtitle: subtitle || null,
-			author: author || null,
+			author: author.trim(),
 			isbn: isbn || null,
 			publisher: publisher || null,
 			published_year: published_year ? parseInt(published_year, 10) : null,
-			page_count: page_count ? parseInt(page_count, 10) : null,
+			page_count: parseInt(page_count, 10),
 			language: language || null,
 			tags: tags || null,
 			notes: notes || null,
@@ -167,6 +169,14 @@
 
 	async function save() {
 		if (!book) return;
+		if (!author.trim()) {
+			toasts.add($_('error.authorRequired'), 'error');
+			return;
+		}
+		if (!page_count) {
+			toasts.add($_('error.pageCountRequired'), 'error');
+			return;
+		}
 		const ds = date_started.trim();
 		const df = date_finished.trim();
 		if (ds && df && ds > df) {
@@ -349,14 +359,34 @@
 
 			<SuggestionInput
 				bind:value={author}
-				label={$_('book.author')}
+				label={$_('book.author') + ' *'}
 				placeholder={$_('book.author')}
 				fetchSuggestions={(q) => api.books.suggestions.authors(q)}
 			/>
 
 			<label class="form-control">
 				<span class="label label-text">{$_('book.isbn')}</span>
-				<input class="input input-bordered input-sm" bind:value={isbn} />
+				<div class="flex gap-2">
+					<input class="input input-bordered input-sm flex-1" bind:value={isbn} />
+					<button
+						type="button"
+						class="btn btn-outline btn-sm"
+						onclick={() => (scannerOpen = true)}
+						title={$_('import.scanIsbn')}
+						aria-label={$_('import.scanIsbn')}
+					>
+						<svg viewBox="0 0 24 24" class="w-4 h-4" aria-hidden="true">
+							<rect x="2" y="4" width="1" height="16" fill="currentColor" />
+							<rect x="4" y="4" width="2" height="16" fill="currentColor" />
+							<rect x="7" y="4" width="1" height="16" fill="currentColor" />
+							<rect x="9" y="4" width="3" height="16" fill="currentColor" />
+							<rect x="13" y="4" width="1" height="16" fill="currentColor" />
+							<rect x="15" y="4" width="2" height="16" fill="currentColor" />
+							<rect x="18" y="4" width="1" height="16" fill="currentColor" />
+							<rect x="20" y="4" width="2" height="16" fill="currentColor" />
+						</svg>
+					</button>
+				</div>
 			</label>
 
 			<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -373,8 +403,8 @@
 				</label>
 
 				<label class="form-control">
-					<span class="label label-text">{$_('book.pages')}</span>
-					<input type="number" class="input input-bordered input-sm" bind:value={page_count} min="1" />
+					<span class="label label-text">{$_('book.pages')} <span class="text-error">*</span></span>
+					<input type="number" class="input input-bordered input-sm" bind:value={page_count} min="1" required />
 				</label>
 
 				<label class="form-control">
@@ -545,4 +575,12 @@
 			></button>
 		</div>
 	{/if}
+
+	<BarcodeScanner
+		bind:open={scannerOpen}
+		onDetected={(detected) => {
+			isbn = detected;
+			scannerOpen = false;
+		}}
+	/>
 {/if}

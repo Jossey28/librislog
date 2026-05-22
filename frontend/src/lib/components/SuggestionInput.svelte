@@ -21,6 +21,10 @@
 	let debounceTimer: ReturnType<typeof setTimeout> | undefined = $state();
 	let containerEl: HTMLDivElement | undefined = $state();
 
+	$effect(() => {
+		inputValue = value;
+	});
+
 	function handleInput() {
 		value = inputValue;
 		clearTimeout(debounceTimer);
