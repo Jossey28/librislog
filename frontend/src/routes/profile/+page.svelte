@@ -32,6 +32,8 @@
 	let deleteAccountMessage = $state<{ type: 'success' | 'error'; text: string } | null>(null);
 	let dangerLoading = $state(false);
 	let activeSection = $state('');
+	let navTop = $state(32);
+	let navLeft = $state(0);
 
 	$effect(() => {
 		if ($currentUser) {
@@ -44,11 +46,15 @@
 		if (window.innerWidth < 1280) return;
 		const nav = document.querySelector('nav[aria-label]') as HTMLElement | null;
 		const content = document.querySelector('#profile-content') as HTMLElement | null;
+		const firstSection = document.querySelector('#section-profile') as HTMLElement | null;
 		if (!nav || !content) return;
 		const cr = content.getBoundingClientRect();
 		const desiredLeft = cr.right + 32;
 		const maxLeft = window.innerWidth - nav.offsetWidth - 16;
-		nav.style.left = Math.min(desiredLeft, maxLeft) + 'px';
+		navLeft = Math.min(desiredLeft, maxLeft);
+		if (firstSection) {
+			navTop = Math.max(16, firstSection.getBoundingClientRect().top);
+		}
 	}
 
 	function updateActiveSection() {
@@ -93,6 +99,8 @@
 			window.removeEventListener('scroll', onScroll);
 		};
 	});
+
+
 
 	async function load() {
 		const settings = await api.profile.getSettings();
@@ -512,76 +520,23 @@
 	(max-w-3xl, 768px) + nav (208px) doesn't fit without horizontal overflow.
 -->
 <nav
-	class="hidden xl:block fixed top-8 w-52"
+	class="hidden xl:block fixed w-52"
+	style:top="{navTop}px"
+	style:left="{navLeft}px"
 	aria-label={$_('profile.sectionNav')}
 >
-	<div class="card bg-base-100 border border-base-200 shadow-sm">
-		<div class="card-body p-4 gap-2">
-			<h3 class="text-sm font-semibold text-base-content/70 uppercase tracking-wider">
-				{$_('profile.sectionNav')}
-			</h3>
-			<ul class="flex flex-col gap-1">
-				<li>
-					<a
-						href="#section-profile"
-						class="link link-hover text-sm"
-						class:text-primary={activeSection === 'section-profile'}
-						data-section="section-profile"
-					>{$_('user.profile')}</a>
-				</li>
-				<li>
-					<a
-						href="#section-language"
-						class="link link-hover text-sm"
-						class:text-primary={activeSection === 'section-language'}
-						data-section="section-language"
-					>{$_('settings.languageTitle')}</a>
-				</li>
-				<li>
-					<a
-						href="#section-timezone"
-						class="link link-hover text-sm"
-						class:text-primary={activeSection === 'section-timezone'}
-						data-section="section-timezone"
-					>{$_('settings.timezone')}</a>
-				</li>
-				<li>
-					<a
-						href="#section-api-keys"
-						class="link link-hover text-sm"
-						class:text-primary={activeSection === 'section-api-keys'}
-						data-section="section-api-keys"
-					>{$_('user.apiKeys')}</a>
-				</li>
-				{#if oidcConfig.enabled}
-					<li>
-						<a
-							href="#section-oidc"
-							class="link link-hover text-sm"
-							class:text-primary={activeSection === 'section-oidc'}
-							data-section="section-oidc"
-						>{$_('oidc.profileTitle')}</a>
-					</li>
-				{/if}
-				<li>
-					<a
-						href="#section-data"
-						class="link link-hover text-sm"
-						class:text-primary={activeSection === 'section-data'}
-						data-section="section-data"
-					>{$_('profile.dataManagement.title')}</a>
-				</li>
-				<li>
-					<a
-						href="#section-danger-zone"
-						class="link link-hover text-sm"
-						class:text-primary={activeSection === 'section-danger-zone'}
-						data-section="section-danger-zone"
-					>{$_('profile.dangerZone.title')}</a>
-				</li>
-			</ul>
-		</div>
-	</div>
+	<ul class="menu menu-sm bg-base-200 rounded-box border border-base-300">
+		<li class="menu-title"><span>{$_('profile.sectionNav')}</span></li>
+		<li><a href="#section-profile" class:menu-active={activeSection === 'section-profile'}>{$_('user.profile')}</a></li>
+		<li><a href="#section-language" class:menu-active={activeSection === 'section-language'}>{$_('settings.languageTitle')}</a></li>
+		<li><a href="#section-timezone" class:menu-active={activeSection === 'section-timezone'}>{$_('settings.timezone')}</a></li>
+		<li><a href="#section-api-keys" class:menu-active={activeSection === 'section-api-keys'}>{$_('user.apiKeys')}</a></li>
+		<li><a href="#section-data" class:menu-active={activeSection === 'section-data'}>{$_('profile.dataManagement.title')}</a></li>
+		{#if oidcConfig.enabled}
+			<li><a href="#section-oidc" class:menu-active={activeSection === 'section-oidc'}>{$_('oidc.profileTitle')}</a></li>
+		{/if}
+		<li><a href="#section-danger-zone" class:menu-active={activeSection === 'section-danger-zone'}>{$_('profile.dangerZone.title')}</a></li>
+	</ul>
 </nav>
 
 <dialog class="modal" class:modal-open={pendingDeleteKeyId !== null}>
