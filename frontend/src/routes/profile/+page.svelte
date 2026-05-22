@@ -114,9 +114,11 @@
 		timezone = settings.timezone;
 		setTimezone(settings.timezone);
 		themeMode = sanitizeThemeMode(settings.theme);
-		customTheme = settings.custom_theme ?? 'dracula';
 		setThemeMode(themeMode);
-		setCustomTheme(customTheme);
+		if (themeMode === 'custom' && settings.custom_theme) {
+			customTheme = settings.custom_theme;
+			setCustomTheme(customTheme);
+		}
 		applyThemeToDocument();
 		saveThemeToStorage();
 		keys = await api.profile.listApiKeys();
