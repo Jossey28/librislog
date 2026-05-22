@@ -5,6 +5,7 @@
 	import { currentUser } from '$lib/stores/auth';
 	import { getPasswordChecks, passwordChecksPassed, passwordPattern } from '$lib/password';
 	import { isValidEmailFormat } from '$lib/validation';
+	import { localizeBackendError } from '$lib/errors';
 	import type { User, UserRole } from '$lib/types';
 	import { _ } from '$lib/i18n';
 	import BackupRestore from '$lib/components/BackupRestore.svelte';
@@ -30,26 +31,6 @@
 	let activeTab = $state<'users' | 'backup'>('users');
 
 	const isAdmin = $derived($currentUser?.role === 'admin');
-
-	const BACKEND_ERROR_MAP: Record<string, string> = {
-		'Email already registered': 'error.emailAlreadyRegistered',
-		'User not found': 'error.userNotFound',
-		'Cannot change your own admin role': 'error.cannotChangeOwnRole',
-	};
-
-	function localizeAdminError(e: unknown, fallbackAction: string): string {
-		if (e instanceof Error) {
-			if (e.message.startsWith('error.')) {
-				return $_(e.message);
-			}
-			const mappedKey = BACKEND_ERROR_MAP[e.message];
-			if (mappedKey) {
-				return $_(mappedKey);
-			}
-			return e.message;
-		}
-		return $_('common.actionFailed', { values: { action: fallbackAction } });
-	}
 
 	async function loadUsers() {
 		if (!isAdmin) return;
@@ -78,7 +59,7 @@
 		try {
 			await api.users.create({ firstname, lastname, email, password, role });
 		} catch (e: unknown) {
-			adminError = localizeAdminError(e, 'create');
+			adminError = $_(localizeBackendError(e));
 			return;
 		}
 		firstname = '';
@@ -133,7 +114,7 @@
 				password: editPassword.trim() ? editPassword : undefined
 			});
 		} catch (e: unknown) {
-			adminError = localizeAdminError(e, 'update');
+			adminError = $_(localizeBackendError(e));
 			return;
 		}
 		editingUserId = null;
@@ -159,7 +140,7 @@
 			await loadUsers();
 			adminError = '';
 		} catch (e: unknown) {
-			adminError = localizeAdminError(e, 'delete');
+			adminError = $_(localizeBackendError(e));
 		}
 	}
 </script>

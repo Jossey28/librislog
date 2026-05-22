@@ -9,6 +9,7 @@
 	import { getThemeMode, setThemeMode, getCustomTheme, setCustomTheme, applyThemeToDocument, saveThemeToStorage, sanitizeThemeMode, DAISYUI_THEMES } from '$lib/stores/theme';
 	import Alert from '$lib/components/Alert.svelte';
 	import { toasts } from '$lib/toasts';
+	import { localizeError } from '$lib/errors';
 	import type { ApiKeyMeta, OidcConfig, OidcLinkStatus } from '$lib/types';
 
 	let firstname = $state('');
@@ -259,16 +260,6 @@
 		}
 	}
 
-	function localizeError(err: unknown, fallback: string): string {
-		if (err instanceof Error) {
-			if (err.message.startsWith('error.')) {
-				return $_(err.message);
-			}
-			return err.message;
-		}
-		return fallback;
-	}
-
 	async function confirmResetData() {
 		if (resetDataConfirmation.trim() !== $_('profile.dangerZone.resetData.confirmationPhrase')) {
 			return;
@@ -299,7 +290,7 @@
 				window.location.href = '/dashboard';
 			}, 1500);
 		} catch (e: unknown) {
-			const message = localizeError(e, $_('profile.dangerZone.resetData.failed'));
+			const message = localizeError(e, $_, $_('profile.dangerZone.resetData.failed'));
 			resetDataMessage = { type: 'error', text: message };
 			toasts.add(message, 'error');
 		} finally {
@@ -321,7 +312,7 @@
 				window.location.href = '/login';
 			}, 1000);
 		} catch (e: unknown) {
-			const message = localizeError(e, $_('profile.dangerZone.deleteAccount.failed'));
+			const message = localizeError(e, $_, $_('profile.dangerZone.deleteAccount.failed'));
 			deleteAccountMessage = { type: 'error', text: message };
 			toasts.add(message, 'error');
 		} finally {
