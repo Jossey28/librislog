@@ -9,6 +9,7 @@
     color = 'primary',
     emptyText = 'No data',
     height = 200,
+    transform = { mode: 'domain', axis: 'x' },
   }: {
     labels: string[];
     data: number[];
@@ -16,6 +17,7 @@
     color: string;
     emptyText?: string;
     height?: number;
+    transform?: Record<string, unknown>;
   } = $props();
 
   let isTouchDevice = $state(false);
@@ -81,6 +83,7 @@
   const series = $derived([
     { key: 'default', value: 'value' as const, color: resolveColor(color), label },
   ]);
+
 </script>
 
 <svelte:document onclick={handleDocumentClick} />
@@ -98,6 +101,7 @@
       {series}
       {height}
       bandPadding={0.3}
+      {transform}
       props={{
         xAxis: { tickSpacing: 80 },
         bars: { strokeWidth: 0, stroke: 'none' }
