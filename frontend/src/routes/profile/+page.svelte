@@ -417,9 +417,9 @@
 					{themeMessage.text}
 				</Alert>
 			{/if}
-			<label class="label">
+			<span class="label">
 				<span class="label-text">{$_('settings.themeSelect')}</span>
-			</label>
+			</span>
 			<select class="select select-bordered max-w-xs" bind:value={customTheme}>
 				{#each [...DAISYUI_THEMES].sort() as t}
 					<option value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>
