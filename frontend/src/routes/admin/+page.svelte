@@ -31,6 +31,26 @@
 
 	const isAdmin = $derived($currentUser?.role === 'admin');
 
+	const BACKEND_ERROR_MAP: Record<string, string> = {
+		'Email already registered': 'error.emailAlreadyRegistered',
+		'User not found': 'error.userNotFound',
+		'Cannot change your own admin role': 'error.cannotChangeOwnRole',
+	};
+
+	function localizeAdminError(e: unknown, fallbackAction: string): string {
+		if (e instanceof Error) {
+			if (e.message.startsWith('error.')) {
+				return $_(e.message);
+			}
+			const mappedKey = BACKEND_ERROR_MAP[e.message];
+			if (mappedKey) {
+				return $_(mappedKey);
+			}
+			return e.message;
+		}
+		return $_('common.actionFailed', { values: { action: fallbackAction } });
+	}
+
 	async function loadUsers() {
 		if (!isAdmin) return;
 		users = await api.users.list();
@@ -55,7 +75,12 @@
 			adminError = $_('auth.passwordComplexityError');
 			return;
 		}
-		await api.users.create({ firstname, lastname, email, password, role });
+		try {
+			await api.users.create({ firstname, lastname, email, password, role });
+		} catch (e: unknown) {
+			adminError = localizeAdminError(e, 'create');
+			return;
+		}
 		firstname = '';
 		lastname = '';
 		email = '';
@@ -99,13 +124,18 @@
 			return;
 		}
 		adminError = '';
-		await api.users.update(editingUserId, {
-			firstname: editFirstname,
-			lastname: editLastname,
-			email: editEmail,
-			role: editRole,
-			password: editPassword.trim() ? editPassword : undefined
-		});
+		try {
+			await api.users.update(editingUserId, {
+				firstname: editFirstname,
+				lastname: editLastname,
+				email: editEmail,
+				role: editRole,
+				password: editPassword.trim() ? editPassword : undefined
+			});
+		} catch (e: unknown) {
+			adminError = localizeAdminError(e, 'update');
+			return;
+		}
 		editingUserId = null;
 		editPassword = '';
 		showEditPassword = false;
@@ -129,11 +159,7 @@
 			await loadUsers();
 			adminError = '';
 		} catch (e: unknown) {
-			if (e instanceof Error && e.message.startsWith('error.')) {
-				adminError = $_(e.message);
-			} else {
-				adminError = e instanceof Error ? e.message : $_('common.actionFailed', { values: { action: 'delete' } });
-			}
+			adminError = localizeAdminError(e, 'delete');
 		}
 	}
 </script>

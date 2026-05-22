@@ -449,7 +449,7 @@
 				<button class="btn btn-primary btn-sm" onclick={createKey}>{$_('user.addKey')}</button>
 			</div>
 			{#if createdKey}
-				<Alert type="success" onClose={() => (createdKey = null)}>
+				<Alert type="success" onClose={() => (createdKey = null)} duration={0}>
 					<div class="flex flex-col items-start gap-2 text-xs">
 						<span>{$_('user.newKeyShownOnce')}</span>
 						<div class="w-full rounded border border-success/30 bg-base-300/70 px-3 py-2 font-mono text-[11px] break-all">
