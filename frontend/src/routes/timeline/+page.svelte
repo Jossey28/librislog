@@ -141,7 +141,7 @@
 			</div>
 		</div>
 	{:else}
-		<ul class="timeline timeline-vertical timeline-snap-icon">
+		<ul class="timeline timeline-vertical timeline-snap-icon overflow-x-auto max-w-full">
 			{#each flatItems as item, i (item.type === 'header' ? item.key : item.book.id)}
 				<li>
 					{#if i > 0}<hr />{/if}
@@ -164,7 +164,7 @@
 							</svg>
 						</div>
 						<div
-							class="timeline-end timeline-box cursor-pointer hover:bg-base-200 transition-colors"
+							class="timeline-end timeline-box min-w-0 cursor-pointer hover:bg-base-200 transition-colors"
 							onclick={() => openDetailView(item.book)}
 							role="button"
 							tabindex="0"
@@ -184,9 +184,9 @@
 									/>
 								{/if}
 								<div class="min-w-0">
-									<p class="font-medium truncate">{item.book.title}</p>
+									<p class="font-medium break-words">{item.book.title}</p>
 									{#if item.book.author}
-										<p class="text-sm text-base-content/70 truncate">{item.book.author}</p>
+										<p class="text-sm text-base-content/70 break-words">{item.book.author}</p>
 									{/if}
 									{#if item.book.rating}
 										<p class="text-warning text-sm">{stars(item.book.rating)}</p>
@@ -205,3 +205,41 @@
 <BookDetailDialog bind:book={selectedBook} bind:open={detailOpen} onEdit={openEditFromDetail} onDelete={handleDelete} />
 
 <BookDrawer bind:book={selectedBook} bind:open={drawerOpen} onSave={handleSave} />
+
+<style>
+	@media (max-width: 640px) {
+		ul.timeline > li {
+			grid-template-columns: 1.5rem 1fr !important;
+			grid-template-rows: auto auto auto !important;
+		}
+		ul.timeline > li > .timeline-start {
+			grid-column: 2 !important;
+			grid-row: 1 !important;
+			justify-self: start !important;
+			text-align: left !important;
+			padding: 0 0 0.75rem 0 !important;
+		}
+		ul.timeline > li > .timeline-middle {
+			grid-column: 1 !important;
+			grid-row: 1 / -1 !important;
+			align-self: center !important;
+			z-index: 2 !important;
+		}
+		ul.timeline > li > .timeline-end {
+			grid-column: 2 !important;
+			grid-row: 2 !important;
+			justify-self: stretch !important;
+			align-self: start !important;
+			padding-top: 0.75rem !important;
+		}
+		ul.timeline {
+			background-image: linear-gradient(to bottom, var(--color-base-300), var(--color-base-300));
+			background-repeat: no-repeat;
+			background-position: 12px 0;
+			background-size: 4px 100%;
+		}
+		ul.timeline > li > hr {
+			display: none !important;
+		}
+	}
+</style>
