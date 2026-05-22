@@ -176,6 +176,10 @@
 			return `${$_('app.title')} - ${$_('admin.title')}`;
 		}
 
+		if ($page.url.pathname.startsWith('/about')) {
+			return `${$_('app.title')} - ${$_('user.about')}`;
+		}
+
 		if ($page.url.pathname.startsWith('/login')) {
 			return `${$_('app.title')} - ${$_('auth.login')}`;
 		}

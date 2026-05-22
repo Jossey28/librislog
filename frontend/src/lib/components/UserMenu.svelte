@@ -44,6 +44,7 @@
 			class="menu menu-sm dropdown-content absolute right-0 mt-3 w-40 rounded-box bg-base-100 shadow z-50 p-2"
 		>
 			<li><a href="/profile" onclick={() => (open = false)}>{$_('user.profile')}</a></li>
+			<li><a href="/about" onclick={() => (open = false)}>{$_('user.about')}</a></li>
 			<li><button type="button" class="cursor-pointer" onclick={logout}>{$_('user.logout')}</button></li>
 		</ul>
 	{/if}
