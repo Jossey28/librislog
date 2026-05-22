@@ -101,11 +101,17 @@ jobs:
       checks: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v6
-
       - uses: actions/download-artifact@v5
         with:
           path: artifacts
+
+      - name: Initialize git for test reporter
+        run: |
+          git init
+          git config user.email "ci@github.com"
+          git config user.name "CI"
+          git add -A
+          git commit --allow-empty -m "ci"
 
       - name: Publish test results
         uses: dorny/test-reporter@v3
