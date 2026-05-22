@@ -13,7 +13,7 @@
 	} = $props();
 
 	const ctx = getChartContext();
-	let tapShown = false;
+	let pinnedCell: string | null = null;
 
 	function getFill(pages?: number): string {
 		if (pages === undefined || pages <= 0 || maxPages <= 0) return 'var(--color-base-200)';
@@ -24,7 +24,7 @@
 	function docClick(e: MouseEvent) {
 		const target = e.target as Element | null;
 		if (target && target.closest('g[role="gridcell"]')) return;
-		tapShown = false;
+		pinnedCell = null;
 		ctx.tooltip.hide();
 	}
 
@@ -43,16 +43,19 @@
 		fill={getFill(cell.data?.pages)}
 		rx="2"
 		role="gridcell"
+		onpointerdown={(e) => {
+			(e.target as Element | null)?.releasePointerCapture?.(e.pointerId);
+		}}
 		onpointermove={(e) => {
-			tapShown = false;
+			pinnedCell = null;
 			if (cell.data?.pages !== undefined) ctx.tooltip.show(e, cell.data);
 		}}
 		onpointerleave={() => {
-			if (!tapShown) ctx.tooltip.hide();
+			if (pinnedCell !== cell.data?.date) ctx.tooltip.hide();
 		}}
 		onclick={(e) => {
 			if (cell.data?.pages !== undefined) {
-				tapShown = true;
+				pinnedCell = cell.data.date;
 				ctx.tooltip.show(e, cell.data);
 			}
 		}}

@@ -104,7 +104,7 @@
     <p>{emptyText}</p>
   </div>
 {:else}
-  <div role="img" aria-label={label} class="relative select-none" bind:this={chartRef}>
+  <div role="img" aria-label={label} class="relative select-none touch-none" bind:this={chartRef} style="-webkit-touch-callout: none">
     {#key chartKey}
       <LayerBarChart
         data={chartData}
@@ -124,7 +124,7 @@
 
     <button
       type="button"
-      class="btn btn-ghost btn-xs absolute top-1 right-1 opacity-60 hover:opacity-100"
+      class="btn btn-ghost btn-sm max-sm:btn-md absolute top-2 right-2 opacity-60 hover:opacity-100 min-w-[44px] min-h-[44px]"
       title="Reset zoom"
       onclick={resetZoom}
     >
