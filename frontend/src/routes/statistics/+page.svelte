@@ -415,21 +415,21 @@
 								{#if author.covers.length > 0}
 									<!-- Covers overlap with -ml-3 to save space, pl-3 keeps the first cover fully visible. -->
 									<div
-										class="flex items-end overflow-hidden pb-1 pl-3"
+										class="flex items-end overflow-hidden pt-4 pb-1 pl-3"
 										role="group"
 										aria-label={$_('statistics.coversForAuthor', { values: { author: author.author } })}
 									>
 										{#each author.covers as cover, coverIdx}
 											<button
 												type="button"
-												class="{coverIdx > 0 ? '-ml-3' : ''}"
+												class="cursor-pointer transition-all duration-200 hover:z-50 {coverIdx > 0 ? '-ml-3' : ''} hover:-translate-y-1"
 												style:z-index={coverIdx + 1}
 												onclick={() => openCoverBook(cover.book_id)}
 											>
 												<img
 													src={cover.cover_url}
 													alt={$_('book.coverForAuthor', { values: { author: author.author, index: coverIdx + 1 } })}
-													class="h-24 w-auto rounded shadow-sm ring-1 ring-base-200 bg-base-100"
+													class="h-24 w-auto rounded shadow-sm ring-1 ring-base-200 bg-base-100 transition-shadow duration-200 hover:shadow-lg hover:shadow-primary/30 hover:ring-2 hover:ring-primary"
 												/>
 											</button>
 										{/each}
