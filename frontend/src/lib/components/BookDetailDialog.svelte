@@ -8,8 +8,10 @@
 	import { toasts } from '$lib/toasts';
 	import { formatLanguageCode } from '$lib/utils/language';
 	import StarRating from './StarRating.svelte';
-	import { LineChart as LayerLineChart } from 'layerchart';
-	import { curveCatmullRom } from 'd3-shape';
+	import { Line } from 'svelte-chartjs';
+	import '$lib/chartjs/register';
+	import { getDaisyColorRgb } from '$lib/chartjs/theme';
+	import type { ChartData, ChartOptions } from 'chart.js';
 
 	const tz = getTimezone();
 
@@ -167,11 +169,11 @@
 	});
 
 	const lineChartData = $derived.by(() => {
-		if (uniqueDays.length < 1) return [];
+		if (uniqueDays.length < 1) return { labels: [] as string[], data: [] as number[] };
 		const oldestEntry = uniqueDays[0];
 		const useStartDate = !!book?.date_started && formatDate(book.date_started, tz) < formatDate(oldestEntry.created_at, tz);
 		const rawStart = useStartDate ? book.date_started : (book?.date_added ?? null);
-		if (!rawStart) return [];
+		if (!rawStart) return { labels: [] as string[], data: [] as number[] };
 		const virtualEntry: ReadingProgressEntry = {
 			id: 0,
 			book_id: book?.id ?? 0,
@@ -180,10 +182,74 @@
 			updated_at: rawStart
 		};
 		const entries = [virtualEntry, ...uniqueDays];
-		return entries.map((e) => ({
-			date: formatDate(e.created_at, tz),
-			page: e.page
-		}));
+		return {
+			labels: entries.map((e) => formatDate(e.created_at, tz)),
+			data: entries.map((e) => e.page),
+		};
+	});
+
+	const lineChartConfig = $derived<ChartData<'line'>>({
+		labels: lineChartData.labels,
+		datasets: [
+			{
+				label: $_('book.currentPage'),
+				data: lineChartData.data,
+				borderColor: getDaisyColorRgb('primary'),
+				backgroundColor: getDaisyColorRgb('primary'),
+				tension: 0.4,
+				pointRadius: 4,
+				pointHoverRadius: 6,
+				fill: false,
+			},
+		],
+	});
+
+	const lineChartOptions = $derived<ChartOptions<'line'>>({
+		responsive: true,
+		maintainAspectRatio: false,
+		animation: { duration: 0 },
+		plugins: {
+			legend: { display: false },
+			tooltip: {
+				mode: 'index' as const,
+				intersect: false,
+			},
+		},
+		scales: {
+			x: {
+				grid: { display: false },
+				ticks: {
+					maxTicksLimit: 6,
+					color: getDaisyColorRgb('base-content'),
+				},
+			},
+			y: {
+				beginAtZero: true,
+				max: Math.max(...lineChartData.data, book?.page_count ?? 1),
+				grid: {
+					color: getDaisyColorRgb('base-200'),
+				},
+				ticks: {
+					color: getDaisyColorRgb('base-content'),
+				},
+			},
+		},
+	});
+
+	let lineChart = $state<import('chart.js').Chart<'line'> | null>(null);
+
+	$effect(() => {
+		const _ = getDaisyColorRgb('base-content');
+		const __ = getDaisyColorRgb('base-200');
+		const ___ = getDaisyColorRgb('primary');
+		if (lineChart && lineChart.options.scales && lineChart.data.datasets[0]) {
+			lineChart.data.datasets[0].borderColor = getDaisyColorRgb('primary');
+			lineChart.data.datasets[0].backgroundColor = getDaisyColorRgb('primary');
+			if (lineChart.options.scales.x?.ticks) lineChart.options.scales.x.ticks.color = getDaisyColorRgb('base-content');
+			if (lineChart.options.scales.y?.ticks) lineChart.options.scales.y.ticks.color = getDaisyColorRgb('base-content');
+			if (lineChart.options.scales.y?.grid) lineChart.options.scales.y.grid.color = getDaisyColorRgb('base-200');
+			lineChart.update('none');
+		}
 	});
 
 	$effect(() => {
@@ -304,6 +370,7 @@
 						<span class="text-sm font-mono">
 							<input
 								type="number"
+								name="current-page"
 								class="input input-bordered input-sm w-20 text-center"
 								bind:value={currentPage}
 								min="0"
@@ -322,6 +389,7 @@
 
 					<input
 						type="range"
+						name="progress-range"
 						min="0"
 						max={book.page_count}
 						class="range range-primary range-xs mt-2"
@@ -332,23 +400,14 @@
 				{/if}
 			</div>
 
-			{#if lineChartData.length >= 2}
-				<div class="border-t border-base-200 pt-3">
-					<div class="text-xs text-base-content/60 mb-2">{$_('book.progressGraph')}</div>
-					<div class="border border-base-300 rounded-xl bg-base-100">
-						<LayerLineChart
-							data={lineChartData}
-							x="date"
-							y="page"
-							height={200}
-							points
-							series={[{ key: 'default', value: 'page', color: 'var(--color-primary)', label: $_('book.currentPage') }]}
-							yDomain={[0, Math.max(...lineChartData.map((d) => d.page), book?.page_count ?? 1)]}
-							props={{ xAxis: { tickSpacing: 80 }, spline: { curve: curveCatmullRom } }}
-						/>
-					</div>
-				</div>
-			{/if}
+	{#if lineChartData.data.length >= 2}
+		<div class="border-t border-base-200 pt-3">
+			<div class="text-xs text-base-content/60 mb-2">{$_('book.progressGraph')}</div>
+			<div class="border border-base-300 rounded-xl bg-base-100 p-2" style="height: 200px;">
+				<Line bind:chart={lineChart} data={lineChartConfig} options={lineChartOptions} />
+			</div>
+		</div>
+	{/if}
 
 			<div>
 				<div class="text-xs text-base-content/60 mb-1">{$_('book.notes')}</div>

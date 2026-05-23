@@ -8,6 +8,7 @@
 	import { _ } from '$lib/i18n';
 	import { toasts } from '$lib/toasts';
 	import BookCard from '$lib/components/BookCard.svelte';
+	import BookListItem from '$lib/components/BookListItem.svelte';
 	import BookDetailDialog from '$lib/components/BookDetailDialog.svelte';
 	import BookDrawer from '$lib/components/BookDrawer.svelte';
 	import SearchBar from '$lib/components/SearchBar.svelte';
@@ -53,6 +54,19 @@
 	let loadingMore = $state(false);
 	let hasMore = $state(true);
 	let nextOffset = $state(0);
+	let viewMode = $state<'large' | 'small' | 'list'>(
+		typeof window !== 'undefined' &&
+		(localStorage.getItem('libraryViewMode') === 'small' || localStorage.getItem('libraryViewMode') === 'list')
+			? (localStorage.getItem('libraryViewMode') as 'large' | 'small' | 'list')
+			: 'large'
+	);
+
+	function setViewMode(mode: 'large' | 'small' | 'list') {
+		viewMode = mode;
+		if (typeof window !== 'undefined') {
+			localStorage.setItem('libraryViewMode', mode);
+		}
+	}
 	let searchQuery = $state('');
 	let smartSort = $state(true);
 	let sort = $state<SortField>('date_added');
@@ -327,19 +341,64 @@
 				onSearch={(q) => (searchQuery = q)}
 			/>
 		</div>
+		<div class="join" role="group" aria-label="View mode">
+			<button
+				class="btn btn-sm join-item"
+				class:btn-active={viewMode === 'large'}
+				onclick={() => setViewMode('large')}
+				aria-label="Large cards"
+			>
+				<svg class="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+					<rect x="1" y="1" width="6" height="6" rx="1"/>
+					<rect x="9" y="1" width="6" height="6" rx="1"/>
+					<rect x="1" y="9" width="6" height="6" rx="1"/>
+					<rect x="9" y="9" width="6" height="6" rx="1"/>
+				</svg>
+			</button>
+			<button
+				class="btn btn-sm join-item"
+				class:btn-active={viewMode === 'small'}
+				onclick={() => setViewMode('small')}
+				aria-label="Small cards"
+			>
+				<svg class="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+					<rect x="1" y="1" width="4" height="4" rx="0.5"/>
+					<rect x="6" y="1" width="4" height="4" rx="0.5"/>
+					<rect x="11" y="1" width="4" height="4" rx="0.5"/>
+					<rect x="1" y="6" width="4" height="4" rx="0.5"/>
+					<rect x="6" y="6" width="4" height="4" rx="0.5"/>
+					<rect x="11" y="6" width="4" height="4" rx="0.5"/>
+					<rect x="1" y="11" width="4" height="4" rx="0.5"/>
+					<rect x="6" y="11" width="4" height="4" rx="0.5"/>
+					<rect x="11" y="11" width="4" height="4" rx="0.5"/>
+				</svg>
+			</button>
+			<button
+				class="btn btn-sm join-item"
+				class:btn-active={viewMode === 'list'}
+				onclick={() => setViewMode('list')}
+				aria-label="List view"
+			>
+				<svg class="w-4 h-4" viewBox="0 0 16 16" fill="currentColor">
+					<rect x="1" y="2" width="14" height="2" rx="0.5"/>
+					<rect x="1" y="7" width="14" height="2" rx="0.5"/>
+					<rect x="1" y="12" width="14" height="2" rx="0.5"/>
+				</svg>
+			</button>
+		</div>
 		<div class="flex items-center gap-2 text-sm">
 			<label class="label cursor-pointer gap-2">
 				<span class="label-text text-xs">{$_('sort.smart')}</span>
-				<input type="checkbox" class="toggle toggle-xs" bind:checked={smartSort} />
+				<input type="checkbox" class="toggle toggle-xs" name="smart-sort" bind:checked={smartSort} />
 			</label>
-			<select class="select select-bordered select-xs" bind:value={sort} disabled={smartSort}>
+			<select class="select select-bordered select-xs" name="sort-field" bind:value={sort} disabled={smartSort}>
 				<option value="date_added">{$_('common.dateAdded')}</option>
 				<option value="title">{$_('book.title')}</option>
 				<option value="date_started">{$_('book.dateStarted')}</option>
 				<option value="date_finished">{$_('book.dateFinished')}</option>
 				<option value="rating">{$_('common.rating')}</option>
 			</select>
-			<select class="select select-bordered select-xs" bind:value={order} disabled={smartSort}>
+			<select class="select select-bordered select-xs" name="sort-order" bind:value={order} disabled={smartSort}>
 				<option value="desc">{$_('common.desc')}</option>
 				<option value="asc">{$_('common.asc')}</option>
 			</select>
@@ -359,10 +418,26 @@
 			<p>{$_('common.noBooksYet')}</p>
 			<button class="btn btn-primary btn-sm mt-4" onclick={() => (addBookOpen = true)}>{$_('common.addFirstBook')}</button>
 		</div>
-	{:else}
-		<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+	{:else if viewMode === 'list'}
+		<div class="flex flex-col gap-1.5">
 			{#each books as book (book.id)}
-				<BookCard {book} onClick={openDetailView} currentPage={progressMap[book.id] ?? 0} />
+				<BookListItem {book} onClick={openDetailView} currentPage={progressMap[book.id] ?? 0} />
+			{/each}
+		</div>
+		<div bind:this={loadMoreAnchor} class="h-1"></div>
+		{#if loadingMore}
+			<div class="flex justify-center py-4">
+				<span class="loading loading-spinner loading-md"></span>
+			</div>
+		{/if}
+	{:else}
+		<div
+			class="grid gap-3 {viewMode === 'small'
+				? 'grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-2'
+				: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'}"
+		>
+			{#each books as book (book.id)}
+				<BookCard {book} onClick={openDetailView} currentPage={progressMap[book.id] ?? 0} compact={viewMode === 'small'} />
 			{/each}
 		</div>
 		<div bind:this={loadMoreAnchor} class="h-1"></div>

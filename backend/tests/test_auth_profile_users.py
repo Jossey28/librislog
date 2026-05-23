@@ -219,6 +219,8 @@ def test_profile_settings_get_and_update(client: TestClient) -> None:
     assert current.status_code == 200
     assert current.json()["language"] == "en"
     assert current.json()["timezone"] == "UTC"
+    assert current.json()["theme"] == "light"
+    assert current.json()["custom_theme"] is None
 
     updated = client.patch("/api/profile/settings", json={"language": "de"})
     assert updated.status_code == 200
@@ -228,6 +230,16 @@ def test_profile_settings_get_and_update(client: TestClient) -> None:
     tz_updated = client.patch("/api/profile/settings", json={"timezone": "Europe/Berlin"})
     assert tz_updated.status_code == 200
     assert tz_updated.json()["timezone"] == "Europe/Berlin"
+
+    theme_updated = client.patch("/api/profile/settings", json={"theme": "dark"})
+    assert theme_updated.status_code == 200
+    assert theme_updated.json()["theme"] == "dark"
+    assert theme_updated.json()["custom_theme"] is None
+
+    custom_updated = client.patch("/api/profile/settings", json={"theme": "custom", "custom_theme": "dracula"})
+    assert custom_updated.status_code == 200
+    assert custom_updated.json()["theme"] == "custom"
+    assert custom_updated.json()["custom_theme"] == "dracula"
 
 
 def test_profile_api_key_lifecycle(client: TestClient) -> None:
@@ -274,6 +286,8 @@ def test_users_create_creates_user_settings(client: TestClient, session: Session
     assert settings is not None
     assert settings.language == "en"
     assert settings.timezone == "UTC"
+    assert settings.theme == "light"
+    assert settings.custom_theme is None
 
 def test_users_create_rejects_duplicate_email(client: TestClient) -> None:
     resp = client.post(
@@ -506,7 +520,7 @@ def test_oidc_link_status_disabled_by_default(client: TestClient) -> None:
 def test_profile_reset_data_requires_confirmation_phrase(client: TestClient) -> None:
     resp = client.post("/api/profile/reset-data", json={"confirmation": "WRONG"})
     assert resp.status_code == 400
-    assert resp.json()["detail"] == "error.invalidConfirmationPhrase"
+    assert resp.json()["detail"] == "Confirmation phrase does not match."
 
 
 def test_profile_reset_data_deletes_books_tags_progress(client: TestClient) -> None:
@@ -528,7 +542,7 @@ def test_profile_reset_data_deletes_books_tags_progress(client: TestClient) -> N
 def test_profile_delete_account_rejects_last_admin(client: TestClient) -> None:
     resp = client.request("DELETE", "/api/profile/account", json={"confirmation": "DELETE MY ACCOUNT"})
     assert resp.status_code == 403
-    assert resp.json()["detail"] == "error.cannotDeleteLastAdmin"
+    assert resp.json()["detail"] == "Cannot delete the last administrator account."
 
 
 def test_profile_delete_account_deletes_regular_user_data(

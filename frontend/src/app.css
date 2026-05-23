@@ -1,6 +1,7 @@
 @import "tailwindcss";
-@plugin "daisyui";
-@import "layerchart/daisyui-5.css";
+@plugin "daisyui" {
+  themes: all;
+}
 
 html {
 	scroll-behavior: smooth;

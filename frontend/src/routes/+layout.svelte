@@ -1,5 +1,6 @@
 <script lang="ts">
 	import '../app.css';
+	import '$lib/chartjs/register';
 	import { page } from '$app/stores';
 	import { onDestroy, onMount } from 'svelte';
 	import AddBookModal from '$lib/components/AddBookModal.svelte';
@@ -9,10 +10,16 @@
 	import { currentUser, csrfToken, loadAuthFromStorage, initAuthSync } from '$lib/stores/auth';
 	import { _, setupI18n } from '$lib/i18n';
 	import { setTimezone, setQuoteServiceEnabled } from '$lib/stores/timezone';
+	import { loadThemeFromStorage, applyThemeToDocument, setThemeMode, setCustomTheme, saveThemeToStorage, sanitizeThemeMode, THEME_MODE_KEY } from '$lib/stores/theme';
 	import { version, gitSha } from '$lib/version';
 	import { toasts } from '$lib/toasts';
 
 	let { children } = $props();
+
+	if (typeof window !== 'undefined') {
+		loadThemeFromStorage();
+		applyThemeToDocument();
+	}
 
 	let addBookOpen = $state(false);
 	let i18nReady = $state(false);
@@ -93,6 +100,17 @@
 					const settings = await api.profile.getSettings();
 					setTimezone(settings.timezone);
 					setQuoteServiceEnabled(settings.quote_service_enabled);
+					if (settings.theme) {
+						const dbMode = sanitizeThemeMode(settings.theme);
+						const storedMode = localStorage.getItem(THEME_MODE_KEY);
+						const storedCustom = localStorage.getItem('custom_theme');
+						if (!storedMode || storedMode !== dbMode || storedCustom !== (settings.custom_theme ?? null)) {
+							setThemeMode(dbMode);
+							setCustomTheme(settings.custom_theme);
+							applyThemeToDocument();
+							saveThemeToStorage();
+						}
+					}
 				} catch {
 					csrfToken.set(null);
 					window.location.href = '/login';
@@ -176,6 +194,10 @@
 			return `${$_('app.title')} - ${$_('admin.title')}`;
 		}
 
+		if ($page.url.pathname.startsWith('/about')) {
+			return `${$_('app.title')} - ${$_('user.about')}`;
+		}
+
 		if ($page.url.pathname.startsWith('/login')) {
 			return `${$_('app.title')} - ${$_('auth.login')}`;
 		}
@@ -200,7 +222,10 @@
 	{@render children()}
 {:else}
 <div class="min-h-screen bg-base-200 flex">
-	<UserMenu />
+	<!-- Floating user menu (desktop) -->
+	<div class="hidden md:block">
+		<UserMenu />
+	</div>
 	<!-- Sidebar (desktop) -->
 	<aside class="hidden md:flex flex-col w-56 bg-base-100 shadow-md fixed top-0 left-0 h-full z-30 p-4 gap-4">
 		<a href="/" class="flex items-center gap-2 py-2 px-1">
@@ -217,20 +242,38 @@
 				</a>
 			{/each}
 		</nav>
-		<div class="text-[10px] text-base-content/40 px-1 mt-auto">
-			{version}{#if gitSha && gitSha !== 'unknown' && !version.includes(gitSha.slice(0, 7))} ({gitSha.slice(0, 7)}){/if}
+		<div class="flex items-center gap-2 text-[10px] text-base-content/40 px-1 mt-auto">
+			<a
+				href="https://github.com/codebude/librislog"
+				target="_blank"
+				rel="noopener noreferrer"
+				class="link link-neutral"
+				aria-label="GitHub"
+			>
+				<svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+					<path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.335-1.755-1.335-1.755-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12 24 5.37 18.63 0 12 0"/>
+				</svg>
+			</a>
+			<span>
+				{version}{#if gitSha && gitSha !== 'unknown' && !version.includes(gitSha.slice(0, 7))} ({gitSha.slice(0, 7)}){/if}
+			</span>
 		</div>
 	</aside>
 
 	<!-- Main content -->
 	<div class="flex-1 flex flex-col md:ml-56 min-h-screen">
-		<!-- Mobile top bar -->
-		<header class="md:hidden flex items-center justify-between px-4 py-3 bg-base-100 shadow-sm sticky top-0 z-20">
-			<a href="/" class="flex items-center gap-2">
-				<img src="/logo.png" alt="LibrisLog" class="w-7 h-7 rounded" />
-				<span class="text-lg font-bold tracking-tight">{$_('app.title')}</span>
-			</a>
-		</header>
+		<!-- Mobile top bar with navbar -->
+		<div class="navbar md:hidden bg-base-100 shadow-sm sticky top-0 z-20">
+			<div class="navbar-start">
+				<a href="/" class="btn btn-ghost text-lg px-3 py-2">
+					<img src="/logo.png" alt="LibrisLog" class="w-7 h-7 rounded shrink-0" />
+					<span class="font-bold tracking-tight hidden sm:inline">{$_('app.title')}</span>
+				</a>
+			</div>
+			<div class="navbar-end">
+				<UserMenu floating={false} />
+			</div>
+		</div>
 
 		<!-- Page content -->
 		<main class="flex-1 p-4 pb-24 sm:pr-24 md:pb-4">
