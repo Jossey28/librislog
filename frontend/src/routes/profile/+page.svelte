@@ -185,7 +185,6 @@
 			setCustomTheme(customTheme);
 			if (getThemeMode() === 'custom') {
 				applyThemeToDocument();
-				saveThemeToStorage();
 			}
 		}
 	});
