@@ -99,3 +99,10 @@
 		</ul>
 	{/if}
 </div>
+
+<style>
+	:global(.dropdown-content hr.menu-divider) {
+		border-radius: 0;
+		opacity: 0.3;
+	}
+</style>

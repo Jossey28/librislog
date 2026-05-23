@@ -43,8 +43,10 @@
 	"pagesOver": "pages over",
 	"daysLabel": "days",
 	"avgPerDay": "Avg:",
+	"pagesPerDay": "pages/day",
 	"loading": "Loading statistics...",
-	"noData": "No data available yet. Start reading and tracking books to see statistics!"
+	"noData": "No data available yet. Start reading and tracking books to see statistics!",
+    "resetZoom": "Reset zoom"
   },
   "dashboard": {
     "title": "Reading Dashboard",

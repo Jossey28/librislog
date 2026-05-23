@@ -227,3 +227,5 @@ __marimo__/
 cookies.txt
 profile-snapshot
 .plan/
+node_modules/
+/*.png

@@ -2,7 +2,6 @@
 @plugin "daisyui" {
   themes: all;
 }
-@import "layerchart/daisyui-5.css";
 
 html {
 	scroll-behavior: smooth;

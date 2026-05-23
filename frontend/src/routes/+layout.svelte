@@ -1,5 +1,6 @@
 <script lang="ts">
 	import '../app.css';
+	import '$lib/chartjs/register';
 	import { page } from '$app/stores';
 	import { onDestroy, onMount } from 'svelte';
 	import AddBookModal from '$lib/components/AddBookModal.svelte';

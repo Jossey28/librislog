@@ -29,6 +29,9 @@
 	let selectedBook = $state<Book | null>(null);
 	let detailOpen = $state(false);
 	let drawerOpen = $state(false);
+	let pagesChart = $state<import('chart.js').Chart<'bar'> | null>(null);
+	let booksMonthChart = $state<import('chart.js').Chart<'bar'> | null>(null);
+	let booksYearChart = $state<import('chart.js').Chart<'bar'> | null>(null);
 
 	onMount(() => {
 		let active = true;
@@ -311,40 +314,79 @@
 
 		<div class="grid grid-cols-1 gap-4">
 			<div class="card bg-base-100 border border-base-200 shadow-sm">
-				<div class="card-body">
-					<h2 class="card-title text-base">{$_('statistics.pagesReadPerMonth')}</h2>
+				<div class="card-body relative">
+					<h2 class="card-title text-base pr-12">{$_('statistics.pagesReadPerMonth')}</h2>
+					<button
+						type="button"
+						class="btn btn-ghost btn-xs absolute top-4 right-4 opacity-60 hover:opacity-100 z-10"
+						title={$_('statistics.resetZoom')}
+						onclick={() => pagesChart?.resetZoom()}
+						disabled={!pagesChart}
+					>
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+							<path d="M3 3v5h5" />
+						</svg>
+					</button>
 					<BarChart
 						labels={pagesReadPoints.map((p) => p.label)}
 						data={pagesReadPoints.map((p) => p.value)}
 						label={$_('statistics.pagesReadPerMonth')}
 						color="primary"
 						emptyText={$_('statistics.noData')}
+						onChart={(c) => pagesChart = c}
 					/>
 				</div>
 			</div>
 
 			<div class="card bg-base-100 border border-base-200 shadow-sm">
-				<div class="card-body">
-					<h2 class="card-title text-base">{$_('statistics.booksFinishedPerMonth')}</h2>
+				<div class="card-body relative">
+					<h2 class="card-title text-base pr-12">{$_('statistics.booksFinishedPerMonth')}</h2>
+					<button
+						type="button"
+						class="btn btn-ghost btn-xs absolute top-4 right-4 opacity-60 hover:opacity-100 z-10"
+						title={$_('statistics.resetZoom')}
+						onclick={() => booksMonthChart?.resetZoom()}
+						disabled={!booksMonthChart}
+					>
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+							<path d="M3 3v5h5" />
+						</svg>
+					</button>
 					<BarChart
 						labels={booksByMonthPoints.map((p) => p.label)}
 						data={booksByMonthPoints.map((p) => p.value)}
 						label={$_('statistics.booksFinishedPerMonth')}
 						color="secondary"
 						emptyText={$_('statistics.noData')}
+						onChart={(c) => booksMonthChart = c}
 					/>
 				</div>
 			</div>
 
 			<div class="card bg-base-100 border border-base-200 shadow-sm">
-				<div class="card-body">
-					<h2 class="card-title text-base">{$_('statistics.booksFinishedPerYear')}</h2>
+				<div class="card-body relative">
+					<h2 class="card-title text-base pr-12">{$_('statistics.booksFinishedPerYear')}</h2>
+					<button
+						type="button"
+						class="btn btn-ghost btn-xs absolute top-4 right-4 opacity-60 hover:opacity-100 z-10"
+						title={$_('statistics.resetZoom')}
+						onclick={() => booksYearChart?.resetZoom()}
+						disabled={!booksYearChart}
+					>
+						<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+							<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+							<path d="M3 3v5h5" />
+						</svg>
+					</button>
 					<BarChart
 						labels={booksByYearPoints.map((p) => p.label)}
 						data={booksByYearPoints.map((p) => p.value)}
 						label={$_('statistics.booksFinishedPerYear')}
 						color="accent"
 						emptyText={$_('statistics.noData')}
+						onChart={(c) => booksYearChart = c}
 					/>
 				</div>
 			</div>
@@ -423,6 +465,7 @@
 						<span>
 							{$_('statistics.avgPerDay')}
 							<strong>{formatNumber(calendarData.total_pages / Math.max(calendarData.days_with_activity, 1), 1)}</strong>
+							{$_('statistics.pagesPerDay')}
 						</span>
 					</div>
 				{:else}

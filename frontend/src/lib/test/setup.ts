@@ -1,5 +1,6 @@
 import { vi } from 'vitest';
 import '@testing-library/jest-dom/vitest';
+import '$lib/chartjs/register';
 
 // --- Polyfill crypto.randomUUID for happy-dom ---
 if (typeof crypto !== 'undefined' && !crypto.randomUUID) {

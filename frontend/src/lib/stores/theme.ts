@@ -1,4 +1,5 @@
 export type ThemeMode = 'light' | 'dark' | 'custom';
+import { invalidateColorCache } from '$lib/chartjs/theme';
 
 const DAISYUI_THEMES = [
 	'cupcake', 'bumblebee', 'emerald', 'corporate', 'synthwave', 'retro',
@@ -96,6 +97,7 @@ export function saveThemeToStorage() {
 export function applyThemeToDocument() {
 	const effective = getEffectiveTheme();
 	document.documentElement.dataset.theme = effective;
+	invalidateColorCache();
 }
 
 export function getThemeIcon(): string {
