@@ -20,23 +20,24 @@ def upgrade() -> None:
     op.execute("UPDATE book SET author = '' WHERE author IS NULL")
     op.execute("UPDATE book SET page_count = 0 WHERE page_count IS NULL")
 
-    # Make columns NOT NULL
-    op.alter_column('book', 'author',
-                    existing_type=sa.String(),
-                    nullable=False,
-                    server_default='')
-    op.alter_column('book', 'page_count',
-                    existing_type=sa.Integer(),
-                    nullable=False,
-                    server_default='0')
+    with op.batch_alter_table('book') as batch_op:
+        batch_op.alter_column('author',
+                              existing_type=sa.String(),
+                              nullable=False,
+                              server_default='')
+        batch_op.alter_column('page_count',
+                              existing_type=sa.Integer(),
+                              nullable=False,
+                              server_default='0')
 
 
 def downgrade() -> None:
-    op.alter_column('book', 'author',
-                    existing_type=sa.String(),
-                    nullable=True,
-                    server_default=None)
-    op.alter_column('book', 'page_count',
-                    existing_type=sa.Integer(),
-                    nullable=True,
-                    server_default=None)
+    with op.batch_alter_table('book') as batch_op:
+        batch_op.alter_column('author',
+                              existing_type=sa.String(),
+                              nullable=True,
+                              server_default=None)
+        batch_op.alter_column('page_count',
+                              existing_type=sa.Integer(),
+                              nullable=True,
+                              server_default=None)
