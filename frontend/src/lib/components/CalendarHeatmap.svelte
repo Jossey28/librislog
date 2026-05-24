@@ -3,6 +3,8 @@
 	import { Chart } from 'svelte-chartjs';
 	import { mixDaisyColors, getDaisyColorRgb } from '$lib/chartjs/theme';
 	import { locale } from '$lib/i18n';
+	import { themeApplyCount } from '$lib/stores/theme';
+	import { onMount } from 'svelte';
 	import type { DailyPages } from '$lib/types';
 	import type { Chart as ChartJS, ChartData, ChartOptions, ScriptableContext, TooltipItem } from 'chart.js';
 
@@ -28,6 +30,13 @@
 	}
 
 	let chart = $state<ChartJS<'matrix'> | null>(null);
+	let _themeSignal = $state(0);
+
+	onMount(() => {
+		return themeApplyCount.subscribe((n: number) => {
+			_themeSignal = n;
+		});
+	});
 
 	const matrixData = $derived.by(() => {
 		const pagesByDate = new Map<string, number>();
@@ -66,31 +75,34 @@
 		return { points: result, maxPages, monthLabels };
 	});
 
-	const chartData = $derived<ChartData<'matrix'>>({
-		datasets: [
-			{
-				label: 'Pages',
-				data: matrixData.points,
-				backgroundColor: (ctx: ScriptableContext<'matrix'>) => {
-					const raw = ctx.raw as { v: number } | undefined;
-					const v = raw?.v ?? 0;
-					if (v <= 0) return mixDaisyColors('--color-base-200', '--color-primary', 0);
-					return mixDaisyColors('--color-base-200', '--color-primary', Math.min(v / matrixData.maxPages, 1));
+	const chartData = $derived.by<ChartData<'matrix'>>(() => {
+		void _themeSignal;
+		return {
+			datasets: [
+				{
+					label: 'Pages',
+					data: matrixData.points,
+					backgroundColor: (ctx: ScriptableContext<'matrix'>) => {
+						const raw = ctx.raw as { v: number } | undefined;
+						const v = raw?.v ?? 0;
+						if (v <= 0) return mixDaisyColors('--color-base-200', '--color-primary', 0);
+						return mixDaisyColors('--color-base-200', '--color-primary', Math.min(v / matrixData.maxPages, 1));
+					},
+					borderColor: 'transparent',
+					borderWidth: 1,
+					width: ({ chart }: { chart: { chartArea?: { width: number } } }) => {
+						const area = chart.chartArea;
+						if (!area) return 10;
+						return Math.max((area.width / 54) - 2, 2);
+					},
+					height: ({ chart }: { chart: { chartArea?: { height: number } } }) => {
+						const area = chart.chartArea;
+						if (!area) return 10;
+						return Math.max((area.height / 8) - 2, 2);
+					},
 				},
-				borderColor: 'transparent',
-				borderWidth: 1,
-				width: ({ chart }: { chart: { chartArea?: { width: number } } }) => {
-					const area = chart.chartArea;
-					if (!area) return 10;
-					return Math.max((area.width / 54) - 2, 2);
-				},
-				height: ({ chart }: { chart: { chartArea?: { height: number } } }) => {
-					const area = chart.chartArea;
-					if (!area) return 10;
-					return Math.max((area.height / 8) - 2, 2);
-				},
-			},
-		],
+			],
+		};
 	});
 
 	const monthLabelPlugin = {
@@ -124,67 +136,64 @@
 		}
 	};
 
-	const options = $derived<ChartOptions<'matrix'>>({
-		responsive: true,
-		maintainAspectRatio: false,
-		animation: { duration: 0 },
-		layout: {
-			padding: {
-				top: 28,
-			}
-		},
-		plugins: {
-			legend: { display: false },
-			// @ts-expect-error custom plugin
-			monthLabels: {},
-			tooltip: {
-				callbacks: {
-					title: (items: TooltipItem<'matrix'>[]) => {
-						const raw = items[0]?.raw as { date: string } | undefined;
-						if (!raw) return '';
-						const [yr, mo, dy] = raw.date.split('-').map(Number);
-						const appLocale = $locale ?? 'en';
-						return new Date(yr, mo - 1, dy).toLocaleDateString(appLocale, {
-							weekday: 'short',
-							month: 'short',
-							day: 'numeric',
-							year: 'numeric',
-						});
-					},
-					label: (item: TooltipItem<'matrix'>) => {
-						const raw = item.raw as { v: number } | undefined;
-						return `Pages: ${raw?.v ?? 0}`;
+	const options = $derived.by<ChartOptions<'matrix'>>(() => {
+		void _themeSignal;
+		return {
+			responsive: true,
+			maintainAspectRatio: false,
+			animation: { duration: 0 },
+			layout: {
+				padding: {
+					top: 28,
+				}
+			},
+			plugins: {
+				legend: { display: false },
+				monthLabels: {},
+				tooltip: {
+					callbacks: {
+						title: (items: TooltipItem<'matrix'>[]) => {
+							const raw = items[0]?.raw as { date: string } | undefined;
+							if (!raw) return '';
+							const [yr, mo, dy] = raw.date.split('-').map(Number);
+							const appLocale = $locale ?? 'en';
+							return new Date(yr, mo - 1, dy).toLocaleDateString(appLocale, {
+								weekday: 'short',
+								month: 'short',
+								day: 'numeric',
+								year: 'numeric',
+							});
+						},
+						label: (item: TooltipItem<'matrix'>) => {
+							const raw = item.raw as { v: number } | undefined;
+							return `Pages: ${raw?.v ?? 0}`;
+						},
 					},
 				},
 			},
-		},
-		scales: {
-			x: {
-				type: 'linear',
-				offset: true,
-				grid: { display: false },
-				ticks: { display: false },
-				border: { display: false },
+			scales: {
+				x: {
+					type: 'linear',
+					offset: true,
+					grid: { display: false },
+					ticks: { display: false },
+					border: { display: false },
+				},
+				y: {
+					type: 'linear',
+					offset: true,
+					min: -0.5,
+					max: 6.5,
+					reverse: true,
+					grid: { display: false },
+					ticks: { display: false },
+					border: { display: false },
+				},
 			},
-			y: {
-				type: 'linear',
-				offset: true,
-				min: -0.5,
-				max: 6.5,
-				reverse: true,
-				grid: { display: false },
-				ticks: { display: false },
-				border: { display: false },
-			},
-		},
+		};
 	});
 
-	$effect(() => {
-		const _ = getDaisyColorRgb('base-content');
-		if (chart) {
-			chart.update('none');
-		}
-	});
+
 </script>
 
 {#if data.length === 0}

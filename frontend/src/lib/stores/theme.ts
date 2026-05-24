@@ -95,10 +95,15 @@ export function saveThemeToStorage() {
 	}
 }
 
+import { writable } from 'svelte/store';
+
+export const themeApplyCount = writable(0);
+
 export function applyThemeToDocument() {
 	const effective = getEffectiveTheme();
 	document.documentElement.dataset.theme = effective;
 	invalidateColorCache();
+	themeApplyCount.update(n => n + 1);
 }
 
 export function getThemeIcon(): string {
@@ -108,6 +113,25 @@ export function getThemeIcon(): string {
 		case 'custom': return 'Palette';
 	}
 	return 'Sun';
+}
+
+/** Restore-point for profile page so the preview can be reverted on navigation */
+let _restorePoint: { mode: ThemeMode; custom: DaisyUITheme | null } | null = null;
+
+export function saveRestorePoint(): void {
+	_restorePoint = { mode: _themeMode, custom: _customTheme };
+}
+
+export function clearRestorePoint(): void {
+	_restorePoint = null;
+}
+
+export function restoreFromPoint(): boolean {
+	if (!_restorePoint) return false;
+	_themeMode = _restorePoint.mode;
+	_customTheme = _restorePoint.custom;
+	_restorePoint = null;
+	return true;
 }
 
 export { DAISYUI_THEMES };

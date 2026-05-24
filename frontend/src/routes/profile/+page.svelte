@@ -6,7 +6,7 @@
 	import { _, SUPPORTED_LOCALES, setLocale } from '$lib/i18n';
 	import { getPasswordChecks, passwordChecksPassed, passwordPattern } from '$lib/password';
 	import { getTimezone, setTimezone, detectTimezone } from '$lib/stores/timezone';
-	import { getThemeMode, setThemeMode, getCustomTheme, setCustomTheme, applyThemeToDocument, saveThemeToStorage, sanitizeThemeMode, DAISYUI_THEMES } from '$lib/stores/theme';
+	import { getThemeMode, setThemeMode, getCustomTheme, setCustomTheme, applyThemeToDocument, saveThemeToStorage, sanitizeThemeMode, restoreFromPoint, saveRestorePoint, clearRestorePoint, DAISYUI_THEMES } from '$lib/stores/theme';
 	import Alert from '$lib/components/Alert.svelte';
 	import { toasts } from '$lib/toasts';
 	import { localizeError } from '$lib/errors';
@@ -122,6 +122,7 @@
 		}
 		applyThemeToDocument();
 		saveThemeToStorage();
+		saveRestorePoint();
 		keys = await api.profile.listApiKeys();
 		oidcConfig = await api.oidc.config();
 		if (oidcConfig.enabled) {
@@ -131,6 +132,15 @@
 
 	onMount(() => {
 		void load();
+	});
+
+	$effect(() => {
+		return () => {
+			if (restoreFromPoint()) {
+				applyThemeToDocument();
+				saveThemeToStorage();
+			}
+		};
 	});
 
 	async function saveProfile() {
@@ -199,6 +209,7 @@
 		themeMode = 'custom';
 		applyThemeToDocument();
 		saveThemeToStorage();
+		clearRestorePoint();
 		try {
 			await api.profile.updateSettings({
 				theme: 'custom',

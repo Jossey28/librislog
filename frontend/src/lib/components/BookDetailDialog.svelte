@@ -12,6 +12,8 @@
 	import { X } from '@lucide/svelte';
 	import '$lib/chartjs/register';
 	import { getDaisyColorRgb } from '$lib/chartjs/theme';
+	import { themeApplyCount } from '$lib/stores/theme';
+	import { onMount } from 'svelte';
 	import type { ChartData, ChartOptions } from 'chart.js';
 
 	const tz = getTimezone();
@@ -195,69 +197,68 @@
 		};
 	});
 
-	const lineChartConfig = $derived<ChartData<'line'>>({
-		labels: lineChartData.labels,
-		datasets: [
-			{
-				label: $_('book.currentPage'),
-				data: lineChartData.data,
-				borderColor: getDaisyColorRgb('primary'),
-				backgroundColor: getDaisyColorRgb('primary'),
-				tension: 0.4,
-				pointRadius: 4,
-				pointHoverRadius: 6,
-				fill: false,
-			},
-		],
-	});
-
-	const lineChartOptions = $derived<ChartOptions<'line'>>({
-		responsive: true,
-		maintainAspectRatio: false,
-		animation: { duration: 0 },
-		plugins: {
-			legend: { display: false },
-			tooltip: {
-				mode: 'index' as const,
-				intersect: false,
-			},
-		},
-		scales: {
-			x: {
-				grid: { display: false },
-				ticks: {
-					maxTicksLimit: 6,
-					color: getDaisyColorRgb('base-content'),
-				},
-			},
-			y: {
-				beginAtZero: true,
-				suggestedMax: book?.page_count ?? 1,
-				grace: '5%',
-				grid: {
-					color: getDaisyColorRgb('base-200'),
-				},
-				ticks: {
-					color: getDaisyColorRgb('base-content'),
-				},
-			},
-		},
-	});
-
 	let lineChart = $state<import('chart.js').Chart<'line'> | null>(null);
+	let _themeSignal = $state(0);
 
-	$effect(() => {
-		const _ = getDaisyColorRgb('base-content');
-		const __ = getDaisyColorRgb('base-200');
-		const ___ = getDaisyColorRgb('primary');
-		if (lineChart && lineChart.options.scales && lineChart.data.datasets[0]) {
-			lineChart.data.datasets[0].borderColor = getDaisyColorRgb('primary');
-			lineChart.data.datasets[0].backgroundColor = getDaisyColorRgb('primary');
-			if (lineChart.options.scales.x?.ticks) lineChart.options.scales.x.ticks.color = getDaisyColorRgb('base-content');
-			if (lineChart.options.scales.y?.ticks) lineChart.options.scales.y.ticks.color = getDaisyColorRgb('base-content');
-			if (lineChart.options.scales.y?.grid) lineChart.options.scales.y.grid.color = getDaisyColorRgb('base-200');
-			lineChart.update('none');
-		}
+	onMount(() => {
+		return themeApplyCount.subscribe((n: number) => {
+			_themeSignal = n;
+		});
+	});
+
+	const lineChartConfig = $derived.by<ChartData<'line'>>(() => {
+		void _themeSignal;
+		return {
+			labels: lineChartData.labels,
+			datasets: [
+				{
+					label: $_('book.currentPage'),
+					data: lineChartData.data,
+					borderColor: getDaisyColorRgb('primary'),
+					backgroundColor: getDaisyColorRgb('primary'),
+					tension: 0.4,
+					pointRadius: 4,
+					pointHoverRadius: 6,
+					fill: false,
+				},
+			],
+		};
+	});
+
+	const lineChartOptions = $derived.by<ChartOptions<'line'>>(() => {
+		void _themeSignal;
+		return {
+			responsive: true,
+			maintainAspectRatio: false,
+			animation: { duration: 0 },
+			plugins: {
+				legend: { display: false },
+				tooltip: {
+					mode: 'index' as const,
+					intersect: false,
+				},
+			},
+			scales: {
+				x: {
+					grid: { display: false },
+					ticks: {
+						maxTicksLimit: 6,
+						color: getDaisyColorRgb('base-content'),
+					},
+				},
+				y: {
+					beginAtZero: true,
+					suggestedMax: book?.page_count ?? 1,
+					grace: '5%',
+					grid: {
+						color: getDaisyColorRgb('base-200'),
+					},
+					ticks: {
+						color: getDaisyColorRgb('base-content'),
+					},
+				},
+			},
+		};
 	});
 
 	$effect(() => {

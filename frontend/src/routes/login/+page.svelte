@@ -5,6 +5,10 @@
 	import { currentUser, csrfToken } from '$lib/stores/auth';
 	import { _, locale, setLocale, SUPPORTED_LOCALES, type AppLocale } from '$lib/i18n';
 	import { setTimezone, detectTimezone } from '$lib/stores/timezone';
+	import {
+		setThemeMode, setCustomTheme, applyThemeToDocument, saveThemeToStorage,
+		sanitizeThemeMode, THEME_MODE_KEY, CUSTOM_THEME_KEY
+	} from '$lib/stores/theme';
 
 	let email = $state('');
 	let password = $state('');
@@ -56,6 +60,18 @@
 			if (settings.timezone === 'UTC') update.timezone = detected;
 			await api.profile.updateSettings(update);
 			setTimezone(settings.timezone === 'UTC' ? detected : settings.timezone);
+
+			if (settings.theme) {
+				const dbMode = sanitizeThemeMode(settings.theme);
+				const storedMode = localStorage.getItem(THEME_MODE_KEY);
+				const storedCustom = localStorage.getItem(CUSTOM_THEME_KEY);
+				if (!storedMode || storedMode !== dbMode || storedCustom !== (settings.custom_theme ?? null)) {
+					setThemeMode(dbMode);
+					setCustomTheme(settings.custom_theme);
+					applyThemeToDocument();
+					saveThemeToStorage();
+				}
+			}
 			const localeToSet: AppLocale = languageChanged
 				? selectedLanguage
 				: SUPPORTED_LOCALES.includes(settings.language as AppLocale)
