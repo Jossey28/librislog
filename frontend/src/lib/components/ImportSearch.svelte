@@ -4,6 +4,7 @@
 	import { api } from '$lib/api';
 	import { _ } from '$lib/i18n';
 	import { toasts } from '$lib/toasts';
+	import { ScanBarcode } from '@lucide/svelte';
 
 	let {
 		onImport,
@@ -262,16 +263,7 @@
 				title={$_('import.scanIsbn')}
 				aria-label={$_('import.scanIsbn')}
 			>
-				<svg viewBox="0 0 24 24" class="w-4 h-4" aria-hidden="true">
-					<rect x="2" y="4" width="1" height="16" fill="currentColor" />
-					<rect x="4" y="4" width="2" height="16" fill="currentColor" />
-					<rect x="7" y="4" width="1" height="16" fill="currentColor" />
-					<rect x="9" y="4" width="3" height="16" fill="currentColor" />
-					<rect x="13" y="4" width="1" height="16" fill="currentColor" />
-					<rect x="15" y="4" width="2" height="16" fill="currentColor" />
-					<rect x="18" y="4" width="1" height="16" fill="currentColor" />
-					<rect x="20" y="4" width="2" height="16" fill="currentColor" />
-				</svg>
+				<ScanBarcode class="w-4 h-4" />
 				<span>{$_('import.scan')}</span>
 			</button>
 		{/if}

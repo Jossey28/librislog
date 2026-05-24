@@ -8,7 +8,7 @@
 	import CoverPicker from './CoverPicker.svelte';
 	import TagInput from './TagInput.svelte';
 	import SuggestionInput from './SuggestionInput.svelte';
-	import { X } from '@lucide/svelte';
+	import { ScanBarcode, X } from '@lucide/svelte';
 
 	let {
 		open = $bindable(false),
