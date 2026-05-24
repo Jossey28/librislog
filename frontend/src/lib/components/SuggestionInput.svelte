@@ -112,7 +112,7 @@
 	}
 </script>
 
-<div bind:this={containerEl} class="form-control" role="combobox" aria-expanded={isOpen} aria-controls="suggestion-list">
+<div bind:this={containerEl} class="flex flex-col gap-1" role="combobox" aria-expanded={isOpen} aria-controls="suggestion-list">
 	{#if label}
 		<span class="label label-text">{label}</span>
 	{/if}

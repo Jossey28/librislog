@@ -348,12 +348,12 @@
 		</div>
 
 		<!-- Editable form -->
-		<form class="flex flex-col gap-3 px-4 pb-4 flex-1 min-h-0 overflow-y-auto" onsubmit={(e) => { e.preventDefault(); save(); }}>
-			<label class="form-control">
+		<form class="flex flex-col gap-4 px-4 pt-4 pb-4 flex-1 min-h-0 overflow-y-auto" onsubmit={(e) => { e.preventDefault(); save(); }}>
+			<label class="flex flex-col gap-1">
 				<span class="label label-text">{$_('book.title')}</span>
 				<input class="input input-bordered input-sm" name="title" bind:value={title} required />
 			</label>
-			<label class="form-control">
+			<label class="flex flex-col gap-1">
 				<span class="label label-text">{$_('book.subtitle')}</span>
 				<input class="input input-bordered input-sm" name="subtitle" bind:value={subtitle} />
 			</label>
@@ -366,7 +366,7 @@
 				fetchSuggestions={(q) => api.books.suggestions.authors(q)}
 			/>
 
-			<label class="form-control">
+			<label class="flex flex-col gap-1">
 				<span class="label label-text">{$_('book.isbn')}</span>
 				<div class="flex gap-2">
 					<input class="input input-bordered input-sm flex-1" name="isbn" bind:value={isbn} />
@@ -400,17 +400,17 @@
 					fetchSuggestions={(q) => api.books.suggestions.publishers(q)}
 				/>
 
-				<label class="form-control">
+				<label class="flex flex-col gap-1">
 					<span class="label label-text">{$_('book.year')}</span>
 					<input type="number" class="input input-bordered input-sm" name="published_year" bind:value={published_year} min="1000" max="2100" />
 				</label>
 
-				<label class="form-control">
+				<label class="flex flex-col gap-1">
 					<span class="label label-text">{$_('book.pages')} <span class="text-error">*</span></span>
 					<input type="number" class="input input-bordered input-sm" name="page_count" bind:value={page_count} min="1" required />
 				</label>
 
-				<label class="form-control">
+				<label class="flex flex-col gap-1">
 					<span class="label label-text">{$_('book.language')}</span>
 					<input
 						type="text"
@@ -425,7 +425,7 @@
 
 			<TagInput bind:value={tags} name="tags" disabled={saving} fetchSuggestions={(q) => api.books.suggestions.tags(q)} />
 
-			<label class="form-control">
+			<label class="flex flex-col gap-1">
 				<span class="label label-text">{$_('book.status')}</span>
 				<select class="select select-bordered select-sm" name="status" bind:value={reading_status}>
 					{#each STATUS_OPTIONS as opt}
@@ -434,26 +434,28 @@
 				</select>
 			</label>
 
-			<div class="form-control">
+			<div class="flex flex-col gap-1">
 				<span class="label label-text">{$_('common.rating')}</span>
-				<StarRating value={rating} onChange={(v) => (rating = v)} />
+				<div>
+					<StarRating value={rating} onChange={(v) => (rating = v)} />
+				</div>
 			</div>
 
-			<label class="form-control">
+			<label class="flex flex-col gap-1">
 				<span class="label label-text">{$_('book.dateStarted')}</span>
 				<input type="date" class="input input-bordered input-sm" name="date_started" bind:value={date_started} max={today} />
 			</label>
 
-			<label class="form-control">
+			<label class="flex flex-col gap-1">
 				<span class="label label-text">{$_('book.dateFinished')}</span>
 				<input type="date" class="input input-bordered input-sm" name="date_finished" bind:value={date_finished} max={today} />
 			</label>
 
-			<label class="form-control">
+			<label class="flex flex-col gap-1">
 				<span class="label label-text">{$_('book.notes')}</span>
 				<textarea class="textarea textarea-bordered text-sm" name="notes" rows="4" bind:value={notes}></textarea>
 			</label>
-			<label class="form-control">
+			<label class="flex flex-col gap-1">
 				<span class="label label-text">{$_('book.blurb')}</span>
 				<textarea class="textarea textarea-bordered text-sm" name="blurb" rows="4" bind:value={blurb}></textarea>
 			</label>
