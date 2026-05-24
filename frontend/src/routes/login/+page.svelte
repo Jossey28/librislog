@@ -91,9 +91,9 @@
 				<span class="text-2xl font-bold tracking-tight">{$_('app.title')}</span>
 			</div>
 			<h1 class="text-2xl font-bold">{$_('auth.login')}</h1>
-			<label class="form-control max-w-xs">
+			<label class="form-control">
 				<span class="label label-text">{$_('settings.languageTitle')}</span>
-				<select class="select select-bordered" value={selectedLanguage} onchange={onLanguageChange}>
+				<select class="select select-bordered w-full" value={selectedLanguage} onchange={onLanguageChange}>
 					{#each SUPPORTED_LOCALES as code}
 						<option value={code}>{$_(`languages.${code}`)}</option>
 					{/each}
@@ -104,12 +104,12 @@
 					{error}
 				</Alert>
 			{/if}
-			<form class="flex flex-col gap-3" onsubmit={(e) => { e.preventDefault(); submit(); }}>
+			<form class="flex flex-col gap-4" onsubmit={(e) => { e.preventDefault(); submit(); }}>
 				<label class="form-control">
 					<span class="label label-text">{$_('auth.email')}</span>
 					<input
 						type="email"
-						class="input input-bordered"
+						class="input input-bordered w-full"
 						bind:value={email}
 						autocomplete="username"
 						required
@@ -120,19 +120,19 @@
 					<span class="label label-text">{$_('auth.password')}</span>
 					<input
 						type="password"
-						class="input input-bordered"
+						class="input input-bordered w-full"
 						bind:value={password}
 						autocomplete="current-password"
 						required
 						disabled={loading}
 					/>
 				</label>
-				<button type="submit" class="btn btn-primary" disabled={loading}>
+				<button type="submit" class="btn btn-primary btn-block" disabled={loading}>
 					{loading ? $_('common.loadingEllipsis') : $_('auth.login')}
 				</button>
 				{#if oidcEnabled}
 					<div class="divider text-xs">{$_('oidc.orContinueWith')}</div>
-					<button type="button" class="btn btn-outline" onclick={startOidcLogin}>
+					<button type="button" class="btn btn-outline btn-block" onclick={startOidcLogin}>
 						{$_('oidc.loginWithProvider', { values: { provider: oidcProviderName } })}
 					</button>
 				{/if}
