@@ -6,7 +6,8 @@ const DAISYUI_THEMES = [
 	'cyberpunk', 'valentine', 'halloween', 'garden', 'forest', 'aqua',
 	'lofi', 'pastel', 'fantasy', 'wireframe', 'black', 'luxury', 'dracula',
 	'cmyk', 'autumn', 'business', 'acid', 'lemonade', 'night', 'coffee',
-	'winter', 'dim', 'nord', 'sunset', 'caramellatte', 'abyss', 'silk'
+	'winter', 'dim', 'nord', 'sunset', 'caramellatte', 'abyss', 'silk',
+	'librislog'
 ] as const;
 
 export type DaisyUITheme = (typeof DAISYUI_THEMES)[number];
@@ -94,18 +95,43 @@ export function saveThemeToStorage() {
 	}
 }
 
+import { writable } from 'svelte/store';
+
+export const themeApplyCount = writable(0);
+
 export function applyThemeToDocument() {
 	const effective = getEffectiveTheme();
 	document.documentElement.dataset.theme = effective;
 	invalidateColorCache();
+	themeApplyCount.update(n => n + 1);
 }
 
 export function getThemeIcon(): string {
 	switch (_themeMode) {
-		case 'light': return '☀️';
-		case 'dark': return '🌙';
-		case 'custom': return '🎨';
+		case 'light': return 'Sun';
+		case 'dark': return 'Moon';
+		case 'custom': return 'Palette';
 	}
+	return 'Sun';
+}
+
+/** Restore-point for profile page so the preview can be reverted on navigation */
+let _restorePoint: { mode: ThemeMode; custom: DaisyUITheme | null } | null = null;
+
+export function saveRestorePoint(): void {
+	_restorePoint = { mode: _themeMode, custom: _customTheme };
+}
+
+export function clearRestorePoint(): void {
+	_restorePoint = null;
+}
+
+export function restoreFromPoint(): boolean {
+	if (!_restorePoint) return false;
+	_themeMode = _restorePoint.mode;
+	_customTheme = _restorePoint.custom;
+	_restorePoint = null;
+	return true;
 }
 
 export { DAISYUI_THEMES };

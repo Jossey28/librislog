@@ -1,9 +1,10 @@
-<script lang="ts">
+	<script lang="ts">
 	import Alert from '$lib/components/Alert.svelte';
 	import { Html5QrcodeSupportedFormats, BaseLoggger } from 'html5-qrcode/esm/core';
 	import { Html5QrcodeShim } from 'html5-qrcode/esm/code-decoder';
 	import { _ } from '$lib/i18n';
 	import { onDestroy } from 'svelte';
+	import { X } from '@lucide/svelte';
 
 	let {
 		open = $bindable(false),
@@ -97,6 +98,7 @@
 					}
 				});
 			} catch {
+				if (!navigator.mediaDevices) throw new Error($_('scanner.noCamera'));
 				const devices = await navigator.mediaDevices.enumerateDevices();
 				const cameras = devices.filter((d) => d.kind === 'videoinput');
 				if (!cameras.length) throw new Error($_('scanner.noCamera'));
@@ -114,16 +116,7 @@
 			decoder = new Html5QrcodeShim(SUPPORTED_FORMATS, true, false, new BaseLoggger(false));
 			scanCanvas = document.createElement('canvas');
 
-			await new Promise<void>((resolve) => {
-				const check = () => {
-					if (videoEl) {
-						resolve();
-					} else {
-						requestAnimationFrame(check);
-					}
-				};
-				requestAnimationFrame(check);
-			});
+			await waitForVideoEl();
 
 			videoEl!.srcObject = mediaStream;
 			await videoEl!.play();
@@ -138,13 +131,24 @@
 		}
 	}
 
+	async function waitForVideoEl(): Promise<void> {
+		const timeout = Date.now() + 5000;
+		while (!videoEl && Date.now() < timeout) {
+			await new Promise((r) => setTimeout(r, 50));
+		}
+		if (!videoEl) throw new Error($_('scanner.startError'));
+	}
+
 	$effect(() => {
-		if (open && !stream && !starting) {
+		if (open && !stream && !starting && !scannerError) {
 			void startScanner();
 			return;
 		}
-		if (!open && stream) {
-			void stopScanner();
+		if (!open) {
+			scannerError = null;
+			if (stream) {
+				void stopScanner();
+			}
 		}
 	});
 
@@ -168,7 +172,7 @@
 			<div class="w-full max-w-4xl h-[88dvh] bg-base-100 rounded-xl shadow-2xl flex flex-col overflow-hidden" role="dialog" aria-modal="true" aria-label={$_('scanner.title')}>
 				<div class="flex items-center justify-between px-4 py-3 border-b border-base-200">
 					<h3 class="text-lg font-semibold">{$_('scanner.title')}</h3>
-					<button class="btn btn-ghost btn-sm btn-circle" onclick={closeScanner} aria-label={$_('scanner.close')}>✕</button>
+					<button class="btn btn-ghost btn-sm btn-circle" onclick={closeScanner} aria-label={$_('scanner.close')}><X class="w-4 h-4" /></button>
 				</div>
 
 				<div class="flex-1 min-h-0 p-4 flex flex-col gap-3 overflow-y-auto">

@@ -172,6 +172,7 @@
     "importFailed": "Import fehlgeschlagen",
     "searchFailed": "Suche fehlgeschlagen",
     "scannedIsbn": "ISBN gescannt: {isbn}",
+    "or": "oder",
     "sourceHardcoverSearching": "Durchsuche Hardcover...",
     "sourceHardcoverSkipped": "Hardcover übersprungen (kein API-Token konfiguriert)",
     "sourceSkipped": "Google Books übersprungen (kein API-Schlüssel konfiguriert)",
@@ -504,6 +505,7 @@
     "thankYou": "Danksagung",
     "thankYouText": "LibrisLog wäre ohne die erstaunlichen Open-Source-Bibliotheken und Frameworks, auf denen es aufbaut, nicht möglich. Unser Dank gilt allen Entwicklern, die zu diesen Projekten beitragen.",
     "frontend": "Frontend",
-    "backend": "Backend"
+    "backend": "Backend",
+    "devTools": "Entwicklungswerkzeuge"
   }
 }

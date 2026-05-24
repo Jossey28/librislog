@@ -94,7 +94,7 @@ describe('AddBookModal', () => {
 
 	it('closes modal when close button clicked', async () => {
 		render(AddBookModal, { props: { open: true } });
-		const closeBtn = screen.getByRole('button', { name: '✕' });
+		const closeBtn = screen.getByRole('button', { name: /close/i });
 		await fireEvent.click(closeBtn);
 		expect(screen.queryByRole('heading', { name: 'Add Book' })).not.toBeInTheDocument();
 	});
@@ -104,7 +104,7 @@ describe('AddBookModal', () => {
 		expect(screen.getByLabelText(/Title/)).toBeInTheDocument();
 		expect(screen.getByLabelText(/Subtitle/)).toBeInTheDocument();
 		expect(screen.getByText(/Author/)).toBeInTheDocument();
-		expect(screen.getByLabelText(/ISBN/)).toBeInTheDocument();
+		expect(screen.getByRole('textbox', { name: 'ISBN' })).toBeInTheDocument();
 		expect(screen.getByText(/Publisher/)).toBeInTheDocument();
 		expect(screen.getByLabelText(/Year/)).toBeInTheDocument();
 		expect(screen.getByLabelText(/Pages/)).toBeInTheDocument();

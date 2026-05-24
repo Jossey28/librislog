@@ -189,7 +189,7 @@
 	});
 </script>
 
-<div class="flex flex-col gap-2">
+<div class="flex flex-col gap-1" role="combobox" aria-expanded={isOpen} aria-controls="suggestion-list">
 	<span class="label label-text">{$_('book.tags')}</span>
 
 	<div class="relative">

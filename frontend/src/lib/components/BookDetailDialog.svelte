@@ -1,4 +1,4 @@
-<script lang="ts">
+	<script lang="ts">
 	import type { Book, ReadingProgressEntry } from '$lib/types';
 	import { _ } from '$lib/i18n';
 	import { locale } from '$lib/i18n';
@@ -9,8 +9,11 @@
 	import { formatLanguageCode } from '$lib/utils/language';
 	import StarRating from './StarRating.svelte';
 	import { Line } from 'svelte-chartjs';
+	import { X } from '@lucide/svelte';
 	import '$lib/chartjs/register';
 	import { getDaisyColorRgb } from '$lib/chartjs/theme';
+	import { themeApplyCount } from '$lib/stores/theme';
+	import { onMount } from 'svelte';
 	import type { ChartData, ChartOptions } from 'chart.js';
 
 	const tz = getTimezone();
@@ -37,6 +40,10 @@
 	let logModalOpen = $state(false);
 	let deletingEntry = $state<number | null>(null);
 	let pendingDeleteEntry = $state<number | null>(null);
+
+	const progressPercent = $derived(
+		book?.page_count && currentPage > 0 ? Math.round((currentPage / book.page_count) * 100) : 0
+	);
 
 	const STATUS_LABEL_KEYS: Record<string, string> = {
 		want_to_read: 'status.want_to_read',
@@ -110,9 +117,11 @@
 		try {
 			await api.books.progress.delete(book.id, entryId);
 			progressEntries = progressEntries.filter((e) => e.id !== entryId);
-			if (progressEntries.length > 0 && latestDbPage === entryId) {
+			if (progressEntries.length > 0) {
+				currentPage = progressEntries[0].page;
 				latestDbPage = progressEntries[0].page;
-			} else if (progressEntries.length === 0) {
+			} else {
+				currentPage = 0;
 				latestDbPage = 0;
 			}
 		} catch (e: unknown) {
@@ -188,68 +197,68 @@
 		};
 	});
 
-	const lineChartConfig = $derived<ChartData<'line'>>({
-		labels: lineChartData.labels,
-		datasets: [
-			{
-				label: $_('book.currentPage'),
-				data: lineChartData.data,
-				borderColor: getDaisyColorRgb('primary'),
-				backgroundColor: getDaisyColorRgb('primary'),
-				tension: 0.4,
-				pointRadius: 4,
-				pointHoverRadius: 6,
-				fill: false,
-			},
-		],
-	});
-
-	const lineChartOptions = $derived<ChartOptions<'line'>>({
-		responsive: true,
-		maintainAspectRatio: false,
-		animation: { duration: 0 },
-		plugins: {
-			legend: { display: false },
-			tooltip: {
-				mode: 'index' as const,
-				intersect: false,
-			},
-		},
-		scales: {
-			x: {
-				grid: { display: false },
-				ticks: {
-					maxTicksLimit: 6,
-					color: getDaisyColorRgb('base-content'),
-				},
-			},
-			y: {
-				beginAtZero: true,
-				max: Math.max(...lineChartData.data, book?.page_count ?? 1),
-				grid: {
-					color: getDaisyColorRgb('base-200'),
-				},
-				ticks: {
-					color: getDaisyColorRgb('base-content'),
-				},
-			},
-		},
-	});
-
 	let lineChart = $state<import('chart.js').Chart<'line'> | null>(null);
+	let _themeSignal = $state(0);
 
-	$effect(() => {
-		const _ = getDaisyColorRgb('base-content');
-		const __ = getDaisyColorRgb('base-200');
-		const ___ = getDaisyColorRgb('primary');
-		if (lineChart && lineChart.options.scales && lineChart.data.datasets[0]) {
-			lineChart.data.datasets[0].borderColor = getDaisyColorRgb('primary');
-			lineChart.data.datasets[0].backgroundColor = getDaisyColorRgb('primary');
-			if (lineChart.options.scales.x?.ticks) lineChart.options.scales.x.ticks.color = getDaisyColorRgb('base-content');
-			if (lineChart.options.scales.y?.ticks) lineChart.options.scales.y.ticks.color = getDaisyColorRgb('base-content');
-			if (lineChart.options.scales.y?.grid) lineChart.options.scales.y.grid.color = getDaisyColorRgb('base-200');
-			lineChart.update('none');
-		}
+	onMount(() => {
+		return themeApplyCount.subscribe((n: number) => {
+			_themeSignal = n;
+		});
+	});
+
+	const lineChartConfig = $derived.by<ChartData<'line'>>(() => {
+		void _themeSignal;
+		return {
+			labels: lineChartData.labels,
+			datasets: [
+				{
+					label: $_('book.currentPage'),
+					data: lineChartData.data,
+					borderColor: getDaisyColorRgb('primary'),
+					backgroundColor: getDaisyColorRgb('primary'),
+					tension: 0.4,
+					pointRadius: 4,
+					pointHoverRadius: 6,
+					fill: false,
+				},
+			],
+		};
+	});
+
+	const lineChartOptions = $derived.by<ChartOptions<'line'>>(() => {
+		void _themeSignal;
+		return {
+			responsive: true,
+			maintainAspectRatio: false,
+			animation: { duration: 0 },
+			plugins: {
+				legend: { display: false },
+				tooltip: {
+					mode: 'index' as const,
+					intersect: false,
+				},
+			},
+			scales: {
+				x: {
+					grid: { display: false },
+					ticks: {
+						maxTicksLimit: 6,
+						color: getDaisyColorRgb('base-content'),
+					},
+				},
+				y: {
+					beginAtZero: true,
+					suggestedMax: book?.page_count ?? 1,
+					grace: '5%',
+					grid: {
+						color: getDaisyColorRgb('base-200'),
+					},
+					ticks: {
+						color: getDaisyColorRgb('base-content'),
+					},
+				},
+			},
+		};
 	});
 
 	$effect(() => {
@@ -284,7 +293,7 @@
 				class="btn btn-ghost btn-sm btn-circle shrink-0"
 				onclick={() => (open = false)}
 				aria-label={$_('common.close')}
-			>✕</button>
+			><X class="w-4 h-4" /></button>
 		</div>
 
 		{#if book.cover_url}
@@ -355,7 +364,7 @@
 			</div>
 
 			<!-- Reading Progress Block -->
-			<div class="border-t border-base-200 pt-3 {!book.page_count ? 'opacity-50 pointer-events-none' : ''}">
+			<div class="border-t border-base-200 pt-4 {!book.page_count ? 'opacity-50 pointer-events-none' : ''}">
 				<div class="text-xs text-base-content/60 mb-2">{$_('book.readingProgress')}</div>
 
 				{#if !book.page_count}
@@ -366,8 +375,24 @@
 						{$_('common.loadingEllipsis')}
 					</div>
 				{:else}
-					<div class="flex items-center gap-2">
-						<span class="text-sm font-mono">
+					<div class="text-center mb-3">
+						<span class="text-2xl font-bold text-primary">{progressPercent}%</span>
+						<span class="text-sm text-base-content/50 ml-2">{currentPage} / {book.page_count} {$_('book.pages')}</span>
+					</div>
+
+					<input
+						type="range"
+						name="progress-range"
+						min="0"
+						max={book.page_count}
+						class="range range-primary"
+						value={currentPage}
+						oninput={handleSliderInput}
+						onchange={handlePageBlur}
+					/>
+
+					<div class="flex items-center justify-between mt-2">
+						<div class="flex items-center gap-2">
 							<input
 								type="number"
 								name="current-page"
@@ -377,26 +402,14 @@
 								max={book.page_count}
 								onblur={handlePageBlur}
 							/>
-							<span class="mx-1">/</span>
-							{book.page_count}
-						</span>
+							<span class="text-sm text-base-content/50">/ {book.page_count}</span>
+						</div>
 						<button
 							type="button"
 							class="btn btn-ghost btn-xs"
 							onclick={() => (logModalOpen = true)}
 						>{$_('book.progressLog')}</button>
 					</div>
-
-					<input
-						type="range"
-						name="progress-range"
-						min="0"
-						max={book.page_count}
-						class="range range-primary range-xs mt-2"
-						value={currentPage}
-						oninput={handleSliderInput}
-						onchange={handlePageBlur}
-					/>
 				{/if}
 			</div>
 
@@ -411,7 +424,7 @@
 
 			<div>
 				<div class="text-xs text-base-content/60 mb-1">{$_('book.notes')}</div>
-				<div class="text-sm whitespace-pre-wrap break-words rounded border border-base-200 p-2 min-h-12">
+				<div class="text-sm whitespace-pre-wrap break-words bg-base-200/50 rounded-xl p-3 min-h-12">
 					{book.notes ?? '-'}
 				</div>
 			</div>
@@ -424,7 +437,7 @@
 				{@const displayBlurb = blurbExpanded || !isTruncated
 					? book.blurb
 					: book.blurb.slice(0, MAX_BLURB_LENGTH) + '...'}
-				<div class="text-sm whitespace-pre-wrap break-words rounded border border-base-200 p-3">
+				<div class="text-sm whitespace-pre-wrap break-words bg-base-200/50 rounded-xl p-3">
 					{displayBlurb}
 					{#if isTruncated}
 						<button
@@ -476,7 +489,7 @@
 						class="btn btn-ghost btn-xs btn-circle"
 						onclick={() => (logModalOpen = false)}
 						aria-label={$_('common.close')}
-					>✕</button>
+					><X class="w-4 h-4" /></button>
 				</div>
 				<div class="p-4">
 					{#if progressEntries.length === 0}

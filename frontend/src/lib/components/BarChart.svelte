@@ -2,6 +2,8 @@
 	import '$lib/chartjs/register';
 	import { Bar } from 'svelte-chartjs';
 	import { getDaisyColorRgb } from '$lib/chartjs/theme';
+	import { themeApplyCount } from '$lib/stores/theme';
+	import { onMount } from 'svelte';
 	import type { Chart as ChartJS, ChartData, ChartOptions } from 'chart.js';
 
 	let {
@@ -23,6 +25,7 @@
 	} = $props();
 
 	let chart = $state<ChartJS<'bar'> | null>(null);
+	let _themeSignal = $state(0);
 
 	$effect(() => {
 		if (chart) {
@@ -30,77 +33,76 @@
 		}
 	});
 
-	const chartData = $derived<ChartData<'bar'>>({
-		labels,
-		datasets: [
-			{
-				label,
-				data,
-				backgroundColor: getDaisyColorRgb(color),
-				borderColor: 'transparent',
-				borderWidth: 0,
-				borderRadius: 4,
-				barPercentage: 0.7,
-			},
-		],
+	onMount(() => {
+		return themeApplyCount.subscribe((n: number) => {
+			_themeSignal = n;
+		});
 	});
 
-	const options = $derived<ChartOptions<'bar'>>({
-		responsive: true,
-		maintainAspectRatio: false,
-		animation: { duration: 0 },
-		plugins: {
-			legend: { display: false },
-			tooltip: {
-				enabled: true,
-				mode: 'index' as const,
-				intersect: false,
-			},
-			zoom: {
-				pan: {
+	const chartData = $derived.by<ChartData<'bar'>>(() => {
+		void _themeSignal;
+		return {
+			labels,
+			datasets: [
+				{
+					label,
+					data,
+					backgroundColor: getDaisyColorRgb(color),
+					borderColor: 'transparent',
+					borderWidth: 0,
+					borderRadius: 4,
+					barPercentage: 0.7,
+				},
+			],
+		};
+	});
+
+	const options = $derived.by<ChartOptions<'bar'>>(() => {
+		void _themeSignal;
+		return {
+			responsive: true,
+			maintainAspectRatio: false,
+			animation: { duration: 0 },
+			plugins: {
+				legend: { display: false },
+				tooltip: {
 					enabled: true,
-					mode: 'x' as const,
+					mode: 'index' as const,
+					intersect: false,
 				},
 				zoom: {
-					wheel: { enabled: true },
-					pinch: { enabled: true },
-					mode: 'x' as const,
+					pan: {
+						enabled: true,
+						mode: 'x' as const,
+					},
+					zoom: {
+						wheel: { enabled: true },
+						pinch: { enabled: true },
+						mode: 'x' as const,
+					},
 				},
 			},
-		},
-		scales: {
-			x: {
-				grid: { display: false },
-				ticks: {
-					maxRotation: 45,
-					minRotation: 45,
-					autoSkip: true,
-					color: getDaisyColorRgb('base-content'),
+			scales: {
+				x: {
+					grid: { display: false },
+					ticks: {
+						maxRotation: 45,
+						minRotation: 45,
+						autoSkip: true,
+						color: getDaisyColorRgb('base-content'),
+					},
+				},
+				y: {
+					beginAtZero: true,
+					grid: {
+						color: getDaisyColorRgb('base-200'),
+					},
+					ticks: {
+						color: getDaisyColorRgb('base-content'),
+					},
 				},
 			},
-			y: {
-				beginAtZero: true,
-				grid: {
-					color: getDaisyColorRgb('base-200'),
-				},
-				ticks: {
-					color: getDaisyColorRgb('base-content'),
-				},
-			},
-		},
-	});
-
-	$effect(() => {
-		const _ = getDaisyColorRgb('base-content');
-		const __ = getDaisyColorRgb('base-200');
-		const ___ = getDaisyColorRgb(color);
-		if (chart && chart.options.scales && chart.data.datasets[0]) {
-			chart.data.datasets[0].backgroundColor = getDaisyColorRgb(color);
-			if (chart.options.scales.x?.ticks) chart.options.scales.x.ticks.color = getDaisyColorRgb('base-content');
-			if (chart.options.scales.y?.ticks) chart.options.scales.y.ticks.color = getDaisyColorRgb('base-content');
-			if (chart.options.scales.y?.grid) chart.options.scales.y.grid.color = getDaisyColorRgb('base-200');
-			chart.update('none');
-		}
+		};
 	});
 
 </script>

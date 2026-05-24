@@ -1,9 +1,10 @@
-<script lang="ts">
+	<script lang="ts">
 	import { goto } from '$app/navigation';
 	import { api } from '$lib/api';
 	import { broadcastLogout, currentUser, csrfToken } from '$lib/stores/auth';
 	import { _ } from '$lib/i18n';
 	import { cycleTheme, applyThemeToDocument, saveThemeToStorage, getThemeMode, getThemeIcon, getCustomTheme, getThemeVersion } from '$lib/stores/theme';
+	import { Sun, Moon, Palette } from '@lucide/svelte';
 
 	let { floating = true }: { floating?: boolean } = $props();
 
@@ -83,26 +84,22 @@
 	{#if open}
 		<ul
 			tabindex="-1"
-			class="menu menu-sm dropdown-content absolute right-0 mt-3 w-40 rounded-box bg-base-100 shadow z-50 p-2"
+			class="menu menu-sm dropdown-content absolute right-0 mt-3 w-40 rounded-xl bg-base-100 shadow z-50 p-2"
 		>
 			<li><a href="/profile" onclick={() => (open = false)}>{$_('user.profile')}</a></li>
 			<li><a href="/about" onclick={() => (open = false)}>{$_('user.about')}</a></li>
-			<li><hr class="menu-divider"></li>
+			<li><hr class="menu-divider opacity-30 mt-2 mb-2 rounded-none" style="padding: 0;"></li>
 			<li>
 				<button type="button" class="cursor-pointer flex items-center gap-2" onclick={toggleTheme}>
-					<span>{themeIcon}</span>
+					{#if themeIcon === 'Sun'}<Sun class="w-4 h-4" />
+					{:else if themeIcon === 'Moon'}<Moon class="w-4 h-4" />
+					{:else}<Palette class="w-4 h-4" />
+					{/if}
 					<span>{$_('user.theme')}: {themeLabel}</span>
 				</button>
 			</li>
-			<li><hr class="menu-divider"></li>
+			<li><hr class="menu-divider opacity-30 mt-2 mb-2 rounded-none" style="padding: 0;"></li>
 			<li><button type="button" class="cursor-pointer" onclick={logout}>{$_('user.logout')}</button></li>
 		</ul>
 	{/if}
 </div>
-
-<style>
-	:global(.dropdown-content hr.menu-divider) {
-		border-radius: 0;
-		opacity: 0.3;
-	}
-</style>
