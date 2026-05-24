@@ -381,7 +381,7 @@ import { X } from '@lucide/svelte';
 	</div>
 
 	{#if quoteEnabled}
-		<div class="card bg-primary text-primary-content shadow-sm">
+		<div class="card bg-base-100 border border-base-200 border-l-4 border-l-primary shadow-sm">
 			<div class="card-body">
 				<h2 class="card-title">{$_('dashboard.quoteTitle')}</h2>
 				{#if quoteLoading}
@@ -389,16 +389,16 @@ import { X } from '@lucide/svelte';
 				{:else if quote}
 					<p class="text-lg leading-relaxed">"{quote.quote}"</p>
 					{#if quote.author}
-						<p class="text-primary-content/80">- {quote.author}</p>
+						<p class="text-base-content/60">- {quote.author}</p>
 					{/if}
 				{:else}
-					<p class="text-primary-content/90">{$_('dashboard.quoteUnavailable')}</p>
+					<p class="text-base-content/70">{$_('dashboard.quoteUnavailable')}</p>
 				{/if}
 			</div>
 		</div>
 	{/if}
 
-	<div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+	<div class="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-4 gap-4">
 		<a href="/library" class="stat bg-base-100 rounded-2xl shadow-sm border border-base-200 hover:shadow-md transition-shadow">
 			<div class="stat-title">{$_('dashboard.totalBooks')}</div>
 			<div class="stat-value text-primary">{stats.total_books}</div>
