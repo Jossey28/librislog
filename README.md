@@ -7,8 +7,8 @@
 ![Svelte](https://img.shields.io/badge/svelte-5-%23FF3E00?logo=svelte)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.136-%23009688?logo=fastapi)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Backend tests](https://img.shields.io/badge/tests-628_✔️-2ea44f?logo=pytest)
-![Frontend tests](https://img.shields.io/badge/tests-290_✔️-2ea44f?logo=vitest)
+![Backend tests](https://img.shields.io/badge/tests-633_✔️-2ea44f?logo=pytest)
+![Frontend tests](https://img.shields.io/badge/tests-296_✔️-2ea44f?logo=vitest)
 
 
 ## AI-Assisted Development Disclaimer
@@ -142,14 +142,14 @@ The dev server proxies `/api` requests to `http://localhost:8000`.
 
 ## Testing
 
-### Backend (pytest, 628 tests)
+### Backend (pytest, 633 tests)
 
 ```bash
 cd backend
 uv run pytest                                   # runs tests with coverage
 ```
 
-### Frontend (Vitest, 290 tests)
+### Frontend (Vitest, 296 tests)
 
 ```bash
 cd frontend
@@ -205,7 +205,7 @@ librislog/
 │   │       ├── isbn_utils.py       # ISBN-10/13 conversion
 │   │       └── user_deletion.py    # Account deletion
 │   ├── alembic/                    # Database migrations
-│   ├── tests/                      # 628 pytest tests
+│   ├── tests/                      # 633 pytest tests
 │   └── Dockerfile
 ├── frontend/
 │   ├── src/
@@ -215,7 +215,7 @@ librislog/
 │   │   │   ├── toasts.ts           # Toast notification store
 │   │   │   ├── i18n/               # Internationalisation (en, de)
 │   │   │   ├── stores/             # Svelte stores (auth, timezone)
-│   │   │   ├── components/         # 27 Svelte components (41 files incl. tests)
+│   │   │   ├── components/         # 24 Svelte components (41 files incl. tests)
 │   │   │   └── test/               # Test setup & mocks
 │   │   └── routes/                 # SvelteKit pages
 │   └── Dockerfile

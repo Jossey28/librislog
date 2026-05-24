@@ -13,7 +13,9 @@
 		{ name: 'svelte-chartjs', url: 'https://github.com/SauravKanchan/svelte-chartjs' },
 		{ name: 'chartjs-plugin-zoom', url: 'https://github.com/chartjs/chartjs-plugin-zoom' },
 		{ name: 'chartjs-chart-matrix', url: 'https://github.com/kurkle/chartjs-chart-matrix' },
+		{ name: 'DaisyUI', url: 'https://daisyui.com/' },
 		{ name: 'Hammer.js', url: 'https://hammerjs.github.io/' },
+		{ name: 'html5-qrcode', url: 'https://github.com/mebjas/html5-qrcode' },
 	];
 
 	const backendDeps: Array<{ name: string; url: string }> = [
