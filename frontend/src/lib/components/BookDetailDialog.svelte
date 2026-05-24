@@ -230,7 +230,6 @@
 			},
 			y: {
 				beginAtZero: true,
-				max: Math.max(...lineChartData.data, book?.page_count ?? 1),
 				grid: {
 					color: getDaisyColorRgb('base-200'),
 				},
