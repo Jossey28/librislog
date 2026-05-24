@@ -36,6 +36,7 @@
 	onMount(async () => {
 		cameraSupported =
 			typeof navigator !== 'undefined' &&
+			window.isSecureContext &&
 			!!navigator.mediaDevices &&
 			typeof navigator.mediaDevices.getUserMedia === 'function';
 		await refreshImportedLookups();
