@@ -119,7 +119,7 @@
 	<div class="relative">
 		<input
 			type="text"
-			class="input input-bordered input-sm w-full"
+			class="input input-bordered w-full"
 			bind:this={inputEl}
 			bind:value={inputValue}
 			oninput={handleInput}

@@ -108,7 +108,7 @@
 
 {#if open}
 	<div class="modal modal-open">
-		<div class="modal-box w-full max-w-lg">
+		<div class="modal-box w-full max-w-3xl">
 			<div class="flex items-center justify-between mb-4">
 				<h3 class="text-lg font-bold">{$_('app.addBook')}</h3>
 				<button class="btn btn-ghost btn-sm btn-circle" onclick={() => { open = false; }} aria-label={$_('common.close')}><X class="w-4 h-4" /></button>
@@ -129,16 +129,16 @@
 			</div>
 
 			{#if activeTab === 'manual'}
-				<form onsubmit={(e) => { e.preventDefault(); submitManual(); }} class="flex flex-col gap-2">
-					<label class="form-control">
+				<form onsubmit={(e) => { e.preventDefault(); submitManual(); }} class="flex flex-col gap-4">
+					<label class="flex flex-col gap-1">
 						<span class="label label-text">{$_('book.title')} <span class="text-error">*</span></span>
-						<input class="input input-bordered input-sm" name="title" bind:value={title} required />
+						<input class="input input-bordered" name="title" bind:value={title} required />
 					</label>
-					<label class="form-control">
+					<label class="flex flex-col gap-1">
 						<span class="label label-text">{$_('book.subtitle')}</span>
-						<input class="input input-bordered input-sm" name="subtitle" bind:value={subtitle} />
+						<input class="input input-bordered" name="subtitle" bind:value={subtitle} />
 					</label>
-					<div class="grid grid-cols-2 gap-2">
+					<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
 						<SuggestionInput
 							bind:value={author}
 							name="author"
@@ -146,13 +146,13 @@
 							placeholder={$_('book.author')}
 							fetchSuggestions={(q) => api.books.suggestions.authors(q)}
 						/>
-						<label class="form-control">
+						<label class="flex flex-col gap-1">
 							<span class="label label-text">{$_('book.isbn')}</span>
 							<div class="flex gap-2">
-								<input class="input input-bordered input-sm flex-1" name="isbn" bind:value={isbn} />
+								<input class="input input-bordered flex-1" name="isbn" bind:value={isbn} />
 								<button
 									type="button"
-									class="btn btn-outline btn-sm"
+									class="btn btn-outline"
 									onclick={() => (scannerOpen = true)}
 									title={$_('import.scanIsbn')}
 									aria-label={$_('import.scanIsbn')}
@@ -168,46 +168,46 @@
 							placeholder={$_('book.publisher')}
 							fetchSuggestions={(q) => api.books.suggestions.publishers(q)}
 						/>
-						<label class="form-control">
+						<label class="flex flex-col gap-1">
 							<span class="label label-text">{$_('book.year')}</span>
-							<input type="number" class="input input-bordered input-sm" name="published_year" bind:value={published_year} min="1000" max="2100" />
+							<input type="number" class="input input-bordered" name="published_year" bind:value={published_year} min="1000" max="2100" />
 						</label>
-						<label class="form-control">
+						<label class="flex flex-col gap-1">
 							<span class="label label-text">{$_('book.pages')} <span class="text-error">*</span></span>
-							<input type="number" class="input input-bordered input-sm" name="page_count" bind:value={page_count} min="1" required />
+							<input type="number" class="input input-bordered" name="page_count" bind:value={page_count} min="1" required />
 						</label>
-						<label class="form-control">
+						<label class="flex flex-col gap-1">
 							<span class="label label-text">{$_('book.language')}</span>
 							<input
 								type="text"
-								class="input input-bordered input-sm"
+								class="input input-bordered"
 								name="language"
 								bind:value={language}
 								maxlength="2"
 								placeholder="EN, DE, FR..."
 							/>
 						</label>
-						<label class="form-control">
+						<label class="flex flex-col gap-1">
 							<span class="label label-text">{$_('common.rating')} (1-5)</span>
-							<input type="number" class="input input-bordered input-sm" name="rating" bind:value={rating} min="1" max="5" />
+							<input type="number" class="input input-bordered" name="rating" bind:value={rating} min="1" max="5" />
 						</label>
 					</div>
-					<TagInput bind:value={tags} name="tags" disabled={submitting} fetchSuggestions={(q) => api.books.suggestions.tags(q)} />
-					<label class="form-control">
-						<span class="label label-text">{$_('book.status')}</span>
-						<select class="select select-bordered select-sm" name="status" bind:value={status}>
-							{#each STATUS_OPTIONS as opt}
-								<option value={opt.value}>{$_(opt.label)}</option>
-							{/each}
+				<TagInput bind:value={tags} name="tags" disabled={submitting} fetchSuggestions={(q) => api.books.suggestions.tags(q)} />
+				<label class="flex flex-col gap-1">
+					<span class="label label-text">{$_('book.status')}</span>
+					<select class="select select-bordered" name="status" bind:value={status}>
+						{#each STATUS_OPTIONS as opt}
+							<option value={opt.value}>{$_(opt.label)}</option>
+						{/each}
 				</select>
 				</label>
-				<label class="form-control">
+				<label class="flex flex-col gap-1">
 					<span class="label label-text">{$_('book.notes')}</span>
-					<textarea class="textarea textarea-bordered text-sm" name="notes" rows="2" bind:value={notes}></textarea>
+					<textarea class="textarea textarea-bordered" name="notes" rows="2" bind:value={notes}></textarea>
 				</label>
-				<label class="form-control">
+				<label class="flex flex-col gap-1">
 					<span class="label label-text">{$_('book.blurb')}</span>
-					<textarea class="textarea textarea-bordered text-sm" name="blurb" rows="3" bind:value={blurb}></textarea>
+					<textarea class="textarea textarea-bordered" name="blurb" rows="3" bind:value={blurb}></textarea>
 				</label>
 
 				<CoverPicker bind:value={cover_url} disabled={submitting} />

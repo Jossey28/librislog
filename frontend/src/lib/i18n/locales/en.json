@@ -172,6 +172,7 @@
     "importFailed": "Import failed",
     "searchFailed": "Search failed",
     "scannedIsbn": "Scanned ISBN: {isbn}",
+    "or": "or",
     "sourceHardcoverSearching": "Searching Hardcover...",
     "sourceHardcoverSkipped": "Hardcover skipped (no API token configured)",
     "sourceSkipped": "Google Books skipped (no API key configured)",
