@@ -99,10 +99,23 @@ import { writable } from 'svelte/store';
 
 export const themeApplyCount = writable(0);
 
+const DARK_THEMES: readonly string[] = ['synthwave', 'halloween', 'forest', 'dracula', 'black', 'luxury', 'night', 'coffee', 'dim', 'abyss', 'sunset', 'business'];
+
+function updateFavicon() {
+	const effective = getEffectiveTheme();
+	const isDark = _themeMode === 'dark' || (_themeMode === 'custom' && DARK_THEMES.includes(effective));
+	const href = isDark ? '/favicon/favicon-dark.svg' : '/favicon/favicon.svg';
+	const link = document.querySelector('link[rel="icon"][type="image/svg+xml"]') as HTMLLinkElement | null;
+	if (link && link.href !== new URL(href, location.href).href) {
+		link.href = href;
+	}
+}
+
 export function applyThemeToDocument() {
 	const effective = getEffectiveTheme();
 	document.documentElement.dataset.theme = effective;
 	invalidateColorCache();
+	updateFavicon();
 	themeApplyCount.update(n => n + 1);
 }
 

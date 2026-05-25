@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { _ } from '$lib/i18n';
+	import Logo from '$lib/components/Logo.svelte';
 	import { version, gitSha } from '$lib/version';
 	import pkg from '../../../package.json';
 
@@ -54,7 +55,7 @@
 	<div class="card bg-base-100 border border-base-200 shadow-sm">
 		<div class="card-body gap-4">
 			<div class="flex items-center gap-4">
-				<img src="/logo.png" alt="LibrisLog" class="w-14 h-14 rounded-xl" />
+				<Logo class="w-14 h-14" />
 				<div>
 					<h2 class="text-xl font-bold">LibrisLog</h2>
 					<p class="text-sm text-base-content/60">{displayVersion}</p>

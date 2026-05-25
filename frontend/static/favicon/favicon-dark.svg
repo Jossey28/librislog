@@ -1,18 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
   <style>
-    .book { fill: #4a6fa5; }
-    .pages { fill: #f8f6f3; }
-    .bookmark { fill: #6b7d94; }
-    .check-bg { fill: #6b7d94; }
-    .check { stroke: #f8f6f3; }
-
-    @media (prefers-color-scheme: dark) {
-      .book { fill: #7a9bc7; }
-      .pages { fill: #1a1a2e; }
-      .bookmark { fill: #9aadbf; }
-      .check-bg { fill: #9aadbf; }
-      .check { stroke: #1a1a2e; }
-    }
+    .book { fill: #7a9bc7; }
+    .pages { fill: #1a1a2e; }
+    .bookmark { fill: #9aadbf; }
+    .check-bg { fill: #9aadbf; }
+    .check { stroke: #1a1a2e; }
   </style>
 
   <!-- Book cover -->
