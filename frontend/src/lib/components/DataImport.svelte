@@ -108,7 +108,7 @@
 			const saved = await api.data.getMapping(id);
 			mapping = saved.mapping;
 			mappingName = saved.name;
-			const missing = Object.keys(saved.mapping).filter((source) => !parsed?.source_fields.includes(source));
+			const missing = Object.values(saved.mapping).filter((source) => !parsed?.source_fields.includes(source));
 			if (missing.length > 0) {
 				toasts.add($_('data.import.mappingMissingFields', { values: { count: missing.length } }), 'error');
 			}
@@ -256,16 +256,16 @@
 
 	const mappedPreviewColumns = $derived.by(() => {
 		return Object.entries(mapping)
-			.filter(([, target]) => Boolean(target))
-			.map(([source, target]) => ({ source, target }));
+			.filter(([, source]) => Boolean(source))
+			.map(([target, source]) => ({ target, source }));
 	});
 
 	const mappedPreviewRows = $derived.by(() => {
 		if (!parsed) return [];
 		return parsed.sample_rows.map((sample) => {
 			const row: Record<string, unknown> = {};
-			for (const [source, target] of Object.entries(mapping)) {
-				if (!target) continue;
+			for (const [target, source] of Object.entries(mapping)) {
+				if (!source) continue;
 				row[target] = sample[source] ?? null;
 			}
 			return row;

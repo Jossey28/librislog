@@ -138,18 +138,18 @@ def test_delete_parsed_upload_missing_ok(tmp_path: Path, monkeypatch: MonkeyPatc
 def test_suggest_mapping_direct_alias() -> None:
     # "book title" should directly match via _ALIASES
     result = di.suggest_mapping(["book title"])
-    assert result["book title"] == "title"
+    assert result["title"] == "book title"
 
 
 def test_suggest_mapping_compact_match() -> None:
     # "booktitle" should match "book title" -> "title"
     result = di.suggest_mapping(["booktitle"])
-    assert result["booktitle"] == "title"
+    assert result["title"] == "booktitle"
 
 
 def test_suggest_mapping_no_match() -> None:
     result = di.suggest_mapping(["unknown_field"])
-    assert "unknown_field" not in result
+    assert "unknown_field" not in result.values()
 
 
 # ── _parse_int ────────────────────────────────────────────────────────────────
@@ -230,21 +230,26 @@ def test_parse_reading_status_invalid() -> None:
 
 # ── _mapped_row ───────────────────────────────────────────────────────────────
 
-def test_mapped_row_skips_empty_target() -> None:
-    result = di._mapped_row({"A": "1"}, {"A": "", "B": "title"})
-    assert result == {"title": None}  # row.get("B") returns None
+def test_mapped_row_skips_empty_source() -> None:
+    result = di._mapped_row({"A": "1"}, {"title": "", "author": "B"})
+    assert result == {"author": None}  # row.get("B") returns None
 
 
-# ── _validate_mapping ─────────────────────────────────────────────────────────
+# ── _validate_mapping ─────────────────────────────────────────────
 
-def test_validate_mapping_duplicate_targets() -> None:
-    mapping = {"A": "title", "B": "title"}
+def test_validate_mapping_empty_mapping() -> None:
+    warnings, errors = di._validate_mapping({}, {"A"})
+    assert any("title" in e for e in errors)
+
+
+def test_validate_mapping_invalid_targets() -> None:
+    mapping = {"title": "A", "invalid_field": "B"}
     warnings, errors = di._validate_mapping(mapping, {"A", "B"})
-    assert any("Multiple source fields map to 'title'" in w for w in warnings)
+    assert any("Invalid mapping target" in e for e in errors)
 
 
 def test_validate_mapping_source_missing() -> None:
-    mapping = {"A": "title", "C": "author"}
+    mapping = {"title": "A", "author": "C"}
     warnings, errors = di._validate_mapping(mapping, {"A"})
     assert any("Mapped source field missing in file: C" in w for w in warnings)
 
@@ -295,7 +300,7 @@ def test_validate_import_date_started_after_finished(session: Session, tmp_path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload))
 
-    result = di.validate_import(file_id, user, {"title": "title", "started": "date_started", "finished": "date_finished"}, session)
+    result = di.validate_import(file_id, user, {"title": "title", "date_started": "started", "date_finished": "finished"}, session)
     assert any("date_started is after date_finished" in e for e in result["errors"])
 
 
@@ -312,7 +317,7 @@ def test_validate_import_progress_warning_no_pages(session: Session, tmp_path: P
     path.write_text(json.dumps(payload))
 
     result = di.validate_import(
-        file_id, user, {"title": "title", "status": "reading_status"}, session, create_progress_for_read=True
+        file_id, user, {"title": "title", "reading_status": "status"}, session, create_progress_for_read=True
     )
     assert any("marked as 'read' but has no page count" in w for w in result["warnings"])
 
@@ -383,7 +388,7 @@ def test_validate_import_value_error_caught(session: Session, tmp_path: Path, mo
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload))
 
-    result = di.validate_import(file_id, user, {"title": "title", "pages": "page_count"}, session)
+    result = di.validate_import(file_id, user, {"title": "title", "page_count": "pages"}, session)
     assert any("Row 1:" in e for e in result["errors"])
 
 
@@ -404,7 +409,7 @@ async def test_execute_import_mapping_errors(session: Session, tmp_path: Path, m
 
     events = []
     async for event in di.execute_import(
-        file_id, user, {"title": "invalid_target"}, session, "continue_on_error"
+        file_id, user, {"invalid_target": "title"}, session, "continue_on_error"
     ):
         events.append(event)
     assert any("Invalid mapping target" in e.get("message", "") for e in events)
@@ -447,7 +452,7 @@ async def test_execute_import_date_started_after_finished(session: Session, tmp_
 
     events = []
     async for event in di.execute_import(
-        file_id, user, {"title": "title", "started": "date_started", "finished": "date_finished"}, session, "continue_on_error"
+        file_id, user, {"title": "title", "date_started": "started", "date_finished": "finished"}, session, "continue_on_error"
     ):
         events.append(event)
     complete = [e for e in events if e["event"] == "complete"][0]
@@ -475,7 +480,7 @@ async def test_execute_import_cover_download(session: Session, tmp_path: Path, m
 
     events = []
     async for event in di.execute_import(
-        file_id, user, {"title": "title", "cover": "cover_url"}, session, "continue_on_error"
+        file_id, user, {"title": "title", "cover_url": "cover"}, session, "continue_on_error"
     ):
         events.append(event)
     complete = [e for e in events if e["event"] == "complete"][0]
@@ -500,7 +505,7 @@ async def test_execute_import_progress_date_naive_tz_fix(session: Session, tmp_p
     async for event in di.execute_import(
         file_id,
         user,
-        {"title": "title", "status": "reading_status", "pages": "page_count", "finished": "date_finished"},
+        {"title": "title", "reading_status": "status", "page_count": "pages", "date_finished": "finished"},
         session,
         "continue_on_error",
         create_progress_for_read=True,
@@ -603,7 +608,7 @@ async def test_execute_import_progress_naive_date_finished(session: Session, tmp
     async for event in di.execute_import(
         file_id,
         user,
-        {"title": "title", "status": "reading_status", "pages": "page_count", "finished": "date_finished"},
+        {"title": "title", "reading_status": "status", "page_count": "pages", "date_finished": "finished"},
         session,
         "continue_on_error",
         create_progress_for_read=True,
@@ -634,7 +639,7 @@ async def test_execute_import_progress_naive_utcnow_fallback(session: Session, t
     async for event in di.execute_import(
         file_id,
         user,
-        {"title": "title", "status": "reading_status", "pages": "page_count"},
+        {"title": "title", "reading_status": "status", "page_count": "pages"},
         session,
         "continue_on_error",
         create_progress_for_read=True,

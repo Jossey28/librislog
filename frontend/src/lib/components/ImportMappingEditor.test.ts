@@ -1,27 +1,41 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import ImportMappingEditor from './ImportMappingEditor.svelte';
 
 describe('ImportMappingEditor', () => {
 	const onChange = vi.fn();
 	const sourceFields = ['Author', 'Title', 'ISBN'];
-	const dbFields = ['author', 'title', 'isbn', 'publisher'];
+	const dbFields = ['author', 'title', 'isbn', 'publisher', 'page_count'];
 
-	it('renders all source fields', () => {
+	beforeEach(() => {
+		onChange.mockClear();
+	});
+
+	it('renders all db target fields', () => {
 		render(ImportMappingEditor, {
 			props: { sourceFields, dbFields, mapping: {}, onChange }
 		});
-		expect(screen.getByText('Author')).toBeInTheDocument();
-		expect(screen.getByText('Title')).toBeInTheDocument();
-		expect(screen.getByText('ISBN')).toBeInTheDocument();
+		expect(screen.getByText('author')).toBeInTheDocument();
+		expect(screen.getByText('title')).toBeInTheDocument();
+		expect(screen.getByText('isbn')).toBeInTheDocument();
+		expect(screen.getByText('publisher')).toBeInTheDocument();
+		expect(screen.getByText('page_count')).toBeInTheDocument();
 	});
 
-	it('renders skip option for each source field', () => {
+	it('marks mandatory fields with asterisk', () => {
+		render(ImportMappingEditor, {
+			props: { sourceFields, dbFields, mapping: {}, onChange }
+		});
+		const mandatory = screen.getAllByText('*');
+		expect(mandatory.length).toBeGreaterThanOrEqual(3); // title, author, page_count (+ legend)
+	});
+
+	it('renders a select for each db field with none option', () => {
 		render(ImportMappingEditor, {
 			props: { sourceFields, dbFields, mapping: {}, onChange }
 		});
 		const selects = screen.getAllByRole('combobox');
-		expect(selects).toHaveLength(3);
+		expect(selects).toHaveLength(5); // one per db field
 		selects.forEach((select) => {
 			expect(select).toHaveValue('');
 		});
@@ -32,23 +46,28 @@ describe('ImportMappingEditor', () => {
 			props: {
 				sourceFields,
 				dbFields,
-				mapping: { Author: 'author', Title: 'title' },
+				mapping: { author: 'Author', title: 'Title' },
 				onChange
 			}
 		});
-		const selects = screen.getAllByRole('combobox');
-		expect(selects[0]).toHaveValue('author');
-		expect(selects[1]).toHaveValue('title');
-		expect(selects[2]).toHaveValue('');
+		// author row should show "Author" selected
+		const authorSelect = screen.getByRole('combobox', { name: /Map source for author/i });
+		expect(authorSelect).toHaveValue('Author');
+		// title row should show "Title" selected
+		const titleSelect = screen.getByRole('combobox', { name: /Map source for title/i });
+		expect(titleSelect).toHaveValue('Title');
+		// isbn row should show empty
+		const isbnSelect = screen.getByRole('combobox', { name: /Map source for isbn/i });
+		expect(isbnSelect).toHaveValue('');
 	});
 
-	it('calls onChange when mapping is updated', async () => {
+	it('calls onChange when mapping is created', async () => {
 		render(ImportMappingEditor, {
 			props: { sourceFields, dbFields, mapping: {}, onChange }
 		});
-		const selects = screen.getAllByRole('combobox');
-		await fireEvent.change(selects[0], { target: { value: 'author' } });
-		expect(onChange).toHaveBeenCalledWith({ Author: 'author' });
+		const authorSelect = screen.getByRole('combobox', { name: /Map source for author/i });
+		await fireEvent.change(authorSelect, { target: { value: 'Author' } });
+		expect(onChange).toHaveBeenCalledWith({ author: 'Author' });
 	});
 
 	it('calls onChange when mapping is cleared', async () => {
@@ -56,26 +75,27 @@ describe('ImportMappingEditor', () => {
 			props: {
 				sourceFields,
 				dbFields,
-				mapping: { Author: 'author' },
+				mapping: { author: 'Author' },
 				onChange
 			}
 		});
-		const selects = screen.getAllByRole('combobox');
-		await fireEvent.change(selects[0], { target: { value: '' } });
+		const authorSelect = screen.getByRole('combobox', { name: /Map source for author/i });
+		await fireEvent.change(authorSelect, { target: { value: '' } });
 		expect(onChange).toHaveBeenCalledWith({});
 	});
 
-	it('calls onChange when mapping is changed', async () => {
+	it('removes duplicate source mapping when reused', async () => {
 		render(ImportMappingEditor, {
 			props: {
 				sourceFields,
 				dbFields,
-				mapping: { Author: 'author' },
+				mapping: { author: 'Author' },
 				onChange
 			}
 		});
-		const selects = screen.getAllByRole('combobox');
-		await fireEvent.change(selects[0], { target: { value: 'title' } });
-		expect(onChange).toHaveBeenCalledWith({ Author: 'title' });
+		const titleSelect = screen.getByRole('combobox', { name: /Map source for title/i });
+		await fireEvent.change(titleSelect, { target: { value: 'Author' } });
+		// Author should now map to title, not author
+		expect(onChange).toHaveBeenCalledWith({ title: 'Author' });
 	});
 });

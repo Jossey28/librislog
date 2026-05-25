@@ -223,18 +223,18 @@ def suggest_mapping(source_fields: list[str]) -> dict[str, str]:
         source_fields: List of field names from the import file.
 
     Returns:
-        Dict mapping each recognised source field to its target field.
+        Dict mapping each recognised DB target field to its source field.
     """
     suggested: dict[str, str] = {}
     for field in source_fields:
         key = " ".join(field.strip().lower().replace("_", " ").split())
         if key in _ALIASES:
-            suggested[field] = _ALIASES[key]
+            suggested[_ALIASES[key]] = field
             continue
         compact = key.replace(" ", "")
         for alias, target in _ALIASES.items():
             if alias.replace(" ", "") == compact:
-                suggested[field] = target
+                suggested[target] = field
                 break
     return suggested
 
@@ -363,8 +363,8 @@ def _parse_reading_status(value: object) -> ReadingStatus:
 def _mapped_row(row: dict, mapping: dict[str, str]) -> dict:
     """Apply a field mapping to a single row."""
     mapped: dict[str, object] = {}
-    for source, target in mapping.items():
-        if not target:
+    for target, source in mapping.items():
+        if not source:
             continue
         mapped[target] = row.get(source)
     return mapped
@@ -374,7 +374,7 @@ def _validate_mapping(mapping: dict[str, str], source_fields: set[str]) -> tuple
     """Validate an import mapping, returning (warnings, errors)."""
     warnings: list[str] = []
     errors: list[str] = []
-    mapped_targets = [target for target in mapping.values() if target]
+    mapped_targets = [target for target in mapping.keys() if target]
 
     if "title" not in mapped_targets:
         errors.append("Mapping missing required field: title")
@@ -383,14 +383,7 @@ def _validate_mapping(mapping: dict[str, str], source_fields: set[str]) -> tuple
     for target in invalid_targets:
         errors.append(f"Invalid mapping target: {target}")
 
-    target_counts: dict[str, int] = {}
-    for target in mapped_targets:
-        target_counts[target] = target_counts.get(target, 0) + 1
-    for target, count in sorted(target_counts.items()):
-        if count > 1:
-            warnings.append(f"Multiple source fields map to '{target}'; last value wins")
-
-    for source in mapping.keys():
+    for source in mapping.values():
         if source not in source_fields:
             warnings.append(f"Mapped source field missing in file: {source}")
 
