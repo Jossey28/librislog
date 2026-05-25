@@ -241,12 +241,13 @@
 			</div>
 		{/if}
 		</div>
-		<BarcodeScanner
-			bind:open={scannerOpen}
-			onDetected={(isbn) => {
-				scannedIsbn = isbn;
-			}}
-		/>
+	<BarcodeScanner
+		bind:open={scannerOpen}
+		onDetected={(detected) => {
+			scannedIsbn = detected;
+			isbn = detected;
+		}}
+	/>
 		<!-- Click-outside to close -->
 		<div class="modal-backdrop" role="button" tabindex="-1" onkeydown={(e) => e.key === 'Escape' && (open = false)}></div>
 	</div>
