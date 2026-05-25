@@ -4,6 +4,7 @@
 	import { page } from '$app/stores';
 	import { onDestroy, onMount } from 'svelte';
 	import AddBookModal from '$lib/components/AddBookModal.svelte';
+	import Logo from '$lib/components/Logo.svelte';
 	import Toaster from '$lib/components/Toaster.svelte';
 	import UserMenu from '$lib/components/UserMenu.svelte';
 	import { api } from '$lib/api';
@@ -235,7 +236,7 @@
 	<!-- Sidebar (desktop) -->
 	<aside class="hidden md:flex flex-col w-56 bg-base-100 shadow-md fixed top-0 left-0 h-full z-30 p-4 gap-4">
 		<a href="/" class="flex items-center gap-2 py-2 px-1">
-			<img src="/logo.png" alt="LibrisLog" class="w-8 h-8 rounded" />
+			<Logo class="w-8 h-8" />
 			<div class="text-xl font-bold tracking-tight">{$_('app.title')}</div>
 		</a>
 		<nav class="flex flex-col gap-1 flex-1">
@@ -272,7 +273,7 @@
 		<div class="navbar md:hidden bg-base-100 shadow-sm sticky top-0 z-20">
 			<div class="navbar-start">
 				<a href="/" class="btn btn-ghost text-lg px-3 py-2">
-					<img src="/logo.png" alt="LibrisLog" class="w-7 h-7 rounded shrink-0" />
+					<Logo class="w-10 h-10 shrink-0" />
 					<span class="font-bold tracking-tight hidden sm:inline">{$_('app.title')}</span>
 				</a>
 			</div>

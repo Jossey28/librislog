@@ -108,7 +108,7 @@
 
 {#if open}
 	<div class="modal modal-open">
-		<div class="modal-box w-full max-w-3xl">
+		<div class="modal-box w-full max-w-3xl max-h-[90dvh] overflow-y-auto">
 			<div class="flex items-center justify-between mb-4">
 				<h3 class="text-lg font-bold">{$_('app.addBook')}</h3>
 				<button class="btn btn-ghost btn-sm btn-circle" onclick={() => { open = false; }} aria-label={$_('common.close')}><X class="w-4 h-4" /></button>
@@ -241,12 +241,13 @@
 			</div>
 		{/if}
 		</div>
-		<BarcodeScanner
-			bind:open={scannerOpen}
-			onDetected={(isbn) => {
-				scannedIsbn = isbn;
-			}}
-		/>
+	<BarcodeScanner
+		bind:open={scannerOpen}
+		onDetected={(detected) => {
+			scannedIsbn = detected;
+			isbn = detected;
+		}}
+	/>
 		<!-- Click-outside to close -->
 		<div class="modal-backdrop" role="button" tabindex="-1" onkeydown={(e) => e.key === 'Escape' && (open = false)}></div>
 	</div>

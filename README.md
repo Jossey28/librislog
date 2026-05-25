@@ -2,13 +2,14 @@
 
 **Single-user book tracking webapp** — maintain three reading lists (Want to Read, Currently Reading, Read), import books from Open Library & Google Books, scrape cover art, and manage your collection through a modern Svelte dashboard.
 
+[![Tests](https://github.com/codebude/librislog/actions/workflows/tests.yml/badge.svg)](https://github.com/codebude/librislog/actions/workflows/tests.yml)
+[![Docker Build](https://github.com/codebude/librislog/actions/workflows/docker.yml/badge.svg)](https://github.com/codebude/librislog/actions/workflows/docker.yml)
+
 ![Python](https://img.shields.io/badge/python-3.14-%233776AB?logo=python)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 ![Svelte](https://img.shields.io/badge/svelte-5-%23FF3E00?logo=svelte)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.136-%23009688?logo=fastapi)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Backend tests](https://img.shields.io/badge/tests-633_✔️-2ea44f?logo=pytest)
-![Frontend tests](https://img.shields.io/badge/tests-296_✔️-2ea44f?logo=vitest)
 
 
 ## AI-Assisted Development Disclaimer

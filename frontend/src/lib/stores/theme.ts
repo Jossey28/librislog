@@ -15,8 +15,8 @@ export type DaisyUITheme = (typeof DAISYUI_THEMES)[number];
 export const THEME_MODE_KEY = 'librislog_theme_mode';
 export const CUSTOM_THEME_KEY = 'librislog_custom_theme';
 
-let _themeMode: ThemeMode = 'light';
-let _customTheme: DaisyUITheme | null = null;
+let _themeMode: ThemeMode = 'custom';
+let _customTheme: DaisyUITheme | null = 'librislog';
 let _version = 0;
 
 export function getThemeMode(): ThemeMode {
@@ -47,7 +47,7 @@ export function setCustomTheme(theme: DaisyUITheme | string | null) {
 const VALID_MODES: ThemeMode[] = ['light', 'dark', 'custom'];
 
 export function sanitizeThemeMode(raw: string): ThemeMode {
-	return VALID_MODES.includes(raw as ThemeMode) ? (raw as ThemeMode) : 'light';
+	return VALID_MODES.includes(raw as ThemeMode) ? (raw as ThemeMode) : 'custom';
 }
 
 export function getEffectiveTheme(): string {
@@ -55,13 +55,13 @@ export function getEffectiveTheme(): string {
 		return _customTheme;
 	}
 	if (_themeMode === 'custom') {
-		return 'dracula';
+		return 'librislog';
 	}
 	return _themeMode;
 }
 
 export function cycleTheme(): ThemeMode {
-	const order: ThemeMode[] = ['light', 'dark', 'custom'];
+	const order: ThemeMode[] = ['custom', 'light', 'dark'];
 	const idx = order.indexOf(_themeMode);
 	_themeMode = order[(idx + 1) % order.length];
 	return _themeMode;
@@ -99,10 +99,23 @@ import { writable } from 'svelte/store';
 
 export const themeApplyCount = writable(0);
 
+const DARK_THEMES: readonly string[] = ['synthwave', 'halloween', 'forest', 'dracula', 'black', 'luxury', 'night', 'coffee', 'dim', 'abyss', 'sunset', 'business'];
+
+function updateFavicon() {
+	const effective = getEffectiveTheme();
+	const isDark = _themeMode === 'dark' || (_themeMode === 'custom' && DARK_THEMES.includes(effective));
+	const href = isDark ? '/favicon/favicon-dark.svg' : '/favicon/favicon.svg';
+	const link = document.querySelector('link[rel="icon"][type="image/svg+xml"]') as HTMLLinkElement | null;
+	if (link && link.href !== new URL(href, location.href).href) {
+		link.href = href;
+	}
+}
+
 export function applyThemeToDocument() {
 	const effective = getEffectiveTheme();
 	document.documentElement.dataset.theme = effective;
 	invalidateColorCache();
+	updateFavicon();
 	themeApplyCount.update(n => n + 1);
 }
 

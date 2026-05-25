@@ -190,7 +190,7 @@
 						<div class="flex-1 min-h-72 rounded-lg bg-black overflow-hidden relative">
 							<video
 								bind:this={videoEl}
-								class="absolute inset-0 w-full h-full object-contain"
+								class="absolute inset-0 w-full h-full object-cover"
 								autoplay
 								playsinline
 								muted
