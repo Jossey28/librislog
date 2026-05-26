@@ -273,15 +273,35 @@ export interface DataImportMappingListItem {
 	name: string;
 	created_at: string;
 	updated_at: string;
+	is_predefined: boolean;
 }
 
 export interface DataImportMappingRead {
 	id: number;
 	name: string;
 	source_fields: string[];
-	mapping: Record<string, string>;
+	mapping: Record<string, ImportFieldConfig>;
 	created_at: string;
 	updated_at: string;
+	is_predefined: boolean;
+}
+
+export interface ImportFieldConfig {
+	source: string;
+	transform: string | null;
+}
+
+export interface DataImportPreviewRow {
+	row_number: number;
+	source: Record<string, string>;
+	transformed: Record<string, string | null>;
+	errors: string[];
+}
+
+export interface DataImportPreviewResponse {
+	preview_rows: DataImportPreviewRow[];
+	row_count: number;
+	errors: string[];
 }
 
 export interface DataImportValidateResponse {

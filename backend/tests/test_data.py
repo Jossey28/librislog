@@ -171,9 +171,9 @@ def test_data_import_parse_and_suggest_mapping(client: TestClient, monkeypatch: 
     )
     assert suggest_resp.status_code == 200
     suggested = suggest_resp.json()["suggested_mapping"]
-    assert suggested["Title"] == "title"
-    assert suggested["Author"] == "author"
-    assert suggested["My Rating"] == "rating"
+    assert suggested["title"]["source"] == "Title"
+    assert suggested["author"]["source"] == "Author"
+    assert suggested["rating"]["source"] == "My Rating"
 
 
 def test_data_import_mapping_crud(client: TestClient) -> None:
@@ -182,7 +182,7 @@ def test_data_import_mapping_crud(client: TestClient) -> None:
         json={
             "name": "Goodreads",
             "source_fields": ["Title", "Author"],
-            "mapping": {"Title": "title", "Author": "author"},
+            "mapping": {"title": {"source": "Title", "transform": None}, "author": {"source": "Author", "transform": None}},
         },
     )
     assert save_resp.status_code == 201
@@ -190,7 +190,12 @@ def test_data_import_mapping_crud(client: TestClient) -> None:
 
     list_resp = client.get("/api/data/import/mappings")
     assert list_resp.status_code == 200
-    assert len(list_resp.json()) == 1
+    data = list_resp.json()
+    assert len(data) == 2
+    assert data[0]["is_predefined"] is True
+    assert data[0]["name"] == "Goodreads Export"
+    assert data[1]["is_predefined"] is False
+    assert data[1]["name"] == "Goodreads"
 
     get_resp = client.get(f"/api/data/import/mappings/{saved['id']}")
     assert get_resp.status_code == 200
@@ -214,16 +219,26 @@ def test_data_import_validate_and_execute_continue_on_error(client: TestClient, 
 
     validate_resp = client.post(
         "/api/data/import/validate",
-        json={"file_id": file_id, "mapping": {"Title": "title", "Author": "author"}},
+        json={"file_id": file_id, "mapping": {"title": {"source": "Title", "transform": None}, "author": {"source": "Author", "transform": None}}},
     )
     assert validate_resp.status_code == 200
     assert validate_resp.json()["valid"] is False
+
+    preview_resp = client.post(
+        "/api/data/import/preview",
+        json={"file_id": file_id, "mapping": {"title": {"source": "Title", "transform": None}, "author": {"source": "Author", "transform": None}}},
+    )
+    assert preview_resp.status_code == 200
+    preview = preview_resp.json()
+    assert preview["row_count"] == 2
+    assert len(preview["preview_rows"]) == 2
+    assert preview["preview_rows"][0]["transformed"]["title"] == "Dune"
 
     execute_resp = client.post(
         "/api/data/import/execute",
         json={
             "file_id": file_id,
-            "mapping": {"Title": "title", "Author": "author"},
+            "mapping": {"title": {"source": "Title", "transform": None}, "author": {"source": "Author", "transform": None}},
             "import_mode": "continue_on_error",
         },
     )
@@ -247,7 +262,7 @@ def test_data_import_execute_rollback_all_rolls_back(client: TestClient, monkeyp
         "/api/data/import/execute",
         json={
             "file_id": file_id,
-            "mapping": {"Title": "title", "Author": "author"},
+            "mapping": {"title": {"source": "Title", "transform": None}, "author": {"source": "Author", "transform": None}},
             "import_mode": "rollback_all",
         },
     )
@@ -271,7 +286,7 @@ def test_data_import_execute_rejects_invalid_target_mapping(client: TestClient, 
 
     validate_resp = client.post(
         "/api/data/import/validate",
-        json={"file_id": file_id, "mapping": {"Title": "invalid_field"}},
+        json={"file_id": file_id, "mapping": {"invalid_field": {"source": "Title", "transform": None}}},
     )
     assert validate_resp.status_code == 200
     assert validate_resp.json()["valid"] is False
@@ -292,7 +307,7 @@ def test_data_import_validate_rejects_invalid_reading_status_enum(client: TestCl
 
     validate_resp = client.post(
         "/api/data/import/validate",
-        json={"file_id": file_id, "mapping": {"Title": "title", "Status": "reading_status"}},
+        json={"file_id": file_id, "mapping": {"title": {"source": "Title", "transform": None}, "reading_status": {"source": "Status", "transform": None}}},
     )
     assert validate_resp.status_code == 200
     payload = validate_resp.json()
@@ -318,7 +333,7 @@ def test_data_import_execute_deletes_temp_file_after_completion(client: TestClie
         "/api/data/import/execute",
         json={
             "file_id": file_id,
-            "mapping": {"Title": "title"},
+            "mapping": {"title": {"source": "Title", "transform": None}},
             "import_mode": "continue_on_error",
         },
     )
@@ -344,10 +359,10 @@ def test_data_import_execute_progress_uses_date_finished_for_read_books(
         json={
             "file_id": file_id,
             "mapping": {
-                "Title": "title",
-                "Status": "reading_status",
-                "Pages": "page_count",
-                "Date Finished": "date_finished",
+                "title": {"source": "Title", "transform": None},
+                "reading_status": {"source": "Status", "transform": None},
+                "page_count": {"source": "Pages", "transform": None},
+                "date_finished": {"source": "Date Finished", "transform": None},
             },
             "import_mode": "continue_on_error",
             "create_progress_for_read": True,
@@ -387,9 +402,9 @@ def test_data_import_execute_progress_falls_back_to_now_without_date_finished(
         json={
             "file_id": file_id,
             "mapping": {
-                "Title": "title",
-                "Status": "reading_status",
-                "Pages": "page_count",
+                "title": {"source": "Title", "transform": None},
+                "reading_status": {"source": "Status", "transform": None},
+                "page_count": {"source": "Pages", "transform": None},
             },
             "import_mode": "continue_on_error",
             "create_progress_for_read": True,
@@ -449,7 +464,7 @@ def test_data_import_mapping_update_existing(client: TestClient) -> None:
         json={
             "name": "UpdateMe",
             "source_fields": ["F1"],
-            "mapping": {"F1": "title"},
+            "mapping": {"title": {"source": "F1", "transform": None}},
         },
     )
     # Save again with same name
@@ -458,7 +473,7 @@ def test_data_import_mapping_update_existing(client: TestClient) -> None:
         json={
             "name": "UpdateMe",
             "source_fields": ["F1", "F2"],
-            "mapping": {"F1": "title", "F2": "author"},
+            "mapping": {"title": {"source": "F1", "transform": None}, "author": {"source": "F2", "transform": None}},
         },
     )
     assert resp.status_code == 201
@@ -509,7 +524,7 @@ def test_data_import_mapping_integrity_error_new_mapping(client: TestClient, ses
 
     resp = client.post(
         "/api/data/import/mappings",
-        json={"name": "Conflict", "source_fields": ["F1"], "mapping": {"F1": "title"}},
+        json={"name": "Conflict", "source_fields": ["F1"], "mapping": {"title": {"source": "F1", "transform": None}}},
     )
     assert resp.status_code == 409
     assert resp.json()["detail"] == "A mapping with this name already exists."
@@ -533,7 +548,7 @@ def test_data_import_execute_rollback_when_not_completed(client: TestClient, mon
 
     resp = client.post(
         "/api/data/import/execute",
-        json={"file_id": file_id, "mapping": {"Title": "title"}, "import_mode": "continue_on_error"},
+        json={"file_id": file_id, "mapping": {"title": {"source": "Title", "transform": None}}, "import_mode": "continue_on_error"},
     )
     assert resp.status_code == 200
     events = _parse_sse(resp.text)
@@ -561,7 +576,7 @@ def test_data_import_execute_cancelled_error(client: TestClient, monkeypatch: Mo
 
     resp = client.post(
         "/api/data/import/execute",
-        json={"file_id": file_id, "mapping": {"Title": "title"}, "import_mode": "continue_on_error"},
+        json={"file_id": file_id, "mapping": {"title": {"source": "Title", "transform": None}}, "import_mode": "continue_on_error"},
     )
     # StreamingResponse returns 200 before consuming the generator.
     # The generator raises CancelledError, which closes the stream.
@@ -587,7 +602,7 @@ def test_data_import_execute_unexpected_error(client: TestClient, monkeypatch: M
 
     resp = client.post(
         "/api/data/import/execute",
-        json={"file_id": file_id, "mapping": {"Title": "title"}, "import_mode": "continue_on_error"},
+        json={"file_id": file_id, "mapping": {"title": {"source": "Title", "transform": None}}, "import_mode": "continue_on_error"},
     )
     events = _parse_sse(resp.text)
     assert any(event.get("message") == "error.importExecutionFailed" for event in events)

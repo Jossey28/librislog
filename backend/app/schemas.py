@@ -433,11 +433,17 @@ class DataImportParseResponse(SQLModel):
     row_count: int
 
 
+class ImportFieldConfig(SQLModel):
+    """Per-target field mapping configuration."""
+    source: Optional[str] = None
+    transform: Optional[str] = None
+
+
 class DataImportMappingSave(SQLModel):
     """Request body to save an import column mapping."""
     name: str
     source_fields: list[str]
-    mapping: dict[str, str]
+    mapping: dict[str, ImportFieldConfig]
 
 
 class DataImportMappingRead(SQLModel):
@@ -445,9 +451,10 @@ class DataImportMappingRead(SQLModel):
     id: int
     name: str
     source_fields: list[str]
-    mapping: dict[str, str]
+    mapping: dict[str, ImportFieldConfig]
     created_at: datetime
     updated_at: datetime
+    is_predefined: bool = False
 
 
 class DataImportMappingListItem(SQLModel):
@@ -456,12 +463,13 @@ class DataImportMappingListItem(SQLModel):
     name: str
     created_at: datetime
     updated_at: datetime
+    is_predefined: bool = False
 
 
 class DataImportRunRequest(SQLModel):
     """Request body to execute an import."""
     file_id: str
-    mapping: dict[str, str]
+    mapping: dict[str, ImportFieldConfig]
     import_mode: Literal["rollback_all", "continue_on_error"] = "rollback_all"
     create_progress_for_read: bool = False
 
@@ -473,14 +481,14 @@ class DataImportSuggestRequest(SQLModel):
 
 class DataImportSuggestResponse(SQLModel):
     """Suggested column mapping response."""
-    suggested_mapping: dict[str, str]
+    suggested_mapping: dict[str, ImportFieldConfig]
     db_fields: list[str]
 
 
 class DataImportValidateRequest(SQLModel):
     """Request body to validate an import."""
     file_id: str
-    mapping: dict[str, str]
+    mapping: dict[str, ImportFieldConfig]
     create_progress_for_read: bool = False
 
 
@@ -490,6 +498,27 @@ class DataImportValidateResponse(SQLModel):
     row_count: int
     warnings: list[str]
     errors: list[str]
+
+
+class DataImportPreviewRow(SQLModel):
+    """A single row in the import preview."""
+    row_number: int
+    source: dict[str, str]
+    transformed: dict[str, Optional[str]]
+    errors: list[str]
+
+
+class DataImportPreviewRequest(SQLModel):
+    """Request body to preview an import with transforms."""
+    file_id: str
+    mapping: dict[str, ImportFieldConfig]
+
+
+class DataImportPreviewResponse(SQLModel):
+    """Import preview response."""
+    preview_rows: list[DataImportPreviewRow]
+    row_count: int
+    errors: list[str] = []
 
 
 class DataImportExecuteResult(SQLModel):

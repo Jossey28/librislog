@@ -18,6 +18,8 @@
 		{ name: 'Hammer.js', url: 'https://hammerjs.github.io/' },
 		{ name: 'html5-qrcode', url: 'https://github.com/mebjas/html5-qrcode' },
 		{ name: 'animal-avatar-generator', url: 'https://github.com/roma-lukashik/animal-avatar-generator' },
+		{ name: 'dayjs', url: 'https://day.js.org/' },
+		{ name: 'svelte-i18n', url: 'https://github.com/kaisermann/svelte-i18n' },
 	];
 
 	const backendDeps: Array<{ name: string; url: string }> = [
@@ -40,6 +42,7 @@
 		{ name: 'pydantic-settings', url: 'https://docs.pydantic.dev/latest/concepts/pydantic_settings/' },
 		{ name: 'itsdangerous', url: 'https://itsdangerous.palletsprojects.com/' },
 		{ name: 'browserforge', url: 'https://github.com/ultrafunkamsterdam/undetected-chromedriver' },
+		{ name: 'RestrictedPython', url: 'https://github.com/zopefoundation/RestrictedPython' },
 	];
 
 	const displayVersion = $derived(

@@ -23,6 +23,7 @@
 		"@testing-library/svelte": "^5.3.1",
 		"@types/hammerjs": "^2.0.46",
 		"@types/node": "^25.7.0",
+
 		"@vitest/coverage-v8": "^4.1.7",
 		"happy-dom": "^17.6.3",
 		"svelte": "^5.55.2",
@@ -43,6 +44,7 @@
 		"dayjs": "^1.11.20",
 		"hammerjs": "^2.0.8",
 		"html5-qrcode": "^2.3.8",
+
 		"svelte-chartjs": "^4.0.1",
 		"svelte-i18n": "^4.0.1",
 		"tailwindcss": "^4.3.0"
