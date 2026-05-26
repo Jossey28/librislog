@@ -40,6 +40,8 @@
 	let logModalOpen = $state(false);
 	let deletingEntry = $state<number | null>(null);
 	let pendingDeleteEntry = $state<number | null>(null);
+	let editingEntryId = $state<number | null>(null);
+	let editingDate = $state('');
 
 	const progressPercent = $derived(
 		book?.page_count && currentPage > 0 ? Math.round((currentPage / book.page_count) * 100) : 0
@@ -140,6 +142,36 @@
 
 	function cancelDeleteEntry() {
 		pendingDeleteEntry = null;
+	}
+
+	function startEditEntry(entry: ReadingProgressEntry) {
+		editingEntryId = entry.id;
+		const d = new Date(entry.created_at);
+		const pad = (n: number) => n.toString().padStart(2, '0');
+		editingDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+	}
+
+	function cancelEditEntry() {
+		editingEntryId = null;
+		editingDate = '';
+	}
+
+	async function saveEditEntry(entry: ReadingProgressEntry) {
+		if (!editingDate) return;
+		const d = new Date(editingDate);
+		const created_at = d.toISOString();
+		try {
+			const updated = await api.books.progress.update(entry.book_id, entry.id, { created_at });
+			progressEntries = progressEntries.map((e) => (e.id === entry.id ? { ...e, created_at: updated.created_at } : e));
+		} catch (e: unknown) {
+			toasts.add(
+				e instanceof Error ? e.message : $_('common.actionFailed', { values: { action: $_('common.save') } }),
+				'error'
+			);
+		} finally {
+			editingEntryId = null;
+			editingDate = '';
+		}
 	}
 
 	function openEdit() {
@@ -506,30 +538,59 @@
 							<tbody>
 								{#each progressEntries as entry (entry.id)}
 									<tr>
-										<td class="text-xs">{formatDateTime(entry.created_at, tz)}</td>
+										<td class="text-xs">
+											{#if editingEntryId === entry.id}
+												<input type="datetime-local" class="input input-bordered input-xs w-full" bind:value={editingDate} />
+											{:else}
+												{formatDateTime(entry.created_at, tz)}
+											{/if}
+										</td>
 										<td class="font-mono text-sm">{entry.page}</td>
 										<td class="text-right">
 											{#if pendingDeleteEntry === entry.id}
-												<span class="text-xs text-base-content/60 mr-2">{$_('book.deleteEntryConfirm')}</span>
+												<div class="flex flex-col items-end gap-1">
+													<span class="text-xs text-base-content/60">{$_('book.deleteEntryConfirm')}</span>
+													<div class="flex gap-1">
+														<button
+															type="button"
+															class="btn btn-error btn-xs"
+															disabled={deletingEntry === entry.id}
+															onclick={() => { pendingDeleteEntry = null; void deleteLogEntry(entry.id); }}
+														>
+															{deletingEntry === entry.id ? '...' : $_('common.confirm')}
+														</button>
+														<button
+															type="button"
+															class="btn btn-ghost btn-xs"
+															disabled={deletingEntry === entry.id}
+															onclick={cancelDeleteEntry}
+														>{$_('common.cancel')}</button>
+													</div>
+												</div>
+											{:else if editingEntryId === entry.id}
 												<button
 													type="button"
-													class="btn btn-error btn-xs"
-													disabled={deletingEntry === entry.id}
-													onclick={() => { pendingDeleteEntry = null; void deleteLogEntry(entry.id); }}
-												>
-													{deletingEntry === entry.id ? '...' : $_('common.confirm')}
-												</button>
+													class="btn btn-primary btn-xs"
+													disabled={deletingEntry !== null}
+													onclick={() => void saveEditEntry(entry)}
+												>{$_('book.saveEntry')}</button>
 												<button
 													type="button"
 													class="btn btn-ghost btn-xs"
-													disabled={deletingEntry === entry.id}
-													onclick={cancelDeleteEntry}
+													disabled={deletingEntry !== null}
+													onclick={cancelEditEntry}
 												>{$_('common.cancel')}</button>
 											{:else}
 												<button
 													type="button"
+													class="btn btn-ghost btn-xs"
+													disabled={deletingEntry !== null || editingEntryId !== null}
+													onclick={() => startEditEntry(entry)}
+												>{$_('book.editEntry')}</button>
+												<button
+													type="button"
 													class="btn btn-ghost btn-xs text-error"
-													disabled={deletingEntry !== null}
+													disabled={deletingEntry !== null || editingEntryId !== null}
 													onclick={() => handleProgressLogDelete(entry.id)}
 												>
 													{$_('book.deleteEntry')}

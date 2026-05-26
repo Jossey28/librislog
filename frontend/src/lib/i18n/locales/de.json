@@ -144,6 +144,8 @@
     "logPage": "Seite",
     "deleteEntry": "Löschen",
     "deleteEntryConfirm": "Diesen Eintrag löschen?",
+    "editEntry": "Bearbeiten",
+    "saveEntry": "Speichern",
     "progressGraph": "Fortschritt im Zeitverlauf",
     "progressPromptTitle": "Lesefortschritt setzen?",
     "progressPromptMessage": "Lesefortschritt für \"{title}\" auf 100% setzen?",

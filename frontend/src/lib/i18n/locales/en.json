@@ -144,6 +144,8 @@
     "logPage": "Page",
     "deleteEntry": "Delete",
     "deleteEntryConfirm": "Delete this entry?",
+    "editEntry": "Edit",
+    "saveEntry": "Save",
     "progressGraph": "Progress Over Time",
     "progressPromptTitle": "Set Reading Progress?",
     "progressPromptMessage": "Set the reading progress for \"{title}\" to 100%?",

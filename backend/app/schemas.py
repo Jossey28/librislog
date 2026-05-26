@@ -24,6 +24,11 @@ class ReadingProgressRead(SQLModel):
     updated_at: datetime
 
 
+class ReadingProgressUpdate(SQLModel):
+    """Request body to update a reading progress entry's date."""
+    created_at: datetime
+
+
 class ReadingProgressLatest(SQLModel):
     """Latest reading progress for a single book."""
     book_id: int

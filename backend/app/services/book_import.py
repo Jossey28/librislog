@@ -138,7 +138,10 @@ async def search_with_progress(
     )
 
     own_client = http_client is None
-    client = http_client or httpx.AsyncClient(timeout=10.0)
+    client = http_client or httpx.AsyncClient(
+        timeout=10.0,
+        headers={"User-Agent": "LibrisLog/1.0 (book import; +https://github.com/codebude/librislog)"},
+    )
 
     try:
         results: list[BookImportCandidate] = []
@@ -255,7 +258,10 @@ async def search(
                  query, search_type, bool(api_key), bool(hardcover_api_token))
 
     own_client = http_client is None
-    client = http_client or httpx.AsyncClient(timeout=10.0)
+    client = http_client or httpx.AsyncClient(
+        timeout=10.0,
+        headers={"User-Agent": "LibrisLog/1.0 (book import; +https://github.com/codebude/librislog)"},
+    )
 
     try:
         tasks = [_search_open_library(query, search_type, client)]

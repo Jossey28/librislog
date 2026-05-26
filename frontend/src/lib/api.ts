@@ -314,6 +314,12 @@ export const api = {
 					body: JSON.stringify({ page })
 				});
 			},
+			async update(bookId: number, entryId: number, data: { created_at: string }): Promise<ReadingProgressEntry> {
+				return request<ReadingProgressEntry>(`/books/${bookId}/progress/${entryId}`, {
+					method: 'PATCH',
+					body: JSON.stringify(data)
+				});
+			},
 			async delete(bookId: number, entryId: number): Promise<void> {
 				return request<void>(`/books/${bookId}/progress/${entryId}`, { method: 'DELETE' });
 			},
