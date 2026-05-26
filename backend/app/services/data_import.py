@@ -748,6 +748,64 @@ async def execute_import(
     }
 
 
+PREDEFINED_MAPPINGS: list[dict[str, Any]] = [
+    {
+        "id": -1,
+        "name": "Goodreads Export",
+        "source_fields": [
+            "Book Id", "Title", "Author", "ISBN", "ISBN13",
+            "Publisher", "Number of Pages", "Year Published",
+            "Original Publication Year", "Date Read", "Date Added",
+            "Exclusive Shelf", "My Review", "Bookshelves",
+            "My Rating", "Average Rating", "Read Count",
+        ],
+        "mapping": {
+            "title": {"source": "Title", "transform": None},
+            "subtitle": {"source": "", "transform": None},
+            "author": {"source": "Author", "transform": None},
+            "isbn": {"source": "ISBN13", "transform": None},
+            "publisher": {"source": "Publisher", "transform": None},
+            "published_year": {
+                "source": "Original Publication Year",
+                "transform": "str(int(value)) if value and str(value).strip() else None",
+            },
+            "page_count": {
+                "source": "Number of Pages",
+                "transform": "str(int(value)) if value and str(value).strip() else None",
+            },
+            "language": {"source": "", "transform": None},
+            "tags": {"source": "Bookshelves", "transform": None},
+            "notes": {"source": "My Review", "transform": None},
+            "blurb": {"source": "", "transform": None},
+            "rating": {
+                "source": "My Rating",
+                "transform": "str(int(value)) if value and str(value).strip() else None",
+            },
+            "reading_status": {
+                "source": "Exclusive Shelf",
+                "transform": (
+                    "shelf_map = {'to-read': 'want_to_read', "
+                    "'currently-reading': 'currently_reading', 'read': 'read'}\n"
+                    "status = shelf_map.get(value.strip().lower(), 'want_to_read')\n"
+                    "return status"
+                ),
+            },
+            "date_started": {"source": "Date Added", "transform": None},
+            "date_finished": {"source": "Date Read", "transform": None},
+            "cover_url": {"source": "", "transform": None},
+        },
+    },
+]
+
+
+def get_predefined_mapping(mapping_id: int) -> dict[str, object] | None:
+    """Return a predefined mapping by its negative ID, or None if not found."""
+    for pm in PREDEFINED_MAPPINGS:
+        if pm["id"] == mapping_id:
+            return pm
+    return None
+
+
 def cleanup_temp_files(max_age_hours: int = 24) -> None:
     """Delete temporary import files older than *max_age_hours*.
 

@@ -454,6 +454,7 @@ class DataImportMappingRead(SQLModel):
     mapping: dict[str, ImportFieldConfig]
     created_at: datetime
     updated_at: datetime
+    is_predefined: bool = False
 
 
 class DataImportMappingListItem(SQLModel):
@@ -462,6 +463,7 @@ class DataImportMappingListItem(SQLModel):
     name: str
     created_at: datetime
     updated_at: datetime
+    is_predefined: bool = False
 
 
 class DataImportRunRequest(SQLModel):

@@ -190,7 +190,12 @@ def test_data_import_mapping_crud(client: TestClient) -> None:
 
     list_resp = client.get("/api/data/import/mappings")
     assert list_resp.status_code == 200
-    assert len(list_resp.json()) == 1
+    data = list_resp.json()
+    assert len(data) == 2
+    assert data[0]["is_predefined"] is True
+    assert data[0]["name"] == "Goodreads Export"
+    assert data[1]["is_predefined"] is False
+    assert data[1]["name"] == "Goodreads"
 
     get_resp = client.get(f"/api/data/import/mappings/{saved['id']}")
     assert get_resp.status_code == 200

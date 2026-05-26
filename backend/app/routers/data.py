@@ -2,6 +2,7 @@
 
 import json
 import asyncio
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile
@@ -32,9 +33,11 @@ from app.time_utils import utcnow
 from app.services.data_export import build_export_zip
 from app.services.data_import import (
     BOOK_IMPORT_FIELDS,
+    PREDEFINED_MAPPINGS,
     compute_schema_fingerprint,
     delete_parsed_upload,
     execute_import,
+    get_predefined_mapping,
     load_parsed_upload,
     parse_upload,
     preview_import,
@@ -55,6 +58,7 @@ def _mapping_read(model: ImportMapping) -> DataImportMappingRead:
         mapping={k: ImportFieldConfig(**v) for k, v in raw_mapping.items()},
         created_at=model.created_at,
         updated_at=model.updated_at,
+        is_predefined=False,
     )
 
 
@@ -172,7 +176,18 @@ def list_import_mappings(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> list[DataImportMappingListItem]:
-    """List saved import mappings, newest first."""
+    """List saved and predefined import mappings."""
+    epoch = datetime(2000, 1, 1)
+    predefined: list[DataImportMappingListItem] = [
+        DataImportMappingListItem(
+            id=int(pm["id"]),  # type: ignore[arg-type]
+            name=str(pm["name"]),
+            created_at=epoch,
+            updated_at=epoch,
+            is_predefined=True,
+        )
+        for pm in PREDEFINED_MAPPINGS
+    ]
     rows = list(
         session.exec(
             select(ImportMapping)
@@ -180,7 +195,7 @@ def list_import_mappings(
             .order_by(ImportMapping.updated_at.desc())
         ).all()
     )
-    return [
+    user_mappings = [
         DataImportMappingListItem(
             id=row.id or 0,
             name=row.name,
@@ -189,6 +204,7 @@ def list_import_mappings(
         )
         for row in rows
     ]
+    return predefined + user_mappings
 
 
 @router.get("/import/mappings/{mapping_id}", response_model=DataImportMappingRead)
@@ -197,7 +213,22 @@ def get_import_mapping(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> DataImportMappingRead:
-    """Return a single saved import mapping by ID."""
+    """Return a single import mapping by ID (supports predefined mappings with negative IDs)."""
+    if mapping_id < 0:
+        pm = get_predefined_mapping(mapping_id)
+        if pm is None:
+            raise HTTPException(status_code=404, detail="Predefined mapping not found.")
+        raw_mapping: Any = pm.get("mapping")
+        raw_sources: Any = pm.get("source_fields", [])
+        return DataImportMappingRead(
+            id=mapping_id,
+            name=str(pm.get("name", "")),
+            source_fields=list(raw_sources),
+            mapping={k: ImportFieldConfig(**v) for k, v in raw_mapping.items()},
+            created_at=datetime(2000, 1, 1),
+            updated_at=datetime(2000, 1, 1),
+            is_predefined=True,
+        )
     row = session.get(ImportMapping, mapping_id)
     if not row or row.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Import mapping not found.")
@@ -210,7 +241,9 @@ def delete_import_mapping(
     current_user: User = Depends(require_user),
     session: Session = Depends(get_session),
 ) -> None:
-    """Delete a saved import mapping."""
+    """Delete a saved import mapping. Predefined mappings cannot be deleted."""
+    if mapping_id < 0:
+        raise HTTPException(status_code=403, detail="Predefined mappings cannot be deleted.")
     row = session.get(ImportMapping, mapping_id)
     if not row or row.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Import mapping not found.")

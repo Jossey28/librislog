@@ -34,6 +34,7 @@
 	let mappings = $state<DataImportMappingListItem[]>([]);
 	let loadingMappings = $state(false);
 	let selectedMappingId = $state('');
+	let selectedMappingIsPredefined = $derived(mappings.find((m) => String(m.id) === selectedMappingId)?.is_predefined ?? false);
 	let showMappingPreview = $state(false);
 	let showAllValidation = $state(false);
 	let showAllFailures = $state(false);
@@ -110,14 +111,17 @@
 		}
 	}
 
+	let missingMappingFields = $state<Array<{ target: string; source: string }>>([]);
+
 	async function loadMapping(id: number) {
 		try {
 			const saved = await api.data.getMapping(id);
 			mapping = saved.mapping;
-			mappingName = saved.name;
-			const missing = Object.values(saved.mapping).filter((config) => !parsed?.source_fields.includes(config.source));
-			if (missing.length > 0) {
-				toasts.add($_('data.import.mappingMissingFields', { values: { count: missing.length } }), 'error');
+			missingMappingFields = Object.entries(saved.mapping)
+				.filter(([, config]) => config.source && !parsed?.source_fields.includes(config.source))
+				.map(([target, config]) => ({ target, source: config.source }));
+			if (!saved.is_predefined) {
+				mappingName = saved.name;
 			}
 		} catch (err: unknown) {
 			toasts.add(err instanceof Error ? err.message : $_('data.import.errors.loadMappingFailed'), 'error');
@@ -126,13 +130,13 @@
 
 	async function loadSelectedMapping() {
 		const id = Number(selectedMappingId);
-		if (!Number.isFinite(id) || id <= 0) return;
+		if (!Number.isFinite(id) || id === 0) return;
 		await loadMapping(id);
 	}
 
 	function openDeleteMappingModal() {
 		const id = Number(selectedMappingId);
-		if (!Number.isFinite(id) || id <= 0) return;
+		if (!Number.isFinite(id) || id === 0 || selectedMappingIsPredefined) return;
 		pendingDeleteMappingId = id;
 	}
 
@@ -390,17 +394,32 @@
 							<select class="select select-bordered select-sm" name="load-mapping" bind:value={selectedMappingId} disabled={mappings.length === 0}>
 								<option value="">{$_('data.import.selectMapping')}</option>
 								{#each mappings as item}
-									<option value={String(item.id)}>{item.name}</option>
+									<option value={String(item.id)}>
+										{item.is_predefined ? `${item.name} (${$_('data.import.readonlyMapping')})` : item.name}
+									</option>
 								{/each}
 							</select>
 						</label>
 						<button class="btn btn-outline btn-sm" onclick={loadSelectedMapping} disabled={!selectedMappingId}>
 							{$_('data.import.loadMapping')}
 						</button>
-						<button class="btn btn-outline btn-error btn-sm" onclick={openDeleteMappingModal} disabled={!selectedMappingId}>
+						<button class="btn btn-outline btn-error btn-sm" onclick={openDeleteMappingModal} disabled={!selectedMappingId || selectedMappingIsPredefined}>
 							{$_('data.import.deleteMapping')}
 						</button>
 					</div>
+					{#if missingMappingFields.length > 0}
+						<div class="alert alert-warning text-sm p-3 flex items-start gap-2">
+							<div class="flex-1">
+								<p class="font-medium">{$_('data.import.missingFieldsTitle')}</p>
+								<ul class="list-disc pl-4 mt-1 text-xs">
+									{#each missingMappingFields as m}
+										<li>{$_('data.import.missingFieldEntry', { values: { target: m.target, source: m.source } })}</li>
+									{/each}
+								</ul>
+							</div>
+							<button class="btn btn-ghost btn-xs btn-square shrink-0" onclick={() => (missingMappingFields = [])} aria-label={$_('common.close')}>✕</button>
+						</div>
+					{/if}
 					{#if mappings.length === 0}
 						<p class="text-xs text-base-content/60">{$_('data.import.noSavedMappings')}</p>
 					{/if}

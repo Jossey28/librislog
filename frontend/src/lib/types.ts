@@ -273,6 +273,7 @@ export interface DataImportMappingListItem {
 	name: string;
 	created_at: string;
 	updated_at: string;
+	is_predefined: boolean;
 }
 
 export interface DataImportMappingRead {
@@ -282,6 +283,7 @@ export interface DataImportMappingRead {
 	mapping: Record<string, ImportFieldConfig>;
 	created_at: string;
 	updated_at: string;
+	is_predefined: boolean;
 }
 
 export interface ImportFieldConfig {
