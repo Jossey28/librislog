@@ -198,6 +198,9 @@ def get_statistics(
 ) -> StatisticsResponse:
     """Return the full statistics dashboard for the authenticated user."""
     tz = _user_timezone(session, current_user.id)
+    now = datetime.now(tz)
+    current_month_key = f"{now.year:04d}-{now.month:02d}"
+    current_year = now.year
     books = list(session.exec(select(Book).where(Book.user_id == current_user.id)).all())
 
     status_counts = Counter(book.reading_status for book in books)
@@ -280,7 +283,7 @@ def get_statistics(
             ),
             key=lambda item: (-item[1], item[0]),
         )
-        month_keys = _month_range(min(finished_books_per_month), max(finished_books_per_month))
+        month_keys = _month_range(min(finished_books_per_month), max(max(finished_books_per_month), current_month_key))
         books_finished_per_month = [
             MonthlyBooks(month=month, count=finished_books_per_month.get(month, 0)) for month in month_keys
         ]
@@ -291,7 +294,7 @@ def get_statistics(
         books_finished_per_month = []
 
     if pages_read_per_month_counter:
-        month_keys = _month_range(min(pages_read_per_month_counter), max(pages_read_per_month_counter))
+        month_keys = _month_range(min(pages_read_per_month_counter), max(max(pages_read_per_month_counter), current_month_key))
         pages_read_per_month = [
             MonthlyPages(month=month, pages=pages_read_per_month_counter.get(month, 0)) for month in month_keys
         ]
@@ -303,7 +306,7 @@ def get_statistics(
         for month_key, count in finished_books_per_month.items():
             yearly_counts[int(month_key.split("-")[0])] += count
         year_start = min(yearly_counts)
-        year_end = max(yearly_counts)
+        year_end = max(max(yearly_counts), current_year)
         books_finished_per_year = [
             YearlyBooks(year=year, count=yearly_counts.get(year, 0))
             for year in range(year_start, year_end + 1)
