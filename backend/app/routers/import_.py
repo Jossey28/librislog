@@ -52,7 +52,10 @@ async def search_books(
 ) -> List[BookImportCandidate]:
     """Search external APIs for books by title or ISBN."""
     logger.debug("Search request — q=%r type=%r", q, type)
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with httpx.AsyncClient(
+        timeout=10.0,
+        headers={"User-Agent": "LibrisLog/1.0 (book import; +https://github.com/codebude/librislog)"},
+    ) as client:
         results = await book_import.search(
             q,
             type,
@@ -79,7 +82,10 @@ async def search_books_stream(
     logger.debug("Stream search request — q=%r type=%r", q, type)
 
     async def event_generator():
-        async with httpx.AsyncClient(timeout=10.0) as client:
+        async with httpx.AsyncClient(
+            timeout=10.0,
+            headers={"User-Agent": "LibrisLog/1.0 (book import; +https://github.com/codebude/librislog)"},
+        ) as client:
             async for event in book_import.search_with_progress(
                 q,
                 type,

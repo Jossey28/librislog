@@ -26,6 +26,8 @@ logger = logging.getLogger(__name__)
 OPEN_LIBRARY_SEARCH_URL: str = "https://openlibrary.org/search.json"
 OPEN_LIBRARY_COVER_URL: str = "https://covers.openlibrary.org/b/id/{cover_id}-L.jpg"
 
+_USER_AGENT: str = "LibrisLog/1.0 (book import; +https://github.com/codebude/librislog)"
+
 GOOGLE_BOOKS_SEARCH_URL: str = "https://www.googleapis.com/books/v1/volumes"
 
 HARDCOVER_GRAPHQL_URL: str = "https://api.hardcover.app/v1/graphql"
@@ -140,7 +142,7 @@ async def search_with_progress(
     own_client = http_client is None
     client = http_client or httpx.AsyncClient(
         timeout=10.0,
-        headers={"User-Agent": "LibrisLog/1.0 (book import; +https://github.com/codebude/librislog)"},
+        headers={"User-Agent": _USER_AGENT},
     )
 
     try:
@@ -260,7 +262,7 @@ async def search(
     own_client = http_client is None
     client = http_client or httpx.AsyncClient(
         timeout=10.0,
-        headers={"User-Agent": "LibrisLog/1.0 (book import; +https://github.com/codebude/librislog)"},
+        headers={"User-Agent": _USER_AGENT},
     )
 
     try:
@@ -340,7 +342,7 @@ async def _search_open_library(
     logger.debug("Open Library request — url=%s params=%s", OPEN_LIBRARY_SEARCH_URL, params)
 
     try:
-        resp = await client.get(OPEN_LIBRARY_SEARCH_URL, params=params)
+        resp = await client.get(OPEN_LIBRARY_SEARCH_URL, params=params, headers={"User-Agent": _USER_AGENT})
         logger.debug("Open Library response — status=%d body_size=%d bytes",
                      resp.status_code, len(resp.content))
         resp.raise_for_status()
