@@ -6,8 +6,10 @@ import type {
 	DataImportMappingListItem,
 	DataImportMappingRead,
 	DataImportParseResponse,
+	DataImportPreviewResponse,
 	DataImportValidateResponse,
 	DataResetResponse,
+	ImportFieldConfig,
 	Book,
 	CoverCandidateList,
 	BookImportCandidate,
@@ -457,54 +459,64 @@ export const api = {
 			return res.json() as Promise<DataImportParseResponse>;
 		},
 
-		suggestMapping(fileId: string): Promise<{ suggested_mapping: Record<string, string>; db_fields: string[] }> {
-			return request<{ suggested_mapping: Record<string, string>; db_fields: string[] }>('/data/import/suggest-mapping', {
-				method: 'POST',
-				body: JSON.stringify({ file_id: fileId })
-			});
-		},
+			suggestMapping(fileId: string): Promise<{ suggested_mapping: Record<string, ImportFieldConfig>; db_fields: string[] }> {
+				return request<{ suggested_mapping: Record<string, ImportFieldConfig>; db_fields: string[] }>('/data/import/suggest-mapping', {
+					method: 'POST',
+					body: JSON.stringify({ file_id: fileId })
+				});
+			},
 
-		saveMapping(payload: {
-			name: string;
-			source_fields: string[];
-			mapping: Record<string, string>;
-		}): Promise<DataImportMappingRead> {
-			return request<DataImportMappingRead>('/data/import/mappings', {
-				method: 'POST',
-				body: JSON.stringify(payload)
-			});
-		},
+			saveMapping(payload: {
+				name: string;
+				source_fields: string[];
+				mapping: Record<string, ImportFieldConfig>;
+			}): Promise<DataImportMappingRead> {
+				return request<DataImportMappingRead>('/data/import/mappings', {
+					method: 'POST',
+					body: JSON.stringify(payload)
+				});
+			},
 
-		listMappings(): Promise<DataImportMappingListItem[]> {
-			return request<DataImportMappingListItem[]>('/data/import/mappings');
-		},
+			listMappings(): Promise<DataImportMappingListItem[]> {
+				return request<DataImportMappingListItem[]>('/data/import/mappings');
+			},
 
-		getMapping(id: number): Promise<DataImportMappingRead> {
-			return request<DataImportMappingRead>(`/data/import/mappings/${id}`);
-		},
+			getMapping(id: number): Promise<DataImportMappingRead> {
+				return request<DataImportMappingRead>(`/data/import/mappings/${id}`);
+			},
 
-		deleteMapping(id: number): Promise<void> {
-			return request<void>(`/data/import/mappings/${id}`, { method: 'DELETE' });
-		},
+			deleteMapping(id: number): Promise<void> {
+				return request<void>(`/data/import/mappings/${id}`, { method: 'DELETE' });
+			},
 
-		validateImport(payload: {
-			file_id: string;
-			mapping: Record<string, string>;
-			create_progress_for_read?: boolean;
-		}): Promise<DataImportValidateResponse> {
-			return request<DataImportValidateResponse>('/data/import/validate', {
-				method: 'POST',
-				body: JSON.stringify(payload)
-			});
-		},
+			previewImport(payload: {
+				file_id: string;
+				mapping: Record<string, ImportFieldConfig>;
+			}): Promise<DataImportPreviewResponse> {
+				return request<DataImportPreviewResponse>('/data/import/preview', {
+					method: 'POST',
+					body: JSON.stringify(payload)
+				});
+			},
 
-		async *executeImport(payload: {
-			file_id: string;
-			mapping: Record<string, string>;
-			import_mode: 'rollback_all' | 'continue_on_error';
-			create_progress_for_read?: boolean;
-			signal?: AbortSignal;
-		}): AsyncGenerator<DataImportEvent> {
+			validateImport(payload: {
+				file_id: string;
+				mapping: Record<string, ImportFieldConfig>;
+				create_progress_for_read?: boolean;
+			}): Promise<DataImportValidateResponse> {
+				return request<DataImportValidateResponse>('/data/import/validate', {
+					method: 'POST',
+					body: JSON.stringify(payload)
+				});
+			},
+
+			async *executeImport(payload: {
+				file_id: string;
+				mapping: Record<string, ImportFieldConfig>;
+				import_mode: 'rollback_all' | 'continue_on_error';
+				create_progress_for_read?: boolean;
+				signal?: AbortSignal;
+			}): AsyncGenerator<DataImportEvent> {
 			const headers: Record<string, string> = {
 				'Content-Type': 'application/json',
 				...authHeaders()

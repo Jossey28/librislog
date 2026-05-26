@@ -19,11 +19,14 @@ from app.schemas import (
     DataImportMappingRead,
     DataImportMappingSave,
     DataImportParseResponse,
+    DataImportPreviewRequest,
+    DataImportPreviewResponse,
     DataImportRunRequest,
     DataImportSuggestRequest,
     DataImportSuggestResponse,
     DataImportValidateRequest,
     DataImportValidateResponse,
+    ImportFieldConfig,
 )
 from app.time_utils import utcnow
 from app.services.data_export import build_export_zip
@@ -34,6 +37,7 @@ from app.services.data_import import (
     execute_import,
     load_parsed_upload,
     parse_upload,
+    preview_import,
     suggest_mapping,
     validate_import,
 )
@@ -43,11 +47,12 @@ router = APIRouter(prefix="/api/data", tags=["data"])
 
 def _mapping_read(model: ImportMapping) -> DataImportMappingRead:
     """Convert an ImportMapping DB model to its response schema."""
+    raw_mapping = json.loads(model.mapping_json)
     return DataImportMappingRead(
         id=model.id or 0,
         name=model.name,
         source_fields=json.loads(model.source_fields_json),
-        mapping=json.loads(model.mapping_json),
+        mapping={k: ImportFieldConfig(**v) for k, v in raw_mapping.items()},
         created_at=model.created_at,
         updated_at=model.updated_at,
     )
@@ -132,9 +137,10 @@ def save_import_mapping(
         )
     ).first()
 
+    mapping_dict = {k: v.model_dump() for k, v in body.mapping.items()}
     if existing:
         existing.source_fields_json = json.dumps(body.source_fields)
-        existing.mapping_json = json.dumps(body.mapping)
+        existing.mapping_json = json.dumps(mapping_dict)
         existing.schema_fingerprint = schema_fingerprint
         existing.updated_at = now
         session.add(existing)
@@ -147,7 +153,7 @@ def save_import_mapping(
         name=body.name,
         schema_fingerprint=schema_fingerprint,
         source_fields_json=json.dumps(body.source_fields),
-        mapping_json=json.dumps(body.mapping),
+        mapping_json=json.dumps(mapping_dict),
         created_at=now,
         updated_at=now,
     )
@@ -227,6 +233,19 @@ def validate_import_data(
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return DataImportValidateResponse.model_validate(payload)
+
+
+@router.post("/import/preview", response_model=DataImportPreviewResponse)
+def preview_import_data(
+    body: DataImportPreviewRequest,
+    current_user: User = Depends(require_user),
+) -> DataImportPreviewResponse:
+    """Preview how a mapping and transforms will affect the first rows."""
+    try:
+        payload = preview_import(body.file_id, current_user, body.mapping)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return DataImportPreviewResponse.model_validate(payload)
 
 
 @router.post("/import/execute")

@@ -21,6 +21,7 @@ dependencies = [
     "sqlmodel>=0.0.38",
     "uvicorn[standard]>=0.46.0",
     "browserforge>=1.2.4",
+    "restrictedpython>=8.1",
 ]
 
 [tool.uv]

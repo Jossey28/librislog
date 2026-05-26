@@ -4,18 +4,23 @@
 	import { api } from '$lib/api';
 	import { toasts } from '$lib/toasts';
 	import ImportMappingEditor from '$lib/components/ImportMappingEditor.svelte';
+	import { highlightJson } from '$lib/utils/prism';
 	import type {
 		DataImportEvent,
 		DataImportMappingListItem,
 		DataImportParseResponse,
-		DataImportValidateResponse
+		DataImportValidateResponse,
+		DataImportPreviewResponse,
+		ImportFieldConfig
 	} from '$lib/types';
 
 	let selectedFile = $state<File | null>(null);
 	let parsing = $state(false);
 	let parsed = $state<DataImportParseResponse | null>(null);
-	let mapping = $state<Record<string, string>>({});
+	let mapping = $state<Record<string, ImportFieldConfig>>({});
 	let dbFields = $state<string[]>([]);
+	let preview = $state<DataImportPreviewResponse | null>(null);
+	let loadingPreview = $state(false);
 	let validating = $state(false);
 	let validation = $state<DataImportValidateResponse | null>(null);
 	let importMode = $state<'rollback_all' | 'continue_on_error'>('rollback_all');
@@ -37,6 +42,8 @@
 	let fileInput: HTMLInputElement | undefined = $state();
 	let pendingDeleteMappingId = $state<number | null>(null);
 	let pendingImportStart = $state(false);
+	let previewMappingSnapshot = $state<string | null>(null);
+	let isPreviewStale = $derived(previewMappingSnapshot !== null && previewMappingSnapshot !== JSON.stringify(mapping));
 
 	function resetFlow() {
 		parsed = null;
@@ -108,7 +115,7 @@
 			const saved = await api.data.getMapping(id);
 			mapping = saved.mapping;
 			mappingName = saved.name;
-			const missing = Object.values(saved.mapping).filter((source) => !parsed?.source_fields.includes(source));
+			const missing = Object.values(saved.mapping).filter((config) => !parsed?.source_fields.includes(config.source));
 			if (missing.length > 0) {
 				toasts.add($_('data.import.mappingMissingFields', { values: { count: missing.length } }), 'error');
 			}
@@ -256,21 +263,51 @@
 
 	const mappedPreviewColumns = $derived.by(() => {
 		return Object.entries(mapping)
-			.filter(([, source]) => Boolean(source))
-			.map(([target, source]) => ({ target, source }));
+			.filter(([, config]) => Boolean(config?.source))
+			.map(([target, config]) => ({ target, source: config.source }));
 	});
 
 	const mappedPreviewRows = $derived.by(() => {
 		if (!parsed) return [];
 		return parsed.sample_rows.map((sample) => {
 			const row: Record<string, unknown> = {};
-			for (const [target, source] of Object.entries(mapping)) {
-				if (!source) continue;
-				row[target] = sample[source] ?? null;
+			for (const [target, config] of Object.entries(mapping)) {
+				if (!config?.source) continue;
+				row[target] = sample[config.source] ?? null;
 			}
 			return row;
 		});
 	});
+
+	function formatError(err: string): string {
+		if (err.startsWith('\x1f')) {
+			const idx = err.indexOf('\x1f', 1);
+			if (idx !== -1) {
+				const field = err.slice(1, idx);
+				const error = err.slice(idx + 1);
+				return $_('data.import.transformError', { values: { field, error } });
+			}
+		}
+		return err;
+	}
+
+	async function fetchPreview() {
+		if (!parsed) return;
+		loadingPreview = true;
+		try {
+			preview = await api.data.previewImport({ file_id: parsed.file_id, mapping });
+			previewMappingSnapshot = JSON.stringify(mapping);
+		} catch (err: unknown) {
+			toasts.add(err instanceof Error ? err.message : $_('data.import.errors.previewFailed'), 'error');
+		} finally {
+			loadingPreview = false;
+		}
+	}
+
+	function resetPreview() {
+		preview = null;
+		previewMappingSnapshot = null;
+	}
 </script>
 
 <div class="grid gap-4 min-w-0">
@@ -323,8 +360,9 @@
 				</button>
 			</div>
 			{#if parsed}
-				<p class="text-xs text-base-content/60">
-					{$_('data.import.fileSummary', { values: { rows: parsed.row_count, fields: parsed.source_fields.length } })}
+				<p class="text-xs text-base-content/60 flex items-center gap-2">
+					<span>{$_('data.import.fileSummary', { values: { rows: parsed.row_count, fields: parsed.source_fields.length } })}</span>
+					<button class="btn btn-ghost btn-xs" onclick={() => { resetFlow(); selectedFile = null; if (fileInput) fileInput.value = ''; }}>{$_('data.import.changeFile')}</button>
 				</p>
 			{/if}
 		</div>
@@ -411,6 +449,51 @@
 
 		<div class="card bg-base-100 border border-base-200 shadow-sm min-w-0">
 			<div class="card-body gap-3">
+				<div class="flex flex-wrap items-center gap-2">
+					<h3 class="font-semibold">{$_('data.import.previewTitle')}</h3>
+					<button class="btn btn-outline btn-sm" onclick={fetchPreview} disabled={loadingPreview}>
+						{loadingPreview ? $_('data.import.previewLoading') : $_('data.import.previewButton')}
+					</button>
+					{#if isPreviewStale}
+						<span class="badge badge-warning badge-sm">{$_('data.import.previewStale')}</span>
+					{/if}
+				</div>
+				{#if preview}
+					{#if (preview.errors ?? []).length > 0}
+						<div class="alert alert-warning text-sm">
+							{#each preview.errors ?? [] as err}
+								<p>{formatError(err)}</p>
+							{/each}
+						</div>
+					{/if}
+					{#each preview.preview_rows as row}
+						<div class="border border-base-200 rounded-lg p-3">
+							<p class="text-xs font-semibold text-base-content/60 mb-2">{$_('data.import.previewRow', { values: { row: row.row_number } })}</p>
+							<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+								<div>
+									<p class="text-xs text-base-content/50 mb-1">{$_('data.import.previewSource')}</p>
+									<pre class="text-xs font-mono bg-base-200 p-2 rounded overflow-x-auto">{@html highlightJson(JSON.stringify(row.source, null, 2))}</pre>
+								</div>
+								<div>
+									<p class="text-xs text-base-content/50 mb-1">{$_('data.import.previewTransformed')}</p>
+									<pre class="text-xs font-mono bg-base-200 p-2 rounded overflow-x-auto">{@html highlightJson(JSON.stringify(row.transformed, null, 2))}</pre>
+								</div>
+							</div>
+							{#if (row.errors ?? []).length > 0}
+								<div class="mt-2 text-xs text-error">
+									{#each row.errors as err}
+										<p>• {formatError(err)}</p>
+									{/each}
+								</div>
+							{/if}
+						</div>
+					{/each}
+				{/if}
+			</div>
+		</div>
+
+		<div class="card bg-base-100 border border-base-200 shadow-sm min-w-0">
+			<div class="card-body gap-3">
 				<h3 class="font-semibold">{$_('data.import.validationTitle')}</h3>
 				<div class="flex flex-wrap gap-2 items-center">
 					<button class="btn btn-primary btn-sm" onclick={simulate} disabled={validating}>
@@ -449,7 +532,7 @@
 						{#if validation.errors.length > 0}
 							<ul class="list-disc pl-5 text-error">
 								{#each visibleErrors as error}
-									<li>{error}</li>
+									<li>{formatError(error)}</li>
 								{/each}
 							</ul>
 						{/if}
@@ -474,7 +557,7 @@
 						{#if importResult.failures.length > 0}
 							<ul class="list-disc pl-5 text-error">
 								{#each visibleFailures as failure}
-									<li>Row {failure.row}: {failure.error}</li>
+									<li>{$_('data.import.errorRow', { values: { row: failure.row } })} {formatError(failure.error)}</li>
 								{/each}
 							</ul>
 							{#if importResult.failures.length > 8}
@@ -519,3 +602,10 @@
 		<button type="button" onclick={closeImportModal}>{$_('common.close')}</button>
 	</form>
 </dialog>
+
+<style>
+	:global(.hl-json-key) { color: #7c3aed; }
+	:global(.hl-json-string) { color: #059669; }
+	:global(.hl-json-number) { color: #d97706; }
+	:global(.hl-json-bool) { color: #2563eb; }
+</style>

@@ -46,7 +46,10 @@ describe('ImportMappingEditor', () => {
 			props: {
 				sourceFields,
 				dbFields,
-				mapping: { author: 'Author', title: 'Title' },
+				mapping: {
+					author: { source: 'Author', transform: null },
+					title: { source: 'Title', transform: null }
+				},
 				onChange
 			}
 		});
@@ -67,7 +70,7 @@ describe('ImportMappingEditor', () => {
 		});
 		const authorSelect = screen.getByRole('combobox', { name: /Map source for author/i });
 		await fireEvent.change(authorSelect, { target: { value: 'Author' } });
-		expect(onChange).toHaveBeenCalledWith({ author: 'Author' });
+		expect(onChange).toHaveBeenCalledWith({ author: { source: 'Author', transform: null } });
 	});
 
 	it('calls onChange when mapping is cleared', async () => {
@@ -75,27 +78,72 @@ describe('ImportMappingEditor', () => {
 			props: {
 				sourceFields,
 				dbFields,
-				mapping: { author: 'Author' },
+				mapping: { author: { source: 'Author', transform: null } },
 				onChange
 			}
 		});
 		const authorSelect = screen.getByRole('combobox', { name: /Map source for author/i });
 		await fireEvent.change(authorSelect, { target: { value: '' } });
-		expect(onChange).toHaveBeenCalledWith({});
+		expect(onChange).toHaveBeenCalledWith({ author: { source: '', transform: null } });
 	});
 
-	it('removes duplicate source mapping when reused', async () => {
+	it('allows same source field mapped to multiple targets', async () => {
 		render(ImportMappingEditor, {
 			props: {
 				sourceFields,
 				dbFields,
-				mapping: { author: 'Author' },
+				mapping: { author: { source: 'Author', transform: null } },
 				onChange
 			}
 		});
 		const titleSelect = screen.getByRole('combobox', { name: /Map source for title/i });
 		await fireEvent.change(titleSelect, { target: { value: 'Author' } });
-		// Author should now map to title, not author
-		expect(onChange).toHaveBeenCalledWith({ title: 'Author' });
+		// Author should now map to both title and author
+		expect(onChange).toHaveBeenCalledWith({
+			title: { source: 'Author', transform: null },
+			author: { source: 'Author', transform: null }
+		});
+	});
+
+	it('shows transform textarea after clicking expand', async () => {
+		render(ImportMappingEditor, {
+			props: {
+				sourceFields,
+				dbFields,
+				mapping: { author: { source: 'Author', transform: null } },
+				onChange
+			}
+		});
+		await fireEvent.click(screen.getByText('Transform (Python)'));
+		expect(screen.getByLabelText(/Transform for author/i)).toBeInTheDocument();
+	});
+
+	it('calls onChange with transform when typing in transform textarea', async () => {
+		render(ImportMappingEditor, {
+			props: {
+				sourceFields,
+				dbFields,
+				mapping: { author: { source: 'Author', transform: null } },
+				onChange
+			}
+		});
+		await fireEvent.click(screen.getByText('Transform (Python)'));
+		const textarea = screen.getByLabelText(/Transform for author/i);
+		await fireEvent.input(textarea, { target: { value: 'value.upper()' } });
+		expect(onChange).toHaveBeenCalledWith({ author: { source: 'Author', transform: 'value.upper()' } });
+	});
+
+	it('clears transform via onChange when source is cleared', async () => {
+		render(ImportMappingEditor, {
+			props: {
+				sourceFields,
+				dbFields,
+				mapping: { author: { source: 'Author', transform: 'value.upper()' } },
+				onChange
+			}
+		});
+		const authorSelect = screen.getByRole('combobox', { name: /Map source for author/i });
+		await fireEvent.change(authorSelect, { target: { value: '' } });
+		expect(onChange).toHaveBeenCalledWith({ author: { source: '', transform: null } });
 	});
 });
