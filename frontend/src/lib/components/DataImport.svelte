@@ -35,7 +35,6 @@
 	let loadingMappings = $state(false);
 	let selectedMappingId = $state('');
 	let selectedMappingIsPredefined = $derived(mappings.find((m) => String(m.id) === selectedMappingId)?.is_predefined ?? false);
-	let showMappingPreview = $state(false);
 	let showAllValidation = $state(false);
 	let showAllFailures = $state(false);
 	let importAbortController = $state<AbortController | null>(null);
@@ -58,7 +57,6 @@
 		importResult = null;
 		showAllValidation = false;
 		showAllFailures = false;
-		showMappingPreview = false;
 	}
 
 	async function refreshMappings() {
@@ -265,24 +263,6 @@
 		return showAllFailures ? importResult.failures : importResult.failures.slice(0, 8);
 	});
 
-	const mappedPreviewColumns = $derived.by(() => {
-		return Object.entries(mapping)
-			.filter(([, config]) => Boolean(config?.source))
-			.map(([target, config]) => ({ target, source: config.source }));
-	});
-
-	const mappedPreviewRows = $derived.by(() => {
-		if (!parsed) return [];
-		return parsed.sample_rows.map((sample) => {
-			const row: Record<string, unknown> = {};
-			for (const [target, config] of Object.entries(mapping)) {
-				if (!config?.source) continue;
-				row[target] = sample[config.source] ?? null;
-			}
-			return row;
-		});
-	});
-
 	function formatError(err: string): string {
 		if (err.startsWith('\x1f')) {
 			const idx = err.indexOf('\x1f', 1);
@@ -425,44 +405,9 @@
 					{/if}
 				</div>
 
-				<div>
-					<button class="btn btn-ghost btn-sm" onclick={() => (showMappingPreview = !showMappingPreview)}>
-						{showMappingPreview ? $_('data.import.hidePreview') : $_('data.import.showPreview')}
-					</button>
-				</div>
-
 				<div class="min-w-0">
 					<ImportMappingEditor sourceFields={parsed.source_fields} {dbFields} {mapping} onChange={(next) => (mapping = next)} />
 				</div>
-
-				{#if showMappingPreview}
-					<div class="w-full max-w-full min-w-0 overflow-x-auto overflow-y-hidden border border-base-200 rounded-lg">
-						{#if mappedPreviewColumns.length === 0}
-							<div class="p-3 text-sm text-base-content/70">{$_('data.import.previewNoMappedFields')}</div>
-						{:else}
-							<table class="table table-zebra table-xs w-max min-w-full">
-								<thead>
-									<tr>
-										<th>#</th>
-										{#each mappedPreviewColumns as column}
-											<th>{column.target} <span class="text-base-content/60">({column.source})</span></th>
-										{/each}
-									</tr>
-								</thead>
-								<tbody>
-									{#each mappedPreviewRows as row, idx}
-										<tr>
-											<td>{idx + 1}</td>
-											{#each mappedPreviewColumns as column}
-												<td class="max-w-56 truncate" title={String(row[column.target] ?? '-')}>{row[column.target] ?? '-'}</td>
-											{/each}
-										</tr>
-									{/each}
-								</tbody>
-							</table>
-						{/if}
-					</div>
-				{/if}
 			</div>
 		</div>
 
