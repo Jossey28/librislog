@@ -33,3 +33,32 @@ Upload a previously downloaded `.db` file to restore the database. The app valid
 ::: warning
 Restoring overwrites all current data. Create a fresh backup first if you want to preserve your current library.
 :::
+
+### Automating Backups
+
+The backup endpoint is accessible via the REST API, making it easy to automate with cron (or any scheduler).
+
+First, [create an API key](/api/setup#3-create-an-api-key) with the admin user. Then use it in a cron script:
+
+```bash
+#!/usr/bin/env bash
+# Save as /etc/cron.daily/librislog-backup or add to crontab
+
+API_KEY="lsk_your-key-here"
+URL="http://localhost:8000/api/admin/backup"
+DEST="/var/backups/librislog"
+
+mkdir -p "$DEST"
+curl -s -H "X-API-Key: $API_KEY" -o "$DEST/librislog-$(date +%F).zip" "$URL"
+
+# Keep only the last 30 backups
+find "$DEST" -name 'librislog-*.zip' -mtime +30 -delete
+```
+
+Crontab entry (daily at 3am):
+
+```
+0 3 * * * /path/to/backup-script.sh
+```
+
+The API returns a ZIP archive containing the SQLite database, cover images, and import temp files. No separate database dump step is needed.
