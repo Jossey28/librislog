@@ -85,6 +85,8 @@
     "confirm": "Bestätigen?",
     "delete": "Löschen",
     "deleting": "Lösche...",
+    "back": "Zurück",
+    "loadMore": "Mehr laden",
     "syncing": "Synchronisiere...",
     "noBooksYet": "Hier sind noch keine Bücher.",
     "addFirstBook": "Erstes Buch hinzufügen",
@@ -253,6 +255,12 @@
       "keepDesc": "Behält das Beendigungsdatum ({finishedDate}) und setzt kein Startdatum.",
       "clearDesc": "Entfernt das Beendigungsdatum und setzt heute ({newStartDate}) als Startdatum."
     }
+  },
+  "search": {
+    "resultsCount": "{count, plural, one {Ergebnis} other {Ergebnisse}} gefunden",
+    "noResults": "Keine Ergebnisse gefunden",
+    "noResultsFor": "Keine Ergebnisse für \"{query}\" gefunden",
+    "tryDifferentQuery": "Versuche einen anderen Suchbegriff"
   },
   "languages": {
     "en": "Englisch",
