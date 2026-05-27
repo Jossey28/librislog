@@ -74,6 +74,53 @@ export GIT_SHA="abc1234"
 
 The version appears in the UI footer and is used for cache-busting.
 
+## Documentation
+
+The VitePress documentation lives in the `docs/` directory:
+
+```
+docs/
+├── index.md              # Landing page
+├── about.md              # About page
+├── guide/                # User-facing guides
+│   ├── getting-started.md
+│   ├── developer-setup.md
+│   ├── configuration.md
+│   ├── api-keys.md
+│   ├── cli.md
+│   └── using-librislog/  # Feature-specific guides
+├── api/                  # API documentation
+│   ├── index.md
+│   └── setup.md
+└── public/               # Static assets (screenshots, favicon)
+```
+
+### Dev Server
+
+```bash
+cd docs
+npm install
+npm run docs:dev
+```
+
+Opens on http://localhost:5174 with hot reload.
+
+### Production Build
+
+```bash
+npm run docs:build
+```
+
+Output goes to `docs/.vitepress/dist/`.
+
+### Nightly Docs
+
+The CI workflow publishes two doc sets on every push to `develop`:
+- **Release docs** at `https://codebude.github.io/librislog/` — built from the latest git tag
+- **Nightly docs** at `https://codebude.github.io/librislog/next/` — built from `develop`
+
+The nightly build uses a separate config (`config.nightly.ts`) which sets a different base path and swaps the nav link to point back to the release docs.
+
 ## Running Tests
 
 All test suites can also be run via the [developer CLI](cli.md).
