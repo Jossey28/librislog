@@ -100,8 +100,51 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Prepare E2E directories
+        run: |
+          docker run --rm -v ${{ github.workspace }}/data-e2e:/data alpine sh -c 'rm -rf /data/*' 2>/dev/null || true
+          mkdir -p playwright-report test-results
+
+      - name: Build & cache backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          tags: librislog-e2e-backend
+          load: true
+          cache-from: type=gha,scope=e2e-backend
+          cache-to: type=gha,mode=max,scope=e2e-backend
+          build-args: |
+            APP_VERSION=v0.0.0-dev
+            GIT_SHA=unknown
+
+      - name: Build & cache frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          tags: librislog-e2e-frontend
+          load: true
+          cache-from: type=gha,scope=e2e-frontend
+          cache-to: type=gha,mode=max,scope=e2e-frontend
+          build-args: |
+            APP_VERSION=v0.0.0-dev
+            GIT_SHA=unknown
+            PUBLIC_DEFAULT_LOCALE=en
+
+      - name: Build & cache test-runner image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: frontend/Dockerfile.e2e
+          tags: librislog-e2e-test-runner
+          load: true
+          cache-from: type=gha,scope=e2e-test-runner
+          cache-to: type=gha,mode=max,scope=e2e-test-runner
+
       - name: Run E2E tests
-        run: npm run test:e2e
+        run: docker compose -f ../docker-compose.e2e.yml up --abort-on-container-exit --attach test-runner --no-log-prefix
 
       - name: Upload Playwright report
         if: always()
