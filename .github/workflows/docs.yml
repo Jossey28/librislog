@@ -1,0 +1,93 @@
+name: Docs
+
+on:
+  push:
+    branches: [develop]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      confirm_nightly:
+        description: 'Rebuilds nightly docs from develop and deploys them to /next/ with a clean deploy (removes stale pages). Release docs under / are NOT touched.'
+        required: true
+        default: 'nightly cleanup'
+
+env:
+  NODE_VERSION: "24"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && 'develop' || github.ref }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+
+      - name: Install dependencies
+        working-directory: docs
+        run: npm ci
+
+      # ── Release: build release version first ──
+      - name: Build release docs
+        if: github.event_name == 'release'
+        working-directory: docs
+        run: npx vitepress build
+
+      - name: Save release dist
+        if: github.event_name == 'release'
+        working-directory: docs
+        run: mv .vitepress/dist .vitepress/dist-release
+
+      # ── Always build nightly (all triggers) ──
+      - name: Switch to nightly config
+        working-directory: docs
+        run: cp .vitepress/config.nightly.ts .vitepress/config.ts
+
+      - name: Build nightly docs
+        working-directory: docs
+        run: npx vitepress build
+
+      # ── Release: merge nightly into release dist ──
+      - name: Merge nightly into release dist
+        if: github.event_name == 'release'
+        working-directory: docs
+        run: |
+          mkdir -p .vitepress/dist-release/next
+          mv .vitepress/dist/* .vitepress/dist-release/next/
+          rm -rf .vitepress/dist
+          mv .vitepress/dist-release .vitepress/dist
+
+      # ── Deploy ──
+      - name: Deploy nightly (develop push, preserves root)
+        if: github.event_name == 'push'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/.vitepress/dist
+          destination_dir: next
+          keep_files: true
+
+      - name: Deploy nightly cleanup (manual dispatch, removes stale pages)
+        if: github.event_name == 'workflow_dispatch'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/.vitepress/dist
+          destination_dir: next
+          keep_files: false
+
+      - name: Deploy release (release published, covers both versions)
+        if: github.event_name == 'release'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs/.vitepress/dist
+          keep_files: false

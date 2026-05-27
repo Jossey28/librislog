@@ -3,5 +3,5 @@ import baseConfig from './config.base'
 
 export default defineConfig({
   ...baseConfig,
-  base: '/librislog/',
+  base: '/librislog/next/',
 })
