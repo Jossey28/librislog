@@ -173,12 +173,7 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           path: artifacts
-          pattern: test-report-*
-
-      - uses: actions/download-artifact@v8
-        with:
-          path: artifacts
-          pattern: playwright-report
+          pattern: "*report*"
 
       - name: Initialize git for test reporter
         run: |
