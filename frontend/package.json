@@ -13,7 +13,7 @@
 		"test": "vitest run",
 		"test:watch": "vitest",
 		"test:coverage": "vitest run --coverage",
-		"test:e2e": "mkdir -p playwright-report test-results && docker compose -f ../docker-compose.e2e.yml up --build --abort-on-container-exit --attach test-runner --no-log-prefix"
+		"test:e2e": "docker run --rm -v $(pwd)/../data-e2e:/data alpine sh -c 'rm -rf /data/*' 2>/dev/null; mkdir -p playwright-report test-results && docker compose -f ../docker-compose.e2e.yml up --build --abort-on-container-exit --attach test-runner --no-log-prefix"
 	},
 	"devDependencies": {
 		"@playwright/test": "^1.60.0",
