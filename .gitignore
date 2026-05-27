@@ -230,3 +230,4 @@ profile-snapshot
 .plan/
 node_modules/
 /*.png
+*-snapshot.md
