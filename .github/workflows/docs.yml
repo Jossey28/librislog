@@ -16,61 +16,84 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          path: release
 
-      - uses: actions/setup-node@v6
+      - uses: actions/checkout@v6
+        with:
+          ref: develop
+          path: develop
+
+      - name: Determine release ref
+        id: release-ref
+        working-directory: release
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            REF=$(git describe --tags --exact-match HEAD 2>/dev/null)
+          else
+            git fetch --tags
+            REF=$(git tag --list 'v*' --sort=-version:refname | head -1)
+          fi
+          echo "ref=${REF:-main}" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout release ref
+        working-directory: release
+        run: git checkout "${{ steps.release-ref.outputs.ref }}"
+
+      - name: Check if release ref has docs
+        id: check-release-docs
+        working-directory: release
+        run: |
+          if [ -f docs/package.json ]; then
+            echo "has_docs=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_docs=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: docs/package-lock.json
 
-      - name: Install dependencies
-        working-directory: docs
-        run: npm ci
-
-      # ── Release: build release version first ──
       - name: Build release docs
-        if: github.event_name == 'release'
-        working-directory: docs
-        run: npx vitepress build
-
-      - name: Save release dist
-        if: github.event_name == 'release'
-        working-directory: docs
-        run: mv .vitepress/dist .vitepress/dist-release
-
-      # ── Always build nightly (all triggers) ──
-      - name: Switch to nightly config
-        working-directory: docs
-        run: cp .vitepress/config.nightly.ts .vitepress/config.ts
+        if: steps.check-release-docs.outputs.has_docs == 'true'
+        working-directory: release/docs
+        run: |
+          npm ci
+          npx vitepress build
+          mv .vitepress/dist /tmp/dist-release
 
       - name: Build nightly docs
-        working-directory: docs
-        run: npx vitepress build
-
-      # ── Release: merge nightly into release dist ──
-      - name: Merge nightly into release dist
-        if: github.event_name == 'release'
-        working-directory: docs
+        working-directory: develop/docs
         run: |
-          mkdir -p .vitepress/dist-release/next
-          mv .vitepress/dist/* .vitepress/dist-release/next/
-          rm -rf .vitepress/dist
-          mv .vitepress/dist-release .vitepress/dist
+          npm ci
+          cp .vitepress/config.nightly.ts .vitepress/config.ts
+          npx vitepress build
+          mv .vitepress/dist /tmp/dist-nightly
 
-      # ── Deploy ──
-      - name: Deploy nightly (develop push)
-        if: github.event_name == 'push'
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Prepare full deploy (release + nightly)
+        if: steps.check-release-docs.outputs.has_docs == 'true'
+        run: |
+          mv /tmp/dist-release ./dist
+          mkdir -p ./dist/next
+          mv /tmp/dist-nightly/* ./dist/next/
+
+      - name: Prepare nightly-only deploy
+        if: steps.check-release-docs.outputs.has_docs != 'true'
+        run: mv /tmp/dist-nightly ./dist
+
+      - uses: peaceiris/actions-gh-pages@v4
+        if: steps.check-release-docs.outputs.has_docs == 'true'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs/.vitepress/dist
+          publish_dir: ./dist
+          keep_files: false
+
+      - uses: peaceiris/actions-gh-pages@v4
+        if: steps.check-release-docs.outputs.has_docs != 'true'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
           destination_dir: next
-          keep_files: true
-
-      - name: Deploy release with nightly (release published)
-        if: github.event_name == 'release'
-        uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs/.vitepress/dist
           keep_files: false
