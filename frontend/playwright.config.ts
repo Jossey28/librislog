@@ -9,6 +9,7 @@ export default defineConfig({
 	globalTeardown: './e2e/config/global-teardown.ts',
 	reporter: [
 		['html', { outputFolder: 'playwright-report' }],
+		['junit', { outputFile: 'playwright-report/report.xml' }],
 		['list'],
 	],
 	use: {
