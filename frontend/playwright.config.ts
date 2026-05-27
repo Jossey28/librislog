@@ -12,7 +12,7 @@ export default defineConfig({
 		['list'],
 	],
 	use: {
-		baseURL: 'http://localhost:8003',
+		baseURL: process.env.E2E_BASE_URL || 'http://frontend:80',
 		headless: true,
 		viewport: { width: 1280, height: 800 },
 		ignoreHTTPSErrors: true,

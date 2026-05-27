@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { LoginPage } from '../fixtures/pages/login.page';
+import { loginViaUi } from '../fixtures/auth.fixture';
 import { SEED_USER } from '../fixtures/seed-data';
 
 test.describe('Setup & Login', () => {
@@ -48,6 +49,7 @@ test.describe('Setup & Login', () => {
 		const { required } = await resp.json();
 		test.skip(required, 'Setup not yet completed — skipping');
 
+		await loginViaUi(page, SEED_USER.email, SEED_USER.password);
 		await page.goto('/setup');
 		await expect(page).toHaveURL(/\/(dashboard|library)/);
 	});
