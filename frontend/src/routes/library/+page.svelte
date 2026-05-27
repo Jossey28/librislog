@@ -51,7 +51,7 @@
 	let progressMap = $state<Record<number, number>>({});
 	let statusCounts = $state<LibraryStats | null>(null);
 	let loading = $state(false);
-	let syncing = $state(false);
+
 	let loadingMore = $state(false);
 	let hasMore = $state(true);
 	let nextOffset = $state(0);
@@ -148,13 +148,9 @@
 		}
 	}
 
-	async function fetchBooks(background = false) {
+	async function fetchBooks() {
 		const version = ++requestVersion;
-		if (background) {
-			syncing = true;
-		} else {
-			loading = true;
-		}
+		loading = true;
 		try {
 			const firstPage = await api.books.list({
 				status: activeStatus,
@@ -179,16 +175,12 @@
 				toasts.add(message, 'error');
 			}
 		} finally {
-			if (background) {
-				syncing = false;
-			} else {
-				loading = false;
-			}
+			loading = false;
 		}
 	}
 
 	async function loadMoreBooks() {
-		if (loadingMore || loading || syncing || !hasMore) return;
+		if (loadingMore || loading || !hasMore) return;
 		const version = requestVersion;
 		loadingMore = true;
 		try {
@@ -260,7 +252,6 @@
 		} else {
 			books = books.map((b) => (b.id === updated.id ? updated : b));
 		}
-		void fetchBooks(true);
 		void refreshStatusCounts();
 	}
 
@@ -268,7 +259,6 @@
 		detailOpen = false;
 		drawerOpen = false;
 		books = books.filter((b) => b.id !== id);
-		void fetchBooks(true);
 		void refreshStatusCounts();
 	}
 
@@ -277,7 +267,6 @@
 			books = [book, ...books];
 		}
 		addBookOpen = false;
-		void fetchBooks(true);
 		void refreshStatusCounts();
 	}
 
@@ -329,12 +318,7 @@
 
 	<div class="flex flex-col sm:flex-row sm:items-center gap-4">
 		<h1 class="text-xl font-bold">{$_(STATUS_LABEL_KEYS[activeStatus])}</h1>
-		{#if syncing}
-			<span class="text-xs text-base-content/60 inline-flex items-center gap-1">
-				<span class="loading loading-spinner loading-xs"></span>
-				{$_('common.syncing')}
-			</span>
-		{/if}
+
 		<div class="flex items-center gap-2 flex-1">
 			<SearchBar
 				bind:value={searchQuery}
