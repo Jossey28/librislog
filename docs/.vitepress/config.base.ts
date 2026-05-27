@@ -8,6 +8,7 @@ export default defineConfig({
   ignoreDeadLinks: [/^http:\/\/localhost/],
   head: [
     ['link', { rel: 'icon', href: '/favicon.svg' }],
+    ['script', { defer: '', 'data-domain': 'codebude.github.io/librislog', src: 'https://plausible.code-bude.net/js/script.js' }],
   ],
   themeConfig: {
     logo: '/logo.png',
