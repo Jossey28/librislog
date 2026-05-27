@@ -8,6 +8,8 @@
   <a href="https://codebude.github.io/librislog/guide/getting-started">Quick Start</a>
   &nbsp;·&nbsp;
   <a href="https://codebude.github.io/librislog/api/">API Reference</a>
+  &nbsp;·&nbsp;
+  <a href="https://codebude.github.io/librislog/next/">Nightly Docs</a>
 </p>
 
 [![Tests](https://github.com/codebude/librislog/actions/workflows/tests.yml/badge.svg)](https://github.com/codebude/librislog/actions/workflows/tests.yml)
@@ -33,9 +35,24 @@ LibrisLog is a modern alternative to cloud-based book tracking services. You run
 - **Lightweight.** Two Docker containers, one SQLite database, one command: `docker compose up -d`.
 - **Bilingual UI.** English and German with a localization framework ready for more languages.
 
+## Features
+
+- **Library** — Organize books into four statuses: Want to Read, Currently Reading, Read, Did Not Finish. Grid or list view, search and sort.
+- **Reading progress** — Track page-level progress with a visual slider and a full progress timeline per book.
+- **Statistics dashboard** — Pages read per month/year, books finished, language distribution, status breakdown, calendar heatmap, top authors.
+- **Book import** — Search Open Library, Google Books, and Hardcover.app. Scan ISBN barcodes on mobile. Manual entry for anything not found.
+- **Data portability** — Export as JSON, CSV, or ZIP with covers. Import from Goodreads CSV or any CSV with custom field mapping and Python transforms.
+- **Cover management** — Automatic cover search from multiple sources with manual override, URL paste, or file upload.
+- **Multi-user** — Admin/user roles, per-user libraries, optional OIDC login.
+- **Themes** — Light, dark, and custom DaisyUI themes with persistent preferences.
+- **Administration** — Full backup/restore of the SQLite database, user management, API key management.
+
 <div>
-  <a href="docs/public/screenshots/dashboard.png"><img src="docs/public/screenshots/dashboard-thumb.png" width="400" alt="Dashboard"></a>
-  <a href="docs/public/screenshots/library-read.png"><img src="docs/public/screenshots/library-read-thumb.png" width="400" alt="Library"></a>
+  <a href="https://raw.githubusercontent.com/codebude/librislog/main/docs/public/screenshots/dashboard.png"><img src="https://raw.githubusercontent.com/codebude/librislog/main/docs/public/screenshots/dashboard-thumb.png" width="400" alt="Dashboard"></a>
+  <a href="https://raw.githubusercontent.com/codebude/librislog/main/docs/public/screenshots/library-read.png"><img src="https://raw.githubusercontent.com/codebude/librislog/main/docs/public/screenshots/library-read-thumb.png" width="400" alt="Library"></a>
+</div>
+<div>
+  <a href="https://raw.githubusercontent.com/codebude/librislog/main/docs/public/screenshots/statistics.png"><img src="https://raw.githubusercontent.com/codebude/librislog/main/docs/public/screenshots/statistics-thumb.png" width="400" alt="Statistics"></a>
 </div>
 
 ## Quick Start
@@ -67,7 +84,9 @@ Open **http://localhost:8001** and create your account.
 
 ## API
 
-The backend is a standalone FastAPI application. You can run it independently and build your own frontend against it. The API is documented via Swagger UI at `/api/docs` when the server is running.
+The backend is a standalone FastAPI application. You can run it independently and build your own frontend against it. The full API is documented via Swagger UI at `/api/docs` when the server is running.
+
+Create API keys from the web UI (Profile → API Keys) for headless access — automation scripts, home integrations, or any programmatic use. See the [API Reference](https://codebude.github.io/librislog/api/) for details.
 
 ```bash
 cd backend
@@ -83,25 +102,26 @@ uv run uvicorn app.main:app --reload
 | **Backend** | FastAPI, SQLModel, SQLite, Alembic, Pydantic v2 |
 | **Frontend** | Svelte 5, SvelteKit, Tailwind CSS v4, DaisyUI v5 |
 | **Auth** | Session cookies, optional OIDC (Authlib) |
+| **Deployment** | Docker, Docker Compose |
 | **Package managers** | `uv` (Python), `npm` (Node) |
-| **Testing** | pytest + pytest-cov (backend), Vitest + Testing Library (frontend) |
+| **Testing** | pytest + pytest-cov (backend), Vitest + Testing Library (frontend), Playwright (E2E) |
 
-## Star History
+## Contributing
 
-<a href="https://www.star-history.com/?repos=codebude%2Flibrislog&type=date&legend=top-left">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=codebude/librislog&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=codebude/librislog&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=codebude/librislog&type=date&legend=top-left" />
- </picture>
-</a>
+See the [Developer Setup](https://codebude.github.io/librislog/guide/developer-setup) guide for instructions on running LibrisLog locally, running tests, and using the CLI tool.
 
----
-
-## AI-Assisted Development Disclaimer
-
-This project was developed with the assistance of AI coding tools (OpenCode CLI) under a human-supervised workflow. No AI-generated code is committed without human review and approval.
+This project was developed with the assistance of AI coding tools under a human-supervised workflow. No AI-generated code is committed without human review and approval.
 
 ## License
 
 MIT
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=codebude%2Flibrislog&type=date&legend=top-left">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=codebude/librislog&type=date&theme=dark&legend=top-left" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=codebude/librislog&type=date&legend=top-left" />
+    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=codebude/librislog&type=date&legend=top-left" />
+  </picture>
+</a>
