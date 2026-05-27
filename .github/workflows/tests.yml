@@ -223,40 +223,52 @@ jobs:
       - name: Post PR comment
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v9
+        env:
+          backend_passed:     ${{ steps.backend.outputs.passed }}
+          backend_failed:     ${{ steps.backend.outputs.failed }}
+          backend_skipped:    ${{ steps.backend.outputs.skipped }}
+          backend_conclusion: ${{ steps.backend.outputs.conclusion }}
+          cli_passed:         ${{ steps.cli.outputs.passed }}
+          cli_failed:         ${{ steps.cli.outputs.failed }}
+          cli_skipped:        ${{ steps.cli.outputs.skipped }}
+          cli_conclusion:     ${{ steps.cli.outputs.conclusion }}
+          frontend_passed:    ${{ steps.frontend.outputs.passed }}
+          frontend_failed:    ${{ steps.frontend.outputs.failed }}
+          frontend_skipped:   ${{ steps.frontend.outputs.skipped }}
+          frontend_conclusion: ${{ steps.frontend.outputs.conclusion }}
+          e2e_passed:         ${{ steps.e2e.outputs.passed }}
+          e2e_failed:         ${{ steps.e2e.outputs.failed }}
+          e2e_skipped:        ${{ steps.e2e.outputs.skipped }}
+          e2e_conclusion:     ${{ steps.e2e.outputs.conclusion }}
         with:
           script: |
-            const suites = [
-              { label: 'Backend (pytest)',  prefix: 'backend' },
-              { label: 'CLI (pytest)',      prefix: 'cli' },
-              { label: 'Frontend (vitest)', prefix: 'frontend' },
-              { label: 'E2E (Playwright)',  prefix: 'e2e' },
+            function suite(label, prefix) {
+              const passed     = parseInt(process.env[`${prefix}_passed`]     || '0');
+              const failed     = parseInt(process.env[`${prefix}_failed`]     || '0');
+              const skipped    = parseInt(process.env[`${prefix}_skipped`]    || '0');
+              const conclusion =                     process.env[`${prefix}_conclusion`] || 'skipped';
+              const total      = passed + failed + skipped;
+              const emoji = conclusion === 'success' ? '✅' : conclusion === 'failure' ? '❌' : '⏭️';
+              return { passed, failed, skipped, total, line: `${emoji} **${label}** — ${passed} passed, ${failed} failed, ${skipped} skipped (${total} total)` };
+            }
+
+            const results = [
+              suite('Backend (pytest)',     'backend'),
+              suite('CLI (pytest)',         'cli'),
+              suite('Frontend (vitest)',    'frontend'),
+              suite('E2E (Playwright)',     'e2e'),
             ];
 
             const sha = context.sha;
             const shaLink = `[\`${sha.slice(0, 7)}\`](${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/commit/${sha})`;
-
-            let lines = [];
-            let totalPassed = 0, totalFailed = 0, totalSkipped = 0;
-
-            for (const s of suites) {
-              const step = steps[s.prefix];
-              const passed     = parseInt(step?.outputs?.passed     ?? '0');
-              const failed     = parseInt(step?.outputs?.failed     ?? '0');
-              const skipped    = parseInt(step?.outputs?.skipped    ?? '0');
-              const conclusion = step?.outputs?.conclusion ?? 'skipped';
-              const total      = passed + failed + skipped;
-              totalPassed  += passed;
-              totalFailed  += failed;
-              totalSkipped += skipped;
-
-              const emoji = conclusion === 'success' ? '✅' : conclusion === 'failure' ? '❌' : '⏭️';
-              lines.push(`${emoji} **${s.label}** — ${passed} passed, ${failed} failed, ${skipped} skipped (${total} total)`);
-            }
-
+            const totalPassed  = results.reduce((s, r) => s + r.passed,  0);
+            const totalFailed  = results.reduce((s, r) => s + r.failed,  0);
+            const totalSkipped = results.reduce((s, r) => s + r.skipped, 0);
             const total = totalPassed + totalFailed + totalSkipped;
-            const header = `## 🧪 Test Results — ${shaLink}\n\n`;
-            const footer = `\n**Summary:** ${totalPassed} ✅ passed, ${totalFailed} ❌ failed, ${totalSkipped} ⏭️ skipped (${total} total)`;
-            const body = header + lines.join('\n') + footer;
+
+            const body = `## 🧪 Test Results — ${shaLink}\n\n`
+              + results.map(r => r.line).join('\n')
+              + `\n\n**Summary:** ${totalPassed} ✅ passed, ${totalFailed} ❌ failed, ${totalSkipped} ⏭️ skipped (${total} total)`;
 
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
