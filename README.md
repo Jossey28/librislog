@@ -17,13 +17,9 @@
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.136-%23009688?logo=fastapi)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-<div style="display: flex; gap: 8px; flex-wrap: wrap;">
-  <a href="docs/public/screenshots/dashboard.png" style="display: block; width: 400px; height: 240px; overflow: hidden; border-radius: 4px;">
-    <img src="docs/public/screenshots/dashboard.png" style="width: 100%; height: 100%; object-fit: cover;" alt="Dashboard">
-  </a>
-  <a href="docs/public/screenshots/library-read.png" style="display: block; width: 400px; height: 240px; overflow: hidden; border-radius: 4px;">
-    <img src="docs/public/screenshots/library-read.png" style="width: 100%; height: 100%; object-fit: cover;" alt="Library">
-  </a>
+<div>
+  <a href="docs/public/screenshots/dashboard.png"><img src="docs/public/screenshots/dashboard-thumb.png" width="400" alt="Dashboard"></a>
+  <a href="docs/public/screenshots/library-read.png"><img src="docs/public/screenshots/library-read-thumb.png" width="400" alt="Library"></a>
 </div>
 
 ## Quick Start
