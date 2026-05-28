@@ -49,16 +49,19 @@ def test_statistics_core_metrics_and_distributions(client: Any) -> None:
     _create_book(
         client, title="Read Jan 1", author="Author A", cover_url="/api/covers/a1.jpg",
         page_count=100, language="EN", reading_status="read",
+        date_started="2026-01-10T10:00:00Z",
         date_finished="2026-01-10T10:00:00Z",
     )
     _create_book(
         client, title="Read Jan 2", author="Author A", cover_url="/api/covers/a2.jpg",
         page_count=200, language="EN", reading_status="read",
+        date_started="2026-01-15T10:00:00Z",
         date_finished="2026-01-15T10:00:00Z",
     )
     _create_book(
         client, title="Read Mar", author="Author B",
         page_count=300, language="DE", reading_status="read",
+        date_started="2026-03-01T10:00:00Z",
         date_finished="2026-03-01T10:00:00Z",
     )
     _create_book(client, title="Want", author="Author B", page_count=120, language="EN", reading_status="want_to_read")
@@ -89,12 +92,13 @@ def test_statistics_core_metrics_and_distributions(client: Any) -> None:
         if month > 12:
             month = 1
             year += 1
+    current_month = f"{now.year:04d}-{now.month:02d}"
     assert data["books_finished_per_month"] == [
         {"month": m, "count": 2 if m == "2026-01" else 1 if m == "2026-03" else 0}
         for m in expected_months
     ]
     assert data["pages_read_per_month"] == [
-        {"month": m, "pages": 300 if m == "2026-01" else 300 if m == "2026-03" else 0}
+        {"month": m, "pages": 300 if m == "2026-01" else 300 if m == "2026-03" else 20 if m == current_month else 0}
         for m in expected_months
     ]
     expected_years = list(range(2026, now.year + 1))
@@ -157,7 +161,7 @@ def test_statistics_timezone_month_bucketing(client: Any, session: Session) -> N
     session.commit()
 
     _create_book(client, title="Boundary", reading_status="read",
-                 page_count=222, date_finished="2026-05-01T03:00:00Z")
+                 page_count=222, date_started="2026-05-01T03:00:00Z", date_finished="2026-05-01T03:00:00Z")
 
     resp = client.get("/api/statistics")
     assert resp.status_code == 200

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import type { Book, DashboardQuote, LibraryStats } from '$lib/types';
 	import { api } from '$lib/api';
@@ -10,7 +11,7 @@
 	import BookCard from '$lib/components/BookCard.svelte';
 	import BookDetailDialog from '$lib/components/BookDetailDialog.svelte';
 	import BookDrawer from '$lib/components/BookDrawer.svelte';
-import { X } from '@lucide/svelte';
+import { Search, X } from '@lucide/svelte';
 
 	let loading = $state(true);
 	let stats = $state<LibraryStats>({
@@ -33,6 +34,7 @@ import { X } from '@lucide/svelte';
 	let searchToken = 0;
 	let searchTimer: ReturnType<typeof setTimeout> | null = null;
 	let highlightedIndex = $state(-1);
+	let userNavigatedDropdown = $state(false);
 	const searchListboxId = 'dashboard-search-results';
 	const showSearchDropdown = $derived(searchQuery.trim().length > 0);
 
@@ -78,7 +80,7 @@ import { X } from '@lucide/svelte';
 	async function loadDashboard() {
 		loading = true;
 		try {
-			const [statsData, readingBooks, wantToReadBooks] = await Promise.all([
+			const [statsData, readingResponse, wantToReadResponse] = await Promise.all([
 				api.books.stats(),
 				api.books.list({
 					status: 'currently_reading',
@@ -95,8 +97,8 @@ import { X } from '@lucide/svelte';
 			]);
 
 			stats = statsData;
-			currentlyReading = readingBooks.slice(0, 5);
-			nextToRead = wantToReadBooks.slice(0, 5);
+			currentlyReading = readingResponse.books.slice(0, 5);
+			nextToRead = wantToReadResponse.books.slice(0, 5);
 
 			const allBooks = [...currentlyReading, ...nextToRead];
 			void loadProgressForBooks(allBooks);
@@ -193,7 +195,7 @@ import { X } from '@lucide/svelte';
 				order: 'desc'
 			});
 			if (token !== searchToken) return;
-			searchResults = results;
+			searchResults = results.books;
 		} catch {
 			if (token !== searchToken) return;
 			searchResults = [];
@@ -241,17 +243,30 @@ import { X } from '@lucide/svelte';
 	}
 
 	$effect(() => {
-		if (!searchQuery.trim() || searchLoading || searchResults.length === 0) {
-			highlightedIndex = -1;
-			return;
-		}
-		if (highlightedIndex < 0 || highlightedIndex >= searchResults.length) {
-			highlightedIndex = 0;
-		}
+		void searchQuery;
+		userNavigatedDropdown = false;
+		highlightedIndex = -1;
 	});
 
 	function onSearchKeydown(event: KeyboardEvent) {
-		if (!searchQuery.trim() || searchLoading || searchResults.length === 0) {
+		const trimmed = searchQuery.trim();
+
+		if (event.key === 'Enter') {
+			event.preventDefault();
+			// If user explicitly navigated to a dropdown item with arrow keys, open that book
+			if (userNavigatedDropdown && highlightedIndex >= 0 && searchResults.length > 0) {
+				const selected = searchResults[highlightedIndex];
+				if (selected) {
+					void openFromSearch(selected);
+				}
+			} else if (trimmed) {
+				// Otherwise navigate to full search results page
+				void goto(`/search?q=${encodeURIComponent(trimmed)}`);
+			}
+			return;
+		}
+
+		if (!trimmed || searchLoading || searchResults.length === 0) {
 			if (event.key === 'Escape') {
 				searchQuery = '';
 			}
@@ -260,22 +275,15 @@ import { X } from '@lucide/svelte';
 
 		if (event.key === 'ArrowDown') {
 			event.preventDefault();
+			userNavigatedDropdown = true;
 			highlightedIndex = (highlightedIndex + 1 + searchResults.length) % searchResults.length;
 			return;
 		}
 
 		if (event.key === 'ArrowUp') {
 			event.preventDefault();
+			userNavigatedDropdown = true;
 			highlightedIndex = (highlightedIndex - 1 + searchResults.length) % searchResults.length;
-			return;
-		}
-
-		if (event.key === 'Enter') {
-			event.preventDefault();
-			const selected = searchResults[Math.max(0, highlightedIndex)];
-			if (selected) {
-				void openFromSearch(selected);
-			}
 			return;
 		}
 
@@ -300,9 +308,10 @@ import { X } from '@lucide/svelte';
 		<div class="card-body gap-3">
 			<h2 class="card-title text-base">{$_('dashboard.searchAllBooks')}</h2>
 			<div class="relative w-full">
+				<Search class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-base-content/50 pointer-events-none z-10" />
 				<input
 					type="text"
-					class="input input-bordered w-full pr-10 scroll-mt-20"
+					class="input input-bordered w-full pl-10 pr-10 scroll-mt-20"
 					placeholder={$_('common.searchBooks')}
 					bind:value={searchQuery}
 					onkeydown={onSearchKeydown}
@@ -321,7 +330,7 @@ import { X } from '@lucide/svelte';
 				{#if searchQuery.trim().length > 0}
 					<button
 						type="button"
-						class="btn btn-ghost btn-xs btn-circle absolute right-2 top-1/2 -translate-y-1/2"
+						class="btn btn-ghost btn-xs btn-circle absolute right-2 top-1/2 -translate-y-1/2 z-10"
 						onclick={() => {
 							searchQuery = '';
 						}}

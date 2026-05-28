@@ -170,7 +170,7 @@
 						/>
 						<label class="flex flex-col gap-1">
 							<span class="label label-text">{$_('book.year')}</span>
-							<input type="number" class="input input-bordered" name="published_year" bind:value={published_year} min="1000" max="2100" />
+							<input type="number" class="input input-bordered" name="published_year" bind:value={published_year} max="2100" />
 						</label>
 						<label class="flex flex-col gap-1">
 							<span class="label label-text">{$_('book.pages')} <span class="text-error">*</span></span>

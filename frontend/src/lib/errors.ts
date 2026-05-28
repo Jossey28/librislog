@@ -12,31 +12,46 @@ const BACKEND_ERROR_MAP: Record<string, string> = {
 	'A mapping with this name already exists.': 'error.importMappingNameConflict',
 	'Import mapping not found.': 'error.importMappingNotFound',
 	'Confirmation phrase does not match.': 'error.invalidConfirmationPhrase',
+	'Batch update failed due to a database error': 'error.batchUpdateFailed',
 	'Cannot delete the last administrator account.': 'error.cannotDeleteLastAdmin',
 	'You cannot delete your own account here. Use Profile > Danger Zone.': 'error.cannotDeleteOwnAccountHere',
 };
 
-export function localizeBackendError(err: unknown): string {
+const BACKEND_ERROR_REGEX: [RegExp, string, string[]][] = [
+	[/^At most (\d+) books can be updated at once$/, 'error.tooManyBooksSelected', ['max']],
+];
+
+export function localizeBackendError(err: unknown): { key: string; values?: Record<string, unknown> } {
 	if (err instanceof Error) {
 		if (err.message.startsWith('error.')) {
-			return err.message;
+			return { key: err.message };
 		}
-		const mappedKey = BACKEND_ERROR_MAP[err.message];
-		if (mappedKey) {
-			return mappedKey;
+		const exactKey = BACKEND_ERROR_MAP[err.message];
+		if (exactKey) {
+			return { key: exactKey };
 		}
-		return err.message;
+		for (const [pattern, key, names] of BACKEND_ERROR_REGEX) {
+			const match = err.message.match(pattern);
+			if (match) {
+				const values: Record<string, unknown> = {};
+				for (let i = 0; i < names.length; i++) {
+					values[names[i]] = match[i + 1];
+				}
+				return { key, values };
+			}
+		}
+		return { key: err.message };
 	}
-	return 'Unknown error';
+	return { key: 'Unknown error' };
 }
 
-export function localizeError(err: unknown, translate: (key: string) => string, fallback: string): string {
-	const localized = localizeBackendError(err);
-	if (localized.startsWith('error.')) {
-		return translate(localized);
+export function localizeError(err: unknown, translate: (key: string, options?: { values?: Record<string, unknown> }) => string, fallback: string): string {
+	const { key, values } = localizeBackendError(err);
+	if (key.startsWith('error.')) {
+		return translate(key, values ? { values } : undefined);
 	}
-	if (localized !== 'Unknown error') {
-		return localized;
+	if (key !== 'Unknown error') {
+		return key;
 	}
 	return fallback;
 }

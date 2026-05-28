@@ -494,9 +494,10 @@
 		<div class="card-body gap-3">
 			<h2 class="text-lg font-semibold">{$_('profile.dataManagement.title')}</h2>
 			<p class="text-sm text-base-content/70">{$_('profile.dataManagement.description')}</p>
-			<div>
-				<a class="btn btn-outline btn-sm" href="/data?tab=export">{$_('profile.dataManagement.link')}</a>
-			</div>
+			<a class="btn btn-outline btn-sm w-fit" href="/data?tab=export">{$_('profile.dataManagement.link')}</a>
+			<div class="divider my-1"></div>
+			<p class="text-sm text-base-content/70">{$_('dataHygiene.description')}</p>
+			<a class="btn btn-outline btn-sm w-fit" href="/data-hygiene">{$_('dataHygiene.title')}</a>
 		</div>
 	</div>
 

@@ -6,6 +6,8 @@ Track your reading progress with page-level granularity. Each update is recorded
 
 For books with a page count, open the book detail view and drag the progress slider or type the current page number. Progress is saved automatically when you release the slider or blur the input.
 
+![Progress slider and percentage in the book detail view](/screenshots/progress-detail.png)
+
 ## Progress Log
 
 Each book maintains a progress log showing the history of page updates:
@@ -16,9 +18,13 @@ Each book maintains a progress log showing the history of page updates:
 
 The log is append-only — each update adds a new entry rather than modifying the previous one.
 
+![Progress log with entry history](/screenshots/progress-log.png)
+
 ### Editing an Entry
 
 Click the edit button next to a progress log entry to change its date. This is useful if you forgot to log progress on the correct day. The page number cannot be changed — instead, add a new entry with the corrected page.
+
+![Editing a progress entry date](/screenshots/progress-entry-edit.png)
 
 ### Deleting an Entry
 

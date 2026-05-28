@@ -194,8 +194,12 @@
 			return `${$_('app.title')} - ${$_('nav.statistics')}`;
 		}
 
-		if ($page.url.pathname.startsWith('/data')) {
+		if ($page.url.pathname.startsWith('/data') && !$page.url.pathname.startsWith('/data-hygiene')) {
 			return `${$_('app.title')} - ${$_('nav.data')}`;
+		}
+
+		if ($page.url.pathname.startsWith('/data-hygiene')) {
+			return `${$_('app.title')} - ${$_('dataHygiene.title')}`;
 		}
 
 		if ($page.url.pathname.startsWith('/admin')) {
@@ -269,7 +273,7 @@
 	</aside>
 
 	<!-- Main content -->
-	<div class="flex-1 flex flex-col md:ml-56 min-h-screen">
+	<div class="flex-1 flex flex-col md:ml-56 min-h-screen min-w-0">
 		<!-- Mobile top bar with navbar -->
 		<div class="navbar md:hidden bg-base-100 shadow-sm sticky top-0 z-20">
 			<div class="navbar-start">

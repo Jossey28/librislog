@@ -42,7 +42,8 @@
 	"noCalendarData": "No reading data available for the past year",
 	"pagesOver": "pages over",
 	"daysLabel": "days",
-	"avgPerDay": "Avg:",
+	"avgPerDay": "Avg per active day:",
+	"avgPerDayAll": "Avg per day (365 days):",
 	"pagesPerDay": "pages/day",
 	"loading": "Loading statistics...",
 	"noData": "No data available yet. Start reading and tracking books to see statistics!",
@@ -74,6 +75,8 @@
   "common": {
     "search": "Search",
     "searchBooks": "Search books...",
+    "result": "result",
+    "results": "results",
     "save": "Save",
     "saved": "Saved",
     "saveFailed": "Save failed",
@@ -82,6 +85,8 @@
     "confirm": "Confirm?",
     "delete": "Delete",
     "deleting": "Deleting...",
+    "back": "Back",
+    "loadMore": "Load more",
     "syncing": "Syncing...",
     "noBooksYet": "No books here yet.",
     "addFirstBook": "Add your first book",
@@ -251,6 +256,12 @@
       "clearDesc": "Removes the finish date and sets today ({newStartDate}) as the start date."
     }
   },
+  "search": {
+    "resultsCount": "{count, plural, one {result} other {results}} found",
+    "noResults": "No results found",
+    "noResultsFor": "No results found for \"{query}\"",
+    "tryDifferentQuery": "Try a different search term"
+  },
   "languages": {
     "en": "English",
     "de": "German"
@@ -356,6 +367,8 @@
     "importTempFileCreateFailed": "Could not create a temporary import file. Please try again.",
     "fileTooLarge": "The file is too large. Please try a smaller file or check server limits.",
     "exportNoDatasets": "Select at least one dataset to export.",
+    "batchUpdateFailed": "Batch update failed due to an unexpected error. No changes were saved.",
+    "tooManyBooksSelected": "Too many books selected. Please select at most {max} at a time.",
     "importMappingNameConflict": "A mapping with this name already exists.",
     "importMappingNotFound": "Import mapping not found."
   },
@@ -383,7 +396,7 @@
     "dataManagement": {
       "title": "Manage my data",
       "description": "Export your library or import books from a CSV/JSON file.",
-      "link": "Open data page"
+      "link": "Import / Export"
     },
     "dangerZone": {
       "title": "Danger Zone",
@@ -523,6 +536,54 @@
         "executeFailed": "Import failed."
       }
     }
+  },
+    "dataHygiene": {
+        "authorRequired": "Author cannot be empty.",
+        "pageCountPositive": "Page count must be greater than 0.",
+        "title": "Data Hygiene",
+    "description": "Find and fix books with missing metadata in your library.",
+    "attributes": {
+      "author": "Author",
+      "isbn": "ISBN",
+      "publisher": "Publisher",
+      "published_year": "Year",
+      "blurb": "Description",
+      "language": "Language",
+      "subtitle": "Subtitle",
+      "page_count": "Page count",
+      "cover_url": "Cover"
+    },
+    "matchAny": "Match any",
+    "matchAll": "Match all",
+    "noMissingBooks": "No books found with missing attributes matching your filters.",
+    "total": "{count} book(s) found",
+    "loadMore": "Load more",
+    "loading": "Checking your library...",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
+    "nSelected": "{count} book(s) selected",
+    "batchEditTitle": "Batch edit",
+    "batchFieldLabel": "Field to update",
+    "batchFieldPlaceholder": "Select a field...",
+    "batchValueLabel": "New value",
+    "batchValuePlaceholder": "Enter new value",
+    "applyBatch": "Apply to selected",
+    "confirmTitle": "Update {count} book(s)?",
+    "confirmBody": "This will set \"{field}\" to \"{value}\" for the following books:",
+    "confirmApply": "Apply update",
+    "confirmCancel": "Cancel",
+    "success": "Updated {updated} book(s). {skipped} already had this value.",
+    "updateFailed": "Batch update failed.",
+    "loadFailed": "Failed to load data.",
+    "tooManySelected": "Please select at most 500 books at a time.",
+    "noAttributeSelected": "Select at least one attribute to search for.",
+    "noFieldSelected": "Select a field to update.",
+    "noValueEntered": "Enter a value to set.",
+    "allSet": "Your library is in great shape! All books have complete metadata.",
+    "allSetFiltered": "Your library is in great shape! All books have complete metadata for the selected attributes.",
+    "tableHeaderMissing": "Missing",
+    "remaining": "remaining",
+    "andXMore": "...and {count} more"
   },
   "about": {
     "title": "About LibrisLog",

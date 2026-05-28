@@ -465,12 +465,17 @@
 						<span>
 							<strong>{formatNumber(calendarData.total_pages, 0)}</strong>
 							{$_('statistics.pagesOver')}
-							<strong>{calendarData.days_with_activity}</strong>
+							<strong>{calendarData.total_days}</strong>
 							{$_('statistics.daysLabel')}
 						</span>
 						<span>
 							{$_('statistics.avgPerDay')}
 							<strong>{formatNumber(calendarData.total_pages / Math.max(calendarData.days_with_activity, 1), 1)}</strong>
+							{$_('statistics.pagesPerDay')}
+						</span>
+						<span>
+							{$_('statistics.avgPerDayAll')}
+							<strong>{formatNumber(calendarData.total_pages / Math.max(calendarData.total_days, 1), 1)}</strong>
 							{$_('statistics.pagesPerDay')}
 						</span>
 					</div>

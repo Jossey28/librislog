@@ -2,9 +2,10 @@
 
 from typing import Optional
 from datetime import datetime
+from enum import Enum
 from typing import Literal
 
-from pydantic import ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, field_validator
 from sqlmodel import Field, SQLModel
 
 from app.models import ReadingStatus, UserRole
@@ -139,6 +140,12 @@ class BookRead(SQLModel):
     date_added: datetime
     date_started: Optional[datetime]
     date_finished: Optional[datetime]
+
+
+class BookListResponse(BaseModel):
+    """Paginated book list with total count."""
+    books: list[BookRead]
+    total: int
 
 
 class TagCloudEntry(SQLModel):
@@ -407,6 +414,56 @@ class OidcLinkRead(SQLModel):
 class OidcLoginResponse(SQLModel):
     """OIDC login response."""
     user: UserRead
+
+
+class HygieneAttribute(str, Enum):
+    """Book attributes that can be checked for missing values."""
+    author = "author"
+    isbn = "isbn"
+    publisher = "publisher"
+    published_year = "published_year"
+    blurb = "blurb"
+    language = "language"
+    subtitle = "subtitle"
+    page_count = "page_count"
+    cover_url = "cover_url"
+
+
+class HygieneMissingBook(SQLModel):
+    """A single book in the data-hygiene listing with its missing fields annotated."""
+    id: int
+    title: str
+    author: str | None
+    isbn: str | None
+    publisher: str | None
+    published_year: int | None
+    blurb: str | None
+    language: str | None
+    subtitle: str | None
+    page_count: int
+    cover_url: str | None
+    missing_attributes: list[HygieneAttribute]
+
+
+class HygieneMissingResponse(SQLModel):
+    """Paginated list of books with missing attributes."""
+    books: list[HygieneMissingBook]
+    total: int
+    total_missing_per_attribute: dict[str, int]
+
+
+class HygieneBatchUpdateRequest(SQLModel):
+    """Batch-update a single field on multiple books."""
+    book_ids: list[int]
+    field: HygieneAttribute
+    value: str | int | None
+
+
+class HygieneBatchUpdateResponse(SQLModel):
+    """Result of a batch update operation."""
+    updated: int
+    skipped: int
+    skipped_ids: list[int]
 
 
 class DailyPages(SQLModel):
