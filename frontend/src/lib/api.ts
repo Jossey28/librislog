@@ -10,6 +10,10 @@ import type {
 	DataImportPreviewResponse,
 	DataImportValidateResponse,
 	DataResetResponse,
+	HygieneAttribute,
+	HygieneBatchUpdateRequest,
+	HygieneBatchUpdateResponse,
+	HygieneMissingResponse,
 	ImportFieldConfig,
 	Book,
 	CoverCandidateList,
@@ -339,6 +343,29 @@ export const api = {
 
 		delete(id: number): Promise<void> {
 			return request<void>(`/books/${id}`, { method: 'DELETE' });
+		}
+	},
+
+	hygiene: {
+		async listMissing(params: {
+			attributes: HygieneAttribute[];
+			match?: 'any' | 'all';
+			offset?: number;
+			limit?: number;
+		}): Promise<HygieneMissingResponse> {
+			const qs = new URLSearchParams();
+			qs.set('attributes', params.attributes.join(','));
+			if (params.match) qs.set('match', params.match);
+			if (params.offset !== undefined) qs.set('offset', String(params.offset));
+			if (params.limit !== undefined) qs.set('limit', String(params.limit));
+			return request<HygieneMissingResponse>(`/hygiene/missing?${qs.toString()}`);
+		},
+
+		async batchUpdate(data: HygieneBatchUpdateRequest): Promise<HygieneBatchUpdateResponse> {
+			return request<HygieneBatchUpdateResponse>('/hygiene/batch-update', {
+				method: 'POST',
+				body: JSON.stringify(data)
+			});
 		}
 	},
 

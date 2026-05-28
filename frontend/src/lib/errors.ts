@@ -12,6 +12,7 @@ const BACKEND_ERROR_MAP: Record<string, string> = {
 	'A mapping with this name already exists.': 'error.importMappingNameConflict',
 	'Import mapping not found.': 'error.importMappingNotFound',
 	'Confirmation phrase does not match.': 'error.invalidConfirmationPhrase',
+	'Batch update failed due to a database error': 'error.batchUpdateFailed',
 	'Cannot delete the last administrator account.': 'error.cannotDeleteLastAdmin',
 	'You cannot delete your own account here. Use Profile > Danger Zone.': 'error.cannotDeleteOwnAccountHere',
 };

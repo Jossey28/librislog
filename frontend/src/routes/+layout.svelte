@@ -194,8 +194,12 @@
 			return `${$_('app.title')} - ${$_('nav.statistics')}`;
 		}
 
-		if ($page.url.pathname.startsWith('/data')) {
+		if ($page.url.pathname.startsWith('/data') && !$page.url.pathname.startsWith('/data-hygiene')) {
 			return `${$_('app.title')} - ${$_('nav.data')}`;
+		}
+
+		if ($page.url.pathname.startsWith('/data-hygiene')) {
+			return `${$_('app.title')} - ${$_('dataHygiene.title')}`;
 		}
 
 		if ($page.url.pathname.startsWith('/admin')) {

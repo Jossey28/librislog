@@ -316,6 +316,50 @@ export interface DataImportValidateResponse {
 	errors: string[];
 }
 
+export type HygieneAttribute =
+	| 'author'
+	| 'isbn'
+	| 'publisher'
+	| 'published_year'
+	| 'blurb'
+	| 'language'
+	| 'subtitle'
+	| 'page_count'
+	| 'cover_url';
+
+export interface HygieneMissingBook {
+	id: number;
+	title: string;
+	author: string | null;
+	isbn: string | null;
+	publisher: string | null;
+	published_year: number | null;
+	blurb: string | null;
+	language: string | null;
+	subtitle: string | null;
+	page_count: number;
+	cover_url: string | null;
+	missing_attributes: HygieneAttribute[];
+}
+
+export interface HygieneMissingResponse {
+	books: HygieneMissingBook[];
+	total: number;
+	total_missing_per_attribute: Record<string, number>;
+}
+
+export interface HygieneBatchUpdateRequest {
+	book_ids: number[];
+	field: HygieneAttribute;
+	value: string | number | null;
+}
+
+export interface HygieneBatchUpdateResponse {
+	updated: number;
+	skipped: number;
+	skipped_ids: number[];
+}
+
 export type DataImportEvent =
 	| { event: 'start'; total_rows: number }
 	| { event: 'progress'; processed: number; total: number; percent: number }
