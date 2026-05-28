@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { _ } from '$lib/i18n';
 	import Logo from '$lib/components/Logo.svelte';
-	import { version, gitSha } from '$lib/version';
+	import VersionLink from '$lib/components/VersionLink.svelte';
 	import pkg from '../../../package.json';
 
 	const frontendDeps = Object.entries(pkg.dependencies).sort((a, b) => a[0].localeCompare(b[0]));
@@ -23,7 +23,6 @@
 		{ name: 'VitePress', url: 'https://vitepress.dev/' },
 		{ name: 'viewerjs', url: 'https://github.com/fengyuanchen/viewerjs' },
 	];
-
 
 	const backendDeps: Array<{ name: string; url: string }> = [
 		{ name: 'FastAPI', url: 'https://fastapi.tiangolo.com/' },
@@ -49,13 +48,6 @@
 		{ name: 'Typer', url: 'https://typer.tiangolo.com/' },
 		{ name: 'Rich', url: 'https://rich.readthedocs.io/' },
 	];
-
-	const displayVersion = $derived(
-		version +
-			(gitSha && gitSha !== 'unknown' && !version.includes(gitSha.slice(0, 7))
-				? ` (${gitSha.slice(0, 7)})`
-				: '')
-	);
 </script>
 
 <div class="max-w-3xl mx-auto flex flex-col gap-6">
@@ -67,7 +59,7 @@
 				<Logo class="w-14 h-14" />
 				<div>
 					<h2 class="text-xl font-bold">LibrisLog</h2>
-					<p class="text-sm text-base-content/60">{displayVersion}</p>
+					<p class="text-sm text-base-content/60"><VersionLink /></p>
 				</div>
 			</div>
 			<p class="text-sm text-base-content/70 leading-relaxed">
