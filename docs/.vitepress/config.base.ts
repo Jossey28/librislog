@@ -47,9 +47,11 @@ export default defineConfig({
           items: [
             { text: 'Dashboard', link: '/guide/using-librislog/dashboard' },
             { text: 'Library', link: '/guide/using-librislog/library' },
+            { text: 'Profile', link: '/guide/using-librislog/profile' },
             { text: 'Progress Tracking', link: '/guide/using-librislog/progress' },
             { text: 'Statistics', link: '/guide/using-librislog/statistics' },
             { text: 'Import & Export', link: '/guide/using-librislog/import-export' },
+            { text: 'Data Hygiene', link: '/guide/using-librislog/data-hygiene' },
             { text: 'Administration', link: '/guide/using-librislog/administration' },
           ],
         },

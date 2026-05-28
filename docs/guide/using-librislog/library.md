@@ -88,9 +88,14 @@ If automatic search doesn't find a suitable cover, you can:
 
 Downloaded covers are cached locally in the `COVERS_DIR` directory to avoid repeated external requests.
 
-## Search and Sort
+## Search
 
 - Search books by title, author, or tags using the search bar — the result count updates as you type
+- Press **Enter** to open the dedicated search results page with a full results grid, load-more pagination, and the same book detail interaction as the library
+- From any page, navigate directly to `/search?q=your+query` for quick access
+
+## Sort
+
 - Sort by title, date added, date started, date finished, or rating
 - Sort order: ascending or descending
 

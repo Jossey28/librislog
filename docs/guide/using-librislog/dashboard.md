@@ -4,6 +4,17 @@ The dashboard is the first page you see after logging in. It gives you an overvi
 
 ![Dashboard](/screenshots/dashboard.png)
 
+## Search
+
+The search bar at the top of the dashboard lets you find books by title, author, or tags. The result count updates as you type and matching books appear in a dropdown below the bar.
+
+- **Arrow keys** to navigate the dropdown
+- **Enter** opens the selected book's detail view; if no item is selected, it navigates to the dedicated search results page (`/search`) showing all matches
+- **Escape** to close the dropdown
+- **Click the search icon** to focus the input
+
+The search results page shows a full results grid with load-more pagination and the same book detail interaction as the library.
+
 ## Currently Reading
 
 Books you marked as "Currently Reading" appear with progress bars showing the current page and percentage. Click a book to open the detail view and update your progress.

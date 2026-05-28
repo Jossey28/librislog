@@ -1,6 +1,7 @@
 # Administration
 
-The administration page is available only to users with the **admin** role. Regular users cannot access it.
+> [!IMPORTANT]
+> The administration page is available only to users with the **admin** role. Regular users cannot access it.
 
 ![Users tab](/screenshots/admin-users.png)
 
@@ -62,3 +63,9 @@ Crontab entry (daily at 3am):
 ```
 
 The API returns a ZIP archive containing the SQLite database, cover images, and import temp files. No separate database dump step is needed.
+
+## Background Maintenance
+
+A periodic maintenance task runs automatically every hour. It performs:
+
+- **Cover cache cleanup** — Removes orphaned cover images from disk that are no longer referenced by any book. Files modified within the last 60 minutes are preserved to avoid deleting covers that were just uploaded but not yet linked to a book entry.
