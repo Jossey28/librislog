@@ -319,7 +319,7 @@ def test_save_uploaded_cover_content_type_with_params(tmp_path: Path) -> None:
     assert filename.endswith(".jpg")
 
 
-def test_cleanup_orphan_covers_deletes_unreferenced_files(session: Session, tmp_path: Path) -> None:
+def test_cleanup_orphan_covers_deletes_unreferenced_files(session: Session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Cover files on disk that are not referenced by any book should be deleted."""
     from app.models import Book
     from app.services import cover_storage
@@ -345,7 +345,6 @@ def test_cleanup_orphan_covers_deletes_unreferenced_files(session: Session, tmp_
     os.utime(tmp_path / "1__orphan1.jpg", (old_time, old_time))
     os.utime(tmp_path / "1__orphan2.png", (old_time, old_time))
 
-    monkeypatch = pytest.MonkeyPatch()
     monkeypatch.setattr(cover_storage.settings, "covers_dir", str(tmp_path))
 
     deleted = cleanup_orphan_covers(session)
@@ -355,13 +354,12 @@ def test_cleanup_orphan_covers_deletes_unreferenced_files(session: Session, tmp_
     assert not (tmp_path / "1__orphan2.png").exists()
 
 
-def test_cleanup_orphan_covers_skips_recent_files(session: Session, tmp_path: Path) -> None:
+def test_cleanup_orphan_covers_skips_recent_files(session: Session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Recently modified orphan files should not be deleted."""
     from app.services import cover_storage
 
     (tmp_path / "1__recent.jpg").write_bytes(b"recent")
 
-    monkeypatch = pytest.MonkeyPatch()
     monkeypatch.setattr(cover_storage.settings, "covers_dir", str(tmp_path))
 
     deleted = cleanup_orphan_covers(session)
@@ -369,21 +367,19 @@ def test_cleanup_orphan_covers_skips_recent_files(session: Session, tmp_path: Pa
     assert (tmp_path / "1__recent.jpg").exists()
 
 
-def test_cleanup_orphan_covers_empty_dir(session: Session, tmp_path: Path) -> None:
+def test_cleanup_orphan_covers_empty_dir(session: Session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Empty covers directory should return 0."""
     from app.services import cover_storage
 
-    monkeypatch = pytest.MonkeyPatch()
     monkeypatch.setattr(cover_storage.settings, "covers_dir", str(tmp_path))
 
     assert cleanup_orphan_covers(session) == 0
 
 
-def test_cleanup_orphan_covers_nonexistent_dir(session: Session) -> None:
+def test_cleanup_orphan_covers_nonexistent_dir(session: Session, monkeypatch: pytest.MonkeyPatch) -> None:
     """Nonexistent covers directory should return 0."""
     from app.services import cover_storage
 
-    monkeypatch = pytest.MonkeyPatch()
     monkeypatch.setattr(cover_storage.settings, "covers_dir", "/nonexistent/path")
 
     assert cleanup_orphan_covers(session) == 0

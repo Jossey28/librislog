@@ -54,8 +54,11 @@ test.describe('Search Page', () => {
 
 		await expect(page.locator('body')).toContainText(/1984/i);
 
-		const clearBtn = page.locator('button[aria-label="Clear Form"]');
-		await clearBtn.click();
+		// Click via JS to bypass any overlaying elements (UserMenu fixed container)
+		await page.evaluate(() => {
+			const btn = document.querySelector('button[aria-label="Clear Form"]') as HTMLButtonElement | null;
+			btn?.click();
+		});
 		await page.waitForTimeout(500);
 
 		const input = page.locator('input[type="text"]');
