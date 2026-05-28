@@ -361,6 +361,7 @@
     "importUnsupportedContentType": "Nicht unterstützter Upload-Inhaltstyp. Bitte CSV- oder JSON-Dateien verwenden.",
     "emailAlreadyRegistered": "Diese E-Mail-Adresse ist bereits registriert.",
     "batchUpdateFailed": "Stapelaktualisierung aufgrund eines unerwarteten Fehlers fehlgeschlagen. Es wurden keine Änderungen gespeichert.",
+    "tooManyBooksSelected": "Zu viele Bücher ausgewählt. Bitte maximal {max} auf einmal auswählen.",
     "userNotFound": "Benutzer nicht gefunden.",
     "cannotChangeOwnRole": "Sie können Ihre eigene Admin-Rolle nicht ändern.",
     "authorRequired": "Autor ist erforderlich.",

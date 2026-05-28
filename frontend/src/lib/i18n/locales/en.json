@@ -368,6 +368,7 @@
     "fileTooLarge": "The file is too large. Please try a smaller file or check server limits.",
     "exportNoDatasets": "Select at least one dataset to export.",
     "batchUpdateFailed": "Batch update failed due to an unexpected error. No changes were saved.",
+    "tooManyBooksSelected": "Too many books selected. Please select at most {max} at a time.",
     "importMappingNameConflict": "A mapping with this name already exists.",
     "importMappingNotFound": "Import mapping not found."
   },
