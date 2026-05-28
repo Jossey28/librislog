@@ -577,6 +577,7 @@
     "noFieldSelected": "Select a field to update.",
     "noValueEntered": "Enter a value to set.",
     "allSet": "Your library is in great shape! All books have complete metadata.",
+    "allSetFiltered": "Your library is in great shape! All books have complete metadata for the selected attributes.",
     "tableHeaderMissing": "Missing",
     "remaining": "remaining",
     "andXMore": "...and {count} more"

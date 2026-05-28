@@ -208,7 +208,7 @@
 	<!-- All complete state -->
 	{:else if allComplete}
 		<Alert type="success">
-			{$_('dataHygiene.allSet')}
+			{$_(selectedAttributes.length > 0 ? 'dataHygiene.allSetFiltered' : 'dataHygiene.allSet')}
 		</Alert>
 	<!-- Empty results -->
 	{:else if !loading && books.length === 0}

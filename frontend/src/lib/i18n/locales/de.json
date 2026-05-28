@@ -577,6 +577,7 @@
     "noFieldSelected": "Wähle ein zu aktualisierendes Feld aus.",
     "noValueEntered": "Gib einen Wert zum Setzen ein.",
     "allSet": "Deine Bibliothek ist in großartiger Verfassung! Alle Bücher haben vollständige Metadaten.",
+    "allSetFiltered": "Deine Bibliothek ist in großartiger Verfassung! Alle Bücher haben vollständige Metadaten für die ausgewählten Attribute.",
     "tableHeaderMissing": "Fehlend",
     "remaining": "übrig",
     "andXMore": "...und {count} weitere"
