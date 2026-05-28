@@ -13,6 +13,11 @@ export default defineConfig({
   lang: 'en-US',
   lastUpdated: true,
   ignoreDeadLinks: [/^http:\/\/localhost/],
+  markdown: {
+    image: {
+      lazyLoading: true,
+    },
+  },
   head: [
     ['link', { rel: 'icon', href: '/favicon.svg' }],
     ['script', { defer: '', 'data-domain': 'codebude.github.io/librislog', src: 'https://plausible.code-bude.net/js/script.js' }],
