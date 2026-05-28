@@ -39,3 +39,5 @@ Created and maintained by [Raffael Herrmann](https://github.com/codebude).
 ## License
 
 Released under the MIT License.
+
+<CommitInfo />

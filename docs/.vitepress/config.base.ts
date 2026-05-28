@@ -1,8 +1,15 @@
 import { defineConfig } from 'vitepress'
+import { execSync } from 'child_process'
+
+const gitSha = execSync('git rev-parse HEAD').toString().trim()
 
 export default defineConfig({
   title: 'LibrisLog',
   vite: {
+    define: {
+      __GIT_SHA__: JSON.stringify(gitSha),
+      __GIT_SHA_SHORT__: JSON.stringify(gitSha.slice(0, 7)),
+    },
     server: {
       host: true,
       port: 5174,
