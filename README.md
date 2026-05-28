@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://github.com/codebude/librislog/actions/workflows/tests.yml"><img src="https://github.com/codebude/librislog/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
-  <a href="https://github.com/codebude/librislog/actions/workflows/docker.yml"><img src="https://github.com/codebude/librislog/actions/workflows/docker.yml/badge.svg" alt="Docker Build"></a>
+  <a href="https://github.com/codebude?tab=packages&repo_name=librislog"><img src="https://github.com/codebude/librislog/actions/workflows/docker.yml/badge.svg" alt="Docker Build"></a>
   <a href="https://codebude.github.io/librislog/"><img src="https://github.com/codebude/librislog/actions/workflows/docs.yml/badge.svg" alt="Docs Build"></a>
   <img src="https://img.shields.io/badge/python-3.14-%233776AB?logo=python" alt="Python">
   <img src="https://img.shields.io/badge/svelte-5-%23FF3E00?logo=svelte" alt="Svelte">
