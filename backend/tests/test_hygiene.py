@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from app.models import Book, ReadingStatus, User
+from app.routers import hygiene as hygiene_router
 
 
 def _create_book(session: Session, user_id: int, **overrides: object) -> Book:
@@ -272,3 +273,83 @@ class TestBatchUpdate:
         assert resp.status_code == 200
         session.refresh(b1)
         assert b1.page_count == 250
+
+    def test_batch_update_cover_url_valid(self, client: TestClient, session: Session, monkeypatch) -> None:
+        """Valid external cover URL is downloaded and stored as local path."""
+        async def _fake_download(url: str, covers_dir: str, http_client: object, user_id: int) -> str:
+            return "1__cover.jpg"
+        monkeypatch.setattr(hygiene_router, "import_cover_from_url", _fake_download)
+
+        b1 = _create_book(session, 1, title="B1", cover_url=None)
+
+        resp = client.post("/api/hygiene/batch-update", json={
+            "book_ids": [b1.id],
+            "field": "cover_url",
+            "value": "https://example.com/cover.jpg",
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["updated"] == 1
+        assert data["skipped"] == 0
+        session.refresh(b1)
+        assert b1.cover_url == "/api/covers/1__cover.jpg"
+
+    def test_batch_update_cover_url_invalid(self, client: TestClient, session: Session) -> None:
+        """Non-external cover URL is rejected."""
+        b1 = _create_book(session, 1, title="B1", cover_url=None)
+
+        resp = client.post("/api/hygiene/batch-update", json={
+            "book_ids": [b1.id],
+            "field": "cover_url",
+            "value": "data:image/png;base64,iVBORw0KGgo=",
+        })
+        assert resp.status_code == 422
+
+    def test_batch_update_cover_url_download_fails(self, client: TestClient, session: Session, monkeypatch) -> None:
+        """When download fails, cover_url is set to None."""
+        async def _fake_download(url: str, covers_dir: str, http_client: object, user_id: int) -> None:
+            return None
+        monkeypatch.setattr(hygiene_router, "import_cover_from_url", _fake_download)
+
+        b1 = _create_book(session, 1, title="B1", cover_url=None)
+
+        resp = client.post("/api/hygiene/batch-update", json={
+            "book_ids": [b1.id],
+            "field": "cover_url",
+            "value": "https://example.com/fail.jpg",
+        })
+        assert resp.status_code == 200
+        session.refresh(b1)
+        assert b1.cover_url is None
+
+    def test_batch_update_cover_url_none(self, client: TestClient, session: Session) -> None:
+        """Setting cover_url to None clears it."""
+        b1 = _create_book(session, 1, title="B1", cover_url="/api/covers/old.jpg")
+
+        resp = client.post("/api/hygiene/batch-update", json={
+            "book_ids": [b1.id],
+            "field": "cover_url",
+            "value": None,
+        })
+        assert resp.status_code == 200
+        session.refresh(b1)
+        assert b1.cover_url is None
+
+    def test_batch_update_cover_url_already_set(self, client: TestClient, session: Session, monkeypatch) -> None:
+        """Book already has the target cover path — skipped after download."""
+        async def _fake_download(url: str, covers_dir: str, http_client: object, user_id: int) -> str:
+            return "1__same.jpg"
+        monkeypatch.setattr(hygiene_router, "import_cover_from_url", _fake_download)
+
+        b1 = _create_book(session, 1, title="B1", cover_url="/api/covers/1__same.jpg")
+
+        resp = client.post("/api/hygiene/batch-update", json={
+            "book_ids": [b1.id],
+            "field": "cover_url",
+            "value": "https://example.com/same.jpg",
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["updated"] == 0
+        assert data["skipped"] == 1
+        assert b1.id in data["skipped_ids"]

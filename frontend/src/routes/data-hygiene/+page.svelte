@@ -241,13 +241,15 @@
 					{#each books as book (book.id)}
 						<tr class="hover">
 							<td>
-								<input
-									type="checkbox"
-									class="checkbox checkbox-xs"
-									checked={selectedBookIds.has(book.id)}
-									onchange={() => toggleBook(book.id)}
-									aria-label={$_('common.search')}
-								/>
+								<div class="flex items-center">
+									<input
+										type="checkbox"
+										class="checkbox checkbox-xs"
+										checked={selectedBookIds.has(book.id)}
+										onchange={() => toggleBook(book.id)}
+										aria-label={$_('common.search')}
+									/>
+								</div>
 							</td>
 							<td class="font-medium max-w-xs truncate">{book.title}</td>
 							<td class="hidden sm:table-cell max-w-[180px] truncate">{book.author || '—'}</td>
