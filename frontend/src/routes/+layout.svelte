@@ -273,7 +273,7 @@
 	</aside>
 
 	<!-- Main content -->
-	<div class="flex-1 flex flex-col md:ml-56 min-h-screen">
+	<div class="flex-1 flex flex-col md:ml-56 min-h-screen min-w-0">
 		<!-- Mobile top bar with navbar -->
 		<div class="navbar md:hidden bg-base-100 shadow-sm sticky top-0 z-20">
 			<div class="navbar-start">

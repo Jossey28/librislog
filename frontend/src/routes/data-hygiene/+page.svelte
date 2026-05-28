@@ -179,7 +179,7 @@
 	});
 </script>
 
-<div class="max-w-6xl mx-auto flex flex-col gap-6">
+<div class="max-w-6xl mx-auto flex flex-col gap-6 min-w-0">
 	<h1 class="text-2xl font-bold">{$_('dataHygiene.title')}</h1>
 	<p class="text-sm text-base-content/70">{$_('dataHygiene.description')}</p>
 
@@ -225,7 +225,7 @@
 		</p>
 	<!-- Results table -->
 	{:else}
-		<div class="overflow-x-auto rounded-2xl border border-base-200">
+		<div class="rounded-2xl border border-base-200">
 			<table class="table table-sm">
 				<thead>
 					<tr>
@@ -259,7 +259,7 @@
 									/>
 								</div>
 							</td>
-							<td class="font-medium max-w-xs truncate">{book.title}</td>
+							<td class="font-medium break-words min-w-0">{book.title}</td>
 							<td class="hidden sm:table-cell max-w-[180px] truncate">{book.author || '—'}</td>
 							<td class="hidden md:table-cell font-mono text-xs">{book.isbn || '—'}</td>
 							<td class="hidden lg:table-cell max-w-[150px] truncate">{book.publisher || '—'}</td>
