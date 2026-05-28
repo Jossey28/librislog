@@ -158,12 +158,12 @@ async def batch_update(
         if req.value is not None:
             try:
                 val = int(str(req.value))
-                if val < 1000 or val > 2099:
+                if val > 2099:
                     raise ValueError
             except (ValueError, TypeError):
                 raise HTTPException(
                     status_code=422,
-                    detail="published_year must be an integer between 1000 and 2099",
+                    detail="published_year must be an integer no greater than 2099",
                 )
             req.value = val
     elif req.field == HygieneAttribute.page_count:
