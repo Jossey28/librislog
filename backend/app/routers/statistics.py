@@ -25,6 +25,7 @@ from app.schemas import (
     StatusDistribution,
     TopAuthor,
     TopAuthorCover,
+    TopRatedBook,
     YearlyBooks,
 )
 
@@ -398,6 +399,33 @@ def get_statistics(
             for author_name, author_count in top_author_counts
         ]
 
+    # --- Rating stats ---
+    books_with_rating = sum(1 for b in books if b.rating is not None)
+    books_without_rating = sum(1 for b in books if b.rating is None)
+    rating_values = [b.rating for b in books if b.rating is not None]
+    average_rating = round(mean(rating_values), 2) if rating_values else None
+
+    top_rated_books: list[TopRatedBook] = []
+    worst_rated_books: list[TopRatedBook] = []
+
+    if rating_values:
+        max_rating = max(rating_values)
+        min_rating = min(rating_values)
+
+        candidates_top = [b for b in books if b.rating is not None and b.rating == max_rating]
+        candidates_top.sort(key=lambda x: x.date_added or datetime.min, reverse=True)
+        top_rated_books = [
+            TopRatedBook(book_id=b.id, title=b.title or "", author=b.author, rating=b.rating, reading_status=b.reading_status, cover_url=b.cover_url)
+            for b in candidates_top
+        ]
+
+        candidates_worst = [b for b in books if b.rating is not None and b.rating == min_rating]
+        candidates_worst.sort(key=lambda x: x.date_added or datetime.min, reverse=True)
+        worst_rated_books = [
+            TopRatedBook(book_id=b.id, title=b.title or "", author=b.author, rating=b.rating, reading_status=b.reading_status, cover_url=b.cover_url)
+            for b in candidates_worst
+        ]
+
     return StatisticsResponse(
         avg_books_per_month=avg_books_per_month,
         busiest_month=busiest_month,
@@ -412,4 +440,9 @@ def get_statistics(
         books_finished_per_month=books_finished_per_month,
         books_finished_per_year=books_finished_per_year,
         top_authors=top_authors,
+        books_with_rating=books_with_rating,
+        books_without_rating=books_without_rating,
+        average_rating=average_rating,
+        top_rated_books=top_rated_books,
+        worst_rated_books=worst_rated_books,
     )

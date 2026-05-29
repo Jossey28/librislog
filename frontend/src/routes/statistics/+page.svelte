@@ -10,6 +10,7 @@
 	import CalendarHeatmap from '$lib/components/CalendarHeatmap.svelte';
 	import BookDetailDialog from '$lib/components/BookDetailDialog.svelte';
 	import BookDrawer from '$lib/components/BookDrawer.svelte';
+	import RatedBooksSection from '$lib/components/RatedBooksSection.svelte';
 	import { RotateCcw } from '@lucide/svelte';
 
 	type Segment = {
@@ -486,6 +487,37 @@
 				{/if}
 			</div>
 		</div>
+
+		<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+			<div class="stat bg-base-100 rounded-2xl shadow-sm border border-base-200">
+				<div class="stat-title">{$_('statistics.booksWithRating')}</div>
+				<div class="stat-value text-primary text-2xl">{formatNumber(stats.books_with_rating, 0)}</div>
+			</div>
+			<div class="stat bg-base-100 rounded-2xl shadow-sm border border-base-200">
+				<div class="stat-title">{$_('statistics.booksWithoutRating')}</div>
+				<div class="stat-value text-base-content/60 text-2xl">{formatNumber(stats.books_without_rating, 0)}</div>
+			</div>
+			<div class="stat bg-base-100 rounded-2xl shadow-sm border border-base-200">
+				<div class="stat-title">{$_('statistics.averageRating')}</div>
+				<div class="stat-value text-warning text-2xl">
+					{stats.average_rating !== null ? formatNumber(stats.average_rating, 1) : $_('statistics.noRating')}
+				</div>
+			</div>
+		</div>
+
+		{#if stats.top_rated_books.length > 0}
+			<RatedBooksSection
+				title={$_('statistics.topRated')}
+				books={stats.top_rated_books}
+			/>
+		{/if}
+
+		{#if stats.worst_rated_books.length > 0}
+			<RatedBooksSection
+				title={$_('statistics.worstRated')}
+				books={stats.worst_rated_books}
+			/>
+		{/if}
 		{/if}
 	{/if}
 </div>

@@ -47,7 +47,16 @@
 	"pagesPerDay": "pages/day",
 	"loading": "Loading statistics...",
 	"noData": "No data available yet. Start reading and tracking books to see statistics!",
-    "resetZoom": "Reset zoom"
+	"resetZoom": "Reset zoom",
+	"ratingStats": "Rating Statistics",
+	"booksWithRating": "Books with Rating",
+	"booksWithoutRating": "Books without Rating",
+	"averageRating": "Avg Rating",
+	"noRating": "No rating",
+	"topRated": "Top Rated",
+	"worstRated": "Worst Rated",
+	"showMore": "Show more (+{count})",
+	"showLess": "Show less"
   },
   "dashboard": {
     "title": "Reading Dashboard",

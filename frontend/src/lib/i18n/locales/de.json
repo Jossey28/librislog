@@ -47,8 +47,17 @@
 	"pagesPerDay": "Seiten/Tag",
 	"loading": "Lade Statistiken...",
 	"noData": "Noch keine Daten verfügbar. Fange an, Bücher zu lesen und zu erfassen, um Statistiken zu sehen!",
-	"resetZoom": "Zoom zurücksetzen"
-  },
+	"resetZoom": "Zoom zurücksetzen",
+	"ratingStats": "Bewertungsstatistiken",
+	"booksWithRating": "Bewertete Bücher",
+	"booksWithoutRating": "Unbewertete Bücher",
+	"averageRating": "Ø Bewertung",
+	"noRating": "Keine Bewertung",
+	"topRated": "Am besten bewertet",
+	"worstRated": "Am schlechtesten bewertet",
+	"showMore": "Mehr anzeigen (+{count})",
+	"showLess": "Weniger anzeigen"
+	},
   "dashboard": {
     "title": "Lese-Dashboard",
     "subtitle": "Ein schneller Überblick über dein Lesen",
