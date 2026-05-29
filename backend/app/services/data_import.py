@@ -19,6 +19,7 @@ from app.schemas import ImportFieldConfig
 from app.time_utils import utcnow
 from app.services.cover_storage import download_cover
 from app.services.tags import sync_book_tags
+from app.services.isbn_utils import normalize_isbn
 
 BOOK_IMPORT_FIELDS: list[str] = [
     "title",
@@ -494,6 +495,9 @@ def validate_import(
             _normalize_language(
                 None if row_data.get("language") is None else str(row_data.get("language"))
             )
+            isbn_raw = row_data.get("isbn")
+            if isbn_raw:
+                normalize_isbn(str(isbn_raw))
         except ValueError as exc:
             errors.append(f"Row {idx}: {exc}")
             continue
@@ -587,6 +591,9 @@ def preview_import(
             _normalize_language(
                 None if row_data.get("language") is None else str(row_data.get("language"))
             )
+            isbn_raw = row_data.get("isbn")
+            if isbn_raw:
+                normalize_isbn(str(isbn_raw))
         except ValueError as exc:
             row_errors.append(str(exc))
 
@@ -799,7 +806,7 @@ PREDEFINED_MAPPINGS: list[dict[str, Any]] = [
             "title": {"source": "Title", "transform": None},
             "subtitle": {"source": "", "transform": None},
             "author": {"source": "Author", "transform": None},
-            "isbn": {"source": "ISBN13", "transform": None},
+            "isbn": {"source": "ISBN13", "transform": "value.replace('=', '').replace('\"', '').strip() if value else None"},
             "publisher": {"source": "Publisher", "transform": None},
             "published_year": {
                 "source": "Original Publication Year",
