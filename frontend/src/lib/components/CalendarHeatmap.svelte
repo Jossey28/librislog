@@ -93,7 +93,7 @@
 					width: ({ chart }: { chart: { chartArea?: { width: number } } }) => {
 						const area = chart.chartArea;
 						if (!area) return 10;
-						return Math.max((area.width / 54) - 2, 2);
+						return Math.max((area.width / 53) - 2, 2);
 					},
 					height: ({ chart }: { chart: { chartArea?: { height: number } } }) => {
 						const area = chart.chartArea;
@@ -174,20 +174,23 @@
 			scales: {
 				x: {
 					type: 'linear',
-					offset: true,
+					min: -0.5,
+					max: 52.5,
 					grid: { display: false },
 					ticks: { display: false },
 					border: { display: false },
 				},
 				y: {
 					type: 'linear',
-					offset: true,
 					min: -0.5,
 					max: 6.5,
 					reverse: true,
 					grid: { display: false },
 					ticks: { display: false },
 					border: { display: false },
+					afterFit: (scale) => {
+						scale.width = 0;
+					},
 				},
 			},
 		};
