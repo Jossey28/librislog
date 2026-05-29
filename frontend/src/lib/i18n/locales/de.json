@@ -409,7 +409,9 @@
     "dataManagement": {
       "title": "Meine Daten verwalten",
       "description": "Exportiere deine Bibliothek oder importiere Bücher aus CSV/JSON.",
-      "link": "Datenseite öffnen"
+      "link": "Datenseite öffnen",
+      "missingCoversDescription": "Fehlende Cover mit automatischen Vorschlägen schnell zuweisen.",
+      "missingCoversLink": "Fehlende Cover verwalten"
     },
     "dangerZone": {
       "title": "Gefahrenbereich",
@@ -612,5 +614,31 @@
     "frontend": "Frontend",
     "backend": "Backend",
     "devTools": "Entwicklungswerkzeuge"
+  },
+  "missingCovers": {
+    "title": "Fehlende Cover verwalten",
+    "header": "{count} {count, plural, one {Buch} other {Bücher}} ohne Cover",
+    "bookInfo": "{title} von {author}",
+    "isbnLabel": "ISBN: {isbn}",
+    "noIsbn": "Dieses Buch hat keine ISBN. Automatische Cover-Suche ist nicht verfügbar.",
+    "noCandidates": "Kein Cover konnte automatisch ermittelt werden.",
+    "searchGoogle": "Cover auf Google suchen",
+    "searchGoogleAria": "Öffnet eine Google-Bildersuche für dieses Buch in einem neuen Tab",
+    "manualUrlLabel": "Oder füge eine Cover-Bild-URL ein",
+    "manualUrlPlaceholder": "https://example.com/cover.jpg",
+    "manualUrlSave": "Cover speichern",
+    "manualUrlInvalid": "Bitte gib eine gültige HTTP(S)-URL ein",
+    "manualUrlNotHttps": "Warnung: Die URL ist nicht HTTPS. Aus Sicherheitsgründen HTTPS bevorzugen.",
+    "skip": "Überspringen",
+    "skipAria": "Dieses Buch überspringen und zum nächsten gehen",
+    "coverSaved": "Cover gespeichert",
+    "coverSaveFailed": "Cover konnte nicht gespeichert werden",
+    "allDone": "Alle Bücher haben ein Cover! Großartige Arbeit.",
+    "allDoneSub": "Jedes Buch in deiner Bibliothek hat jetzt ein Cover-Bild.",
+    "loadingBook": "Nächstes Buch wird geladen...",
+    "loadingCandidates": "Cover-Quellen werden durchsucht...",
+    "keyboardHint": "Tipp: Drücke 1\u20139 um ein Cover auszuwählen, \u2192 zum Überspringen",
+    "candidatesError": "Cover-Suche fehlgeschlagen. Du kannst weiterhin den manuellen Import verwenden.",
+    "retry": "Wiederholen"
   }
 }

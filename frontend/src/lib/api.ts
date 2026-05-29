@@ -279,6 +279,7 @@ export const api = {
 		list(params?: {
 			status?: ReadingStatus;
 			q?: string;
+			has_cover?: boolean;
 			sort?: SortField;
 			order?: SortOrder;
 			smart_sort?: boolean;
@@ -288,6 +289,7 @@ export const api = {
 			const qs = new URLSearchParams();
 			if (params?.status) qs.set('status', params.status);
 			if (params?.q) qs.set('q', params.q);
+			if (params?.has_cover !== undefined) qs.set('has_cover', String(params.has_cover));
 			if (params?.sort) qs.set('sort', params.sort);
 			if (params?.order) qs.set('order', params.order);
 			if (params?.smart_sort !== undefined) qs.set('smart_sort', String(params.smart_sort));

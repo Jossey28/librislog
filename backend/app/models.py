@@ -5,6 +5,7 @@ from typing import Optional
 from datetime import datetime, timezone
 
 import sqlalchemy as sa
+from pydantic import model_validator
 from sqlalchemy import Column, DateTime, TypeDecorator
 from sqlmodel import Field, SQLModel
 
@@ -60,6 +61,13 @@ class Book(SQLModel, table=True):
     isbn: Optional[str] = Field(default=None, unique=True)
     cover_url: Optional[str] = None
     publisher: Optional[str] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_empty_cover_url(cls, data: dict) -> dict:
+        if isinstance(data, dict) and "cover_url" in data and data["cover_url"] == "":
+            data["cover_url"] = None
+        return data
     published_year: Optional[int] = None
     page_count: int = Field(default=0)
     language: Optional[str] = Field(default=None, max_length=2)
