@@ -19,7 +19,8 @@
 	const today = $derived(new Date());
 	const startDate = $derived.by(() => {
 		const d = new Date(today);
-		d.setDate(today.getDate() - 364);
+		const dow = d.getDay();
+		d.setDate(d.getDate() - dow - 364);
 		return d;
 	});
 
