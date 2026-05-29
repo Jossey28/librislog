@@ -9,6 +9,7 @@ import textwrap
 from typing import Any, Callable
 
 from RestrictedPython import compile_restricted
+from RestrictedPython.Eval import default_guarded_getitem
 from RestrictedPython.Guards import safe_builtins, safer_getattr
 
 
@@ -41,6 +42,7 @@ _CUSTOM_BUILTINS["__import__"] = _guarded_import
 _TRANSFORM_GLOBALS: dict[str, Any] = {
     "__builtins__": _CUSTOM_BUILTINS,
     "_getattr_": safer_getattr,
+    "_getitem_": default_guarded_getitem,
     "_getiter_": iter,
     "_iter_unpack_sequence_": lambda x, y: x,
     **_TRANSFORM_MODULES,

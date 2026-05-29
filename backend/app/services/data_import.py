@@ -815,7 +815,7 @@ PREDEFINED_MAPPINGS: list[dict[str, Any]] = [
             "blurb": {"source": "", "transform": None},
             "rating": {
                 "source": "My Rating",
-                "transform": "str(int(value)) if value and str(value).strip() else None",
+                "transform": "None if not value or value.strip() == '0' else value.strip()",
             },
             "reading_status": {
                 "source": "Exclusive Shelf",
@@ -826,8 +826,8 @@ PREDEFINED_MAPPINGS: list[dict[str, Any]] = [
                     "return status"
                 ),
             },
-            "date_started": {"source": "Date Added", "transform": None},
-            "date_finished": {"source": "Date Read", "transform": None},
+            "date_started": {"source": "Date Added", "transform": "value.replace('/', '-') if value else None"},
+            "date_finished": {"source": "Date Read", "transform": "None if not value or (row.get('Date Added') and value < row['Date Added']) else value.replace('/', '-')"},
             "cover_url": {"source": "", "transform": None},
         },
     },
