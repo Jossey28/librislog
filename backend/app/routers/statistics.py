@@ -541,12 +541,12 @@ def get_statistics(
 
     top_rated_books = [
         TopRatedBook(book_id=b.id, title=b.title or "", author=b.author, rating=b.rating, reading_status=b.reading_status, cover_url=b.cover_url)
-        for b in sorted(rated_books, key=lambda x: (-x.rating, -(x.date_added or datetime.min).timestamp()))[:10]
+        for b in sorted(rated_books, key=lambda x: (-x.rating, -(x.date_added or datetime.min).timestamp()))
     ]
 
     worst_rated_books = [
         TopRatedBook(book_id=b.id, title=b.title or "", author=b.author, rating=b.rating, reading_status=b.reading_status, cover_url=b.cover_url)
-        for b in sorted(rated_books, key=lambda x: (x.rating, -(x.date_added or datetime.min).timestamp()))[:10]
+        for b in sorted(rated_books, key=lambda x: (x.rating, -(x.date_added or datetime.min).timestamp()))
     ]
 
     return StatisticsResponse(

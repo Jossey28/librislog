@@ -82,13 +82,28 @@ describe('RatedBooksSection', () => {
 		expect(screen.getByText('Top Rated')).toBeInTheDocument();
 	});
 
-	it('renders all books', () => {
+	it('shows first 10 books with Show More button', () => {
 		const books = Array.from({ length: 12 }, (_, i) => makeBook(i + 1, 5, `Book ${i + 1}`));
 		render(RatedBooksSection, { props: { title: 'Top Rated', books } });
+
+		for (let i = 1; i <= 10; i++) {
+			expect(screen.getByText(`Book ${i}`)).toBeInTheDocument();
+		}
+		expect(screen.queryByText('Book 11')).not.toBeInTheDocument();
+		expect(screen.queryByText('Book 12')).not.toBeInTheDocument();
+		expect(screen.getByText('statistics.showMore')).toBeInTheDocument();
+	});
+
+	it('shows all books after clicking Show More', async () => {
+		const books = Array.from({ length: 12 }, (_, i) => makeBook(i + 1, 5, `Book ${i + 1}`));
+		render(RatedBooksSection, { props: { title: 'Top Rated', books } });
+
+		await fireEvent.click(screen.getByText('statistics.showMore'));
 
 		for (let i = 1; i <= 12; i++) {
 			expect(screen.getByText(`Book ${i}`)).toBeInTheDocument();
 		}
+		expect(screen.queryByText('statistics.showMore')).not.toBeInTheDocument();
 	});
 
 	it('shows no data message when books array is empty', () => {

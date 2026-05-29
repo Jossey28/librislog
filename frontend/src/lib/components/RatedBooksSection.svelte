@@ -9,8 +9,17 @@
 
 	let selectedBook = $state<Book | null>(null);
 	let detailOpen = $state(false);
+	let visibleCount = $state(10);
 
 	const maxRating = 5;
+	const step = 10;
+
+	let visibleBooks = $derived(books.slice(0, visibleCount));
+	let hasMore = $derived(visibleCount < books.length);
+
+	function showMore() {
+		visibleCount += step;
+	}
 
 	async function openCoverBook(bookId: number) {
 		try {
@@ -34,7 +43,7 @@
 		<h2 class="card-title text-base">{title}</h2>
 		{#if books.length > 0}
 			<div class="flex flex-wrap gap-2 sm:gap-4">
-				{#each books as book, idx}
+				{#each visibleBooks as book, idx}
 					<div class="flex flex-col items-center w-[calc(50%-0.25rem)] sm:w-[calc(33.333%-0.5rem)] md:w-[calc(25%-0.75rem)] lg:w-[calc(20%-0.8rem)]">
 						<span class="badge badge-primary badge-xs sm:badge-sm mb-1">{$_('statistics.rankedNumber', { values: { rank: idx + 1 } })}</span>
 						<button
@@ -61,6 +70,13 @@
 					</div>
 				{/each}
 			</div>
+			{#if hasMore}
+				<div class="flex justify-center mt-4">
+					<button type="button" class="btn btn-outline btn-sm" onclick={showMore}>
+						{$_('statistics.showMore')}
+					</button>
+				</div>
+			{/if}
 		{:else}
 			<p class="text-base-content/70">{$_('statistics.noData')}</p>
 		{/if}
