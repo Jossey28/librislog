@@ -405,26 +405,17 @@ def get_statistics(
     rating_values = [b.rating for b in books if b.rating is not None]
     average_rating = round(mean(rating_values), 2) if rating_values else None
 
-    top_rated_books: list[TopRatedBook] = []
-    worst_rated_books: list[TopRatedBook] = []
+    rated_books = [b for b in books if b.rating is not None]
 
-    if rating_values:
-        max_rating = max(rating_values)
-        min_rating = min(rating_values)
+    top_rated_books = [
+        TopRatedBook(book_id=b.id, title=b.title or "", author=b.author, rating=b.rating, reading_status=b.reading_status, cover_url=b.cover_url)
+        for b in sorted(rated_books, key=lambda x: (-x.rating, -(x.date_added or datetime.min).timestamp()))[:10]
+    ]
 
-        candidates_top = [b for b in books if b.rating is not None and b.rating == max_rating]
-        candidates_top.sort(key=lambda x: x.date_added or datetime.min, reverse=True)
-        top_rated_books = [
-            TopRatedBook(book_id=b.id, title=b.title or "", author=b.author, rating=b.rating, reading_status=b.reading_status, cover_url=b.cover_url)
-            for b in candidates_top
-        ]
-
-        candidates_worst = [b for b in books if b.rating is not None and b.rating == min_rating]
-        candidates_worst.sort(key=lambda x: x.date_added or datetime.min, reverse=True)
-        worst_rated_books = [
-            TopRatedBook(book_id=b.id, title=b.title or "", author=b.author, rating=b.rating, reading_status=b.reading_status, cover_url=b.cover_url)
-            for b in candidates_worst
-        ]
+    worst_rated_books = [
+        TopRatedBook(book_id=b.id, title=b.title or "", author=b.author, rating=b.rating, reading_status=b.reading_status, cover_url=b.cover_url)
+        for b in sorted(rated_books, key=lambda x: (x.rating, -(x.date_added or datetime.min).timestamp()))[:10]
+    ]
 
     return StatisticsResponse(
         avg_books_per_month=avg_books_per_month,

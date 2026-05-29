@@ -54,9 +54,7 @@
 	"averageRating": "Avg Rating",
 	"noRating": "No rating",
 	"topRated": "Top Rated",
-	"worstRated": "Worst Rated",
-	"showMore": "Show more (+{count})",
-	"showLess": "Show less"
+	"worstRated": "Worst Rated"
   },
   "dashboard": {
     "title": "Reading Dashboard",

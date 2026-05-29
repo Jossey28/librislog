@@ -7,13 +7,9 @@
 
 	let { title, books }: { title: string; books: TopRatedBook[] } = $props();
 
-	let expanded = $state(false);
 	let selectedBook = $state<Book | null>(null);
 	let detailOpen = $state(false);
 
-	const initialLimit = 10;
-	const displayBooks = $derived(expanded ? books : books.slice(0, initialLimit));
-	const hiddenCount = $derived(books.length - displayBooks.length);
 	const maxRating = 5;
 
 	async function openCoverBook(bookId: number) {
@@ -36,9 +32,9 @@
 <div class="card bg-base-100 border border-base-200 shadow-sm">
 	<div class="card-body">
 		<h2 class="card-title text-base">{title}</h2>
-		{#if displayBooks.length > 0}
+		{#if books.length > 0}
 			<div class="flex flex-wrap gap-2 sm:gap-4">
-				{#each displayBooks as book, idx}
+				{#each books as book, idx}
 					<div class="flex flex-col items-center w-[calc(50%-0.25rem)] sm:w-[calc(33.333%-0.5rem)] md:w-[calc(25%-0.75rem)] lg:w-[calc(20%-0.8rem)]">
 						<span class="badge badge-primary badge-xs sm:badge-sm mb-1">{$_('statistics.rankedNumber', { values: { rank: idx + 1 } })}</span>
 						<button
@@ -65,15 +61,6 @@
 					</div>
 				{/each}
 			</div>
-			{#if books.length > initialLimit}
-				<button
-					type="button"
-					class="btn btn-ghost btn-sm mt-2"
-					onclick={() => (expanded = !expanded)}
-				>
-					{expanded ? $_('statistics.showLess') : $_('statistics.showMore', { values: { count: hiddenCount } })}
-				</button>
-			{/if}
 		{:else}
 			<p class="text-base-content/70">{$_('statistics.noData')}</p>
 		{/if}

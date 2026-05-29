@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/svelte';
+import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import RatedBooksSection from './RatedBooksSection.svelte';
 import type { TopRatedBook } from '$lib/types';
 
@@ -40,6 +40,26 @@ vi.mock('$lib/toasts', () => ({
 	}
 }));
 
+vi.mock('$lib/i18n', () => ({
+	_: {
+		subscribe: (run: (value: (key: string, opts?: Record<string, unknown>) => string) => void) => {
+			run((key: string, opts?: Record<string, unknown>) => {
+				if (opts?.values) {
+					return key.replace(/\{(\w+)\}/g, (_m: string, k: string) => String((opts.values as Record<string, unknown>)[k] ?? ''));
+				}
+				return key;
+			});
+			return () => {};
+		}
+	},
+	locale: {
+		subscribe: (run: (value: string) => void) => {
+			run('en');
+			return () => {};
+		}
+	}
+}));
+
 function makeBook(id: number, rating: number, title?: string): TopRatedBook {
 	return {
 		book_id: id,
@@ -62,50 +82,18 @@ describe('RatedBooksSection', () => {
 		expect(screen.getByText('Top Rated')).toBeInTheDocument();
 	});
 
-	it('shows only 10 books initially when more than 10 supplied', () => {
+	it('renders all books', () => {
 		const books = Array.from({ length: 12 }, (_, i) => makeBook(i + 1, 5, `Book ${i + 1}`));
 		render(RatedBooksSection, { props: { title: 'Top Rated', books } });
 
-		for (let i = 1; i <= 10; i++) {
+		for (let i = 1; i <= 12; i++) {
 			expect(screen.getByText(`Book ${i}`)).toBeInTheDocument();
 		}
-		expect(screen.queryByText('Book 11')).not.toBeInTheDocument();
-		expect(screen.queryByText('Book 12')).not.toBeInTheDocument();
 	});
 
-	it('shows "Show more" button when more than 10 books', () => {
-		const books = Array.from({ length: 11 }, (_, i) => makeBook(i + 1, 5));
-		render(RatedBooksSection, { props: { title: 'Top Rated', books } });
-		const btn = screen.getByRole('button', { name: /show more/i });
-		expect(btn).toBeInTheDocument();
-	});
-
-	it('does not show "Show more" button when 10 or fewer books', () => {
-		const books = Array.from({ length: 10 }, (_, i) => makeBook(i + 1, 5));
-		render(RatedBooksSection, { props: { title: 'Top Rated', books } });
-		expect(screen.queryByRole('button', { name: /show more/i })).not.toBeInTheDocument();
-	});
-
-	it('reveals all books when "Show more" is clicked', async () => {
-		const books = Array.from({ length: 12 }, (_, i) => makeBook(i + 1, 5, `Book ${i + 1}`));
-		render(RatedBooksSection, { props: { title: 'Top Rated', books } });
-
-		expect(screen.queryByText('Book 11')).not.toBeInTheDocument();
-
-		const showMore = screen.getByRole('button', { name: /show more/i });
-		await fireEvent.click(showMore);
-
-		expect(screen.getByText('Book 1')).toBeInTheDocument();
-		expect(screen.getByText('Book 11')).toBeInTheDocument();
-		expect(screen.getByText('Book 12')).toBeInTheDocument();
-		expect(screen.getByRole('button', { name: /show less/i })).toBeInTheDocument();
-	});
-
-	it('shows "Show more (+2)" with correct count', () => {
-		const books = Array.from({ length: 12 }, (_, i) => makeBook(i + 1, 5));
-		render(RatedBooksSection, { props: { title: 'Top Rated', books } });
-		const btn = screen.getByRole('button', { name: /show more/i });
-		expect(btn.textContent).toContain('2');
+	it('shows no data message when books array is empty', () => {
+		render(RatedBooksSection, { props: { title: 'Top Rated', books: [] } });
+		expect(screen.getByText('statistics.noData')).toBeInTheDocument();
 	});
 
 	it('calls api.books.get when a cover is clicked', async () => {
@@ -129,7 +117,7 @@ describe('RatedBooksSection', () => {
 		];
 		render(RatedBooksSection, { props: { title: 'Top Rated', books } });
 
-		const badges = screen.getAllByText(/#\d/);
+		const badges = screen.getAllByText('statistics.rankedNumber');
 		expect(badges).toHaveLength(3);
 	});
 

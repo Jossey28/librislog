@@ -54,9 +54,7 @@
 	"averageRating": "Ø Bewertung",
 	"noRating": "Keine Bewertung",
 	"topRated": "Am besten bewertet",
-	"worstRated": "Am schlechtesten bewertet",
-	"showMore": "Mehr anzeigen (+{count})",
-	"showLess": "Weniger anzeigen"
+	"worstRated": "Am schlechtesten bewertet"
 	},
   "dashboard": {
     "title": "Lese-Dashboard",
