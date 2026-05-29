@@ -120,11 +120,11 @@
 						<div class="mt-1.5 space-y-1.5">
 							<div class="relative">
 								<pre
-									class="absolute inset-0 text-xs leading-relaxed py-2 px-3 m-0 overflow-hidden pointer-events-none whitespace-pre-wrap break-all border border-transparent rounded-[var(--radius-box,0.5rem)] transform-pre"
+									class="absolute inset-0 text-xs leading-relaxed py-2 px-3 m-0 overflow-hidden pointer-events-none whitespace-pre-wrap break-all border border-transparent rounded-[var(--radius-box,0.5rem)] transform-pre font-mono"
 									aria-hidden="true"
 								><code>{@html highlightPython(config.transform ?? '')}</code>&#8203;</pre>
 								<textarea
-									class="textarea textarea-bordered w-full text-xs leading-relaxed relative bg-transparent resize-y transform-textarea"
+									class="textarea textarea-bordered w-full text-xs leading-relaxed relative bg-transparent resize-y transform-textarea font-mono whitespace-pre-wrap break-all"
 									id={`mapping-transform-${dbField}`}
 									name={`mapping-transform-${dbField}`}
 									aria-label={`Transform for ${dbField}`}
