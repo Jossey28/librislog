@@ -1,7 +1,5 @@
 <template>
-  <a :href="url" target="_blank" rel="noopener noreferrer" class="commit-info">
-    Built from commit <code>{{ sha }}</code>
-  </a>
+  Built from commit: <a :href="url" target="_blank" rel="noopener noreferrer" class="commit-info"><code>{{ sha }}</code></a>
 </template>
 
 <script setup lang="ts">
