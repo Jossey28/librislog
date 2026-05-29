@@ -1,5 +1,6 @@
 """Statistics dashboard — full stats, pages-per-day breakdown, and book-level fallback."""
 
+import calendar
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from statistics import mean
@@ -25,6 +26,7 @@ from app.schemas import (
     StatusDistribution,
     TopAuthor,
     TopAuthorCover,
+    TopRatedBook,
     YearlyBooks,
 )
 
@@ -62,8 +64,53 @@ def _month_range(start_key: str, end_key: str) -> list[str]:
     return keys
 
 
-def _extract_progress_daily_pages(entries: list, tz: ZoneInfo) -> Counter[str]:
-    """Distribute reading progress page-deltas across calendar days."""
+def _clamp_window(
+    start: datetime, end: datetime,
+    window_start: datetime | None, window_end: datetime | None,
+) -> tuple[datetime | None, datetime | None]:
+    """Clamp *start*/*end* to *window_start*/*window_end* if provided.
+    
+    Returns (clamped_start, clamped_end) or (None, None) when the span
+    does not overlap the window at all.
+    All returned datetimes are UTC-aware (matching the DB convention)
+    so callers can safely use .astimezone() and compare.
+    """
+    if window_start is not None:
+        w_start = _naive_utc(window_start)
+        s = _naive_utc(start)
+        e = _naive_utc(end)
+        if e < w_start:
+            return (None, None)
+        if s < w_start:
+            start = w_start.replace(tzinfo=timezone.utc)
+    if window_end is not None:
+        w_end = _naive_utc(window_end)
+        s = _naive_utc(start)
+        e = _naive_utc(end)
+        if s > w_end:
+            return (None, None)
+        if e > w_end:
+            end = w_end.replace(tzinfo=timezone.utc)
+    return (start, end)
+
+
+def _naive_utc(dt: datetime) -> datetime:
+    """Return a naive datetime representing the same instant as *dt* in UTC."""
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
+
+def _extract_progress_daily_pages(
+    entries: list, tz: ZoneInfo,
+    window_start: datetime | None = None, window_end: datetime | None = None,
+) -> Counter[str]:
+    """Distribute reading progress page-deltas across calendar days.
+    
+    When *window_start*/*window_end* are provided, only days within that
+    window are emitted.  The daily average is still computed from the full
+    span so the values stay correct.
+    """
     daily: Counter[str] = Counter()
     grouped: dict[int, list] = {}
     for entry in entries:
@@ -78,18 +125,27 @@ def _extract_progress_daily_pages(entries: list, tz: ZoneInfo) -> Counter[str]:
                 day_diff = (curr.created_at - prev.created_at).days + 1
                 if day_diff > 0:
                     daily_avg = delta / day_diff
-                    current = prev.created_at
-                    end_dt = curr.created_at
-                    while current <= end_dt:
-                        date_key = current.astimezone(tz).strftime("%Y-%m-%d")
+                    start, end = _clamp_window(prev.created_at, curr.created_at, window_start, window_end)
+                    if start is None:
+                        continue
+                    while start <= end:
+                        date_key = start.astimezone(tz).strftime("%Y-%m-%d")
                         daily[date_key] += daily_avg
-                        current += timedelta(days=1)
+                        start += timedelta(days=1)
 
     return daily
 
 
-def _extract_book_level_daily_pages(books: list[Book], tz: ZoneInfo) -> Counter[str]:
-    """Distribute page counts across the reading period for books finished without progress entries."""
+def _extract_book_level_daily_pages(
+    books: list[Book], tz: ZoneInfo,
+    window_start: datetime | None = None, window_end: datetime | None = None,
+) -> Counter[str]:
+    """Distribute page counts across the reading period for books finished without progress entries.
+    
+    When *window_start*/*window_end* are provided, only days within that
+    window are emitted.  The daily average is still computed from the full
+    span so the values stay correct.
+    """
     daily: Counter[str] = Counter()
     for book in books:
         if not (book.date_started and book.date_finished and book.page_count):
@@ -100,12 +156,70 @@ def _extract_book_level_daily_pages(books: list[Book], tz: ZoneInfo) -> Counter[
         if total_days <= 0:
             continue
         daily_avg = book.page_count / total_days
-        current = book.date_started
-        while current <= book.date_finished:
-            date_key = current.astimezone(tz).strftime("%Y-%m-%d")
+        start, end = _clamp_window(book.date_started, book.date_finished, window_start, window_end)
+        if start is None:
+            continue
+        while start <= end:
+            date_key = start.astimezone(tz).strftime("%Y-%m-%d")
             daily[date_key] += daily_avg
-            current += timedelta(days=1)
+            start += timedelta(days=1)
     return daily
+
+
+def _allocate_daily_avg_across_months(
+    daily_avg: float, start: datetime, end: datetime, tz: ZoneInfo
+) -> Counter[str]:
+    """Spread a per-day value proportionally across months from *start* to *end* inclusive."""
+    monthly: Counter[str] = Counter()
+    current = start
+    while current <= end:
+        _, last_dom = calendar.monthrange(current.year, current.month)
+        period_end = min(current.replace(day=last_dom), end)
+        days = (period_end - current).days + 1
+        month_key = _month_key(current, tz)
+        monthly[month_key] += daily_avg * days
+        current = period_end + timedelta(days=1)
+    return monthly
+
+
+def _compute_pages_per_month_from_progress(entries: list, tz: ZoneInfo) -> Counter[str]:
+    """Compute pages read per month from reading progress entries."""
+    monthly: Counter[str] = Counter()
+    grouped: dict[int, list] = {}
+    for entry in entries:
+        grouped.setdefault(entry.book_id, []).append(entry)
+    for book_id in sorted(grouped):
+        book_entries = sorted(grouped[book_id], key=lambda e: (e.created_at, e.page))
+        for prev, curr in zip(book_entries, book_entries[1:]):
+            delta = curr.page - prev.page
+            if delta <= 0:
+                continue
+            day_diff = (curr.created_at - prev.created_at).days + 1
+            if day_diff <= 0:
+                continue
+            m = _allocate_daily_avg_across_months(delta / day_diff, prev.created_at, curr.created_at, tz)
+            for k, v in m.items():
+                monthly[k] += v
+    return monthly
+
+
+def _compute_pages_per_month_from_books(books: list[Book], tz: ZoneInfo) -> Counter[str]:
+    """Compute pages read per month for finished books without progress entries."""
+    monthly: Counter[str] = Counter()
+    for book in books:
+        if not (book.date_started and book.date_finished and book.page_count):
+            continue
+        if book.date_finished < book.date_started:
+            continue
+        total_days = (book.date_finished - book.date_started).days + 1
+        if total_days <= 0:
+            continue
+        m = _allocate_daily_avg_across_months(
+            book.page_count / total_days, book.date_started, book.date_finished, tz
+        )
+        for k, v in m.items():
+            monthly[k] += v
+    return monthly
 
 
 @router.get("/pages-per-day", response_model=DailyPagesResponse)
@@ -146,17 +260,23 @@ def get_pages_per_day(
 
     virtual_entries = []
     for book in books:
-        if book.id in books_with_progress and book.date_started:
-            virtual_entries.append(
-                SimpleNamespace(
-                    book_id=book.id,
-                    page=0,
-                    created_at=book.date_started,
-                )
+        if book.id not in books_with_progress or not book.date_started:
+            continue
+        # Finished books without date_finished have no bounded reading
+        # period; skip to avoid spreading pages from date_started to
+        # today via a single import-created progress entry.
+        if book.reading_status == ReadingStatus.read and not book.date_finished:
+            continue
+        virtual_entries.append(
+            SimpleNamespace(
+                book_id=book.id,
+                page=0,
+                created_at=book.date_started,
             )
+        )
 
     all_progress_entries = list(progress_entries) + virtual_entries
-    progress_daily = _extract_progress_daily_pages(all_progress_entries, tz)
+    progress_daily = _extract_progress_daily_pages(all_progress_entries, tz, start_date_utc, end_date_utc)
 
     fallback_books = [
         b
@@ -167,7 +287,7 @@ def get_pages_per_day(
         and b.date_finished
         and b.page_count
     ]
-    fallback_daily = _extract_book_level_daily_pages(fallback_books, tz)
+    fallback_daily = _extract_book_level_daily_pages(fallback_books, tz, start_date_utc, end_date_utc)
 
     combined: Counter[str] = Counter()
     for k, v in progress_daily.items():
@@ -280,17 +400,20 @@ def get_statistics(
 
     virtual_entries = []
     for book in books:
-        if book.id in books_with_progress and book.date_started:
-            virtual_entries.append(
-                SimpleNamespace(
-                    book_id=book.id,
-                    page=0,
-                    created_at=book.date_started,
-                )
+        if book.id not in books_with_progress or not book.date_started:
+            continue
+        if book.reading_status == ReadingStatus.read and not book.date_finished:
+            continue
+        virtual_entries.append(
+            SimpleNamespace(
+                book_id=book.id,
+                page=0,
+                created_at=book.date_started,
             )
+        )
 
     all_progress_entries = list(progress_entries) + virtual_entries
-    progress_daily = _extract_progress_daily_pages(all_progress_entries, tz)
+    pages_read_per_month_counter = _compute_pages_per_month_from_progress(all_progress_entries, tz)
 
     fallback_books = [
         b
@@ -301,18 +424,9 @@ def get_statistics(
         and b.date_finished
         and b.page_count
     ]
-    fallback_daily = _extract_book_level_daily_pages(fallback_books, tz)
-
-    combined_daily: Counter[str] = Counter()
-    for k, v in progress_daily.items():
-        combined_daily[k] += v
-    for k, v in fallback_daily.items():
-        combined_daily[k] += v
-
-    pages_read_per_month_counter: Counter[str] = Counter()
-    for date_str, pages in combined_daily.items():
-        month_key = date_str[:7]
-        pages_read_per_month_counter[month_key] += pages
+    fallback_monthly = _compute_pages_per_month_from_books(fallback_books, tz)
+    for k, v in fallback_monthly.items():
+        pages_read_per_month_counter[k] += v
 
     if finished_books_per_month:
         avg_books_per_month = round(
@@ -373,21 +487,40 @@ def get_statistics(
 
         covers_by_author: dict[str, list[TopAuthorCover]] = {}
         for author_name in top_author_names:
-            author_cover_rows = session.exec(
-                select(Book.id, Book.reading_status, Book.cover_url)
+            max_slots = min(5, author_counts[author_name])
+            cover_rows = session.exec(
+                select(Book.id, Book.title, Book.reading_status, Book.cover_url)
                 .where(
                     Book.user_id == current_user.id,
                     Book.author == author_name,
                     Book.cover_url.is_not(None),
                 )
                 .order_by(Book.id)
-                .limit(5)
+                .limit(max_slots)
             ).all()
-            covers_by_author[author_name] = [
-                TopAuthorCover(book_id=book_id, reading_status=reading_status, cover_url=cover_url)
-                for book_id, reading_status, cover_url in author_cover_rows
-                if cover_url and book_id is not None
+            results = [
+                TopAuthorCover(book_id=book_id, title=title, reading_status=reading_status, cover_url=cover_url)
+                for book_id, title, reading_status, cover_url in cover_rows
+                if book_id is not None
             ]
+            remaining = max_slots - len(results)
+            if remaining > 0:
+                no_cover_rows = session.exec(
+                    select(Book.id, Book.title, Book.reading_status, Book.cover_url)
+                    .where(
+                        Book.user_id == current_user.id,
+                        Book.author == author_name,
+                        Book.cover_url.is_(None),
+                    )
+                    .order_by(Book.id)
+                    .limit(remaining)
+                ).all()
+                results.extend(
+                    TopAuthorCover(book_id=book_id, title=title, reading_status=reading_status, cover_url=cover_url)
+                    for book_id, title, reading_status, cover_url in no_cover_rows
+                    if book_id is not None
+                )
+            covers_by_author[author_name] = results
 
         top_authors = [
             TopAuthor(
@@ -397,6 +530,24 @@ def get_statistics(
             )
             for author_name, author_count in top_author_counts
         ]
+
+    # --- Rating stats ---
+    books_with_rating = sum(1 for b in books if b.rating is not None)
+    books_without_rating = sum(1 for b in books if b.rating is None)
+    rating_values = [b.rating for b in books if b.rating is not None]
+    average_rating = round(mean(rating_values), 2) if rating_values else None
+
+    rated_books = [b for b in books if b.rating is not None]
+
+    top_rated_books = [
+        TopRatedBook(book_id=b.id, title=b.title or "", author=b.author, rating=b.rating, reading_status=b.reading_status, cover_url=b.cover_url)
+        for b in sorted(rated_books, key=lambda x: (-x.rating, -(x.date_added or datetime.min).timestamp()))
+    ]
+
+    worst_rated_books = [
+        TopRatedBook(book_id=b.id, title=b.title or "", author=b.author, rating=b.rating, reading_status=b.reading_status, cover_url=b.cover_url)
+        for b in sorted(rated_books, key=lambda x: (x.rating, -(x.date_added or datetime.min).timestamp()))
+    ]
 
     return StatisticsResponse(
         avg_books_per_month=avg_books_per_month,
@@ -412,4 +563,9 @@ def get_statistics(
         books_finished_per_month=books_finished_per_month,
         books_finished_per_year=books_finished_per_year,
         top_authors=top_authors,
+        books_with_rating=books_with_rating,
+        books_without_rating=books_without_rating,
+        average_rating=average_rating,
+        top_rated_books=top_rated_books,
+        worst_rated_books=worst_rated_books,
     )

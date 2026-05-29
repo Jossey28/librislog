@@ -179,34 +179,46 @@
 	});
 </script>
 
-<div class="max-w-6xl mx-auto flex flex-col gap-6 min-w-0">
-	<h1 class="text-2xl font-bold">{$_('dataHygiene.title')}</h1>
-	<p class="text-sm text-base-content/70">{$_('dataHygiene.description')}</p>
+<div class="flex flex-col gap-6 max-w-5xl mx-auto">
+	<div class="hero rounded-2xl bg-base-100 shadow-sm border border-base-200">
+		<div class="hero-content text-center py-10">
+			<div class="max-w-2xl">
+				<h1 class="text-2xl sm:text-3xl font-bold tracking-tight">{$_('dataHygiene.title')}</h1>
+				<p class="text-base-content/70 mt-2">{$_('dataHygiene.description')}</p>
+			</div>
+		</div>
+	</div>
 
-	<!-- Attribute filter chips -->
-	<div class="flex flex-wrap gap-2 items-center">
-		{#each ATTRIBUTES as attr}
-			<button
-				class="btn btn-xs {selectedAttributes.includes(attr.key) ? 'btn-primary' : 'btn-outline'}"
-				onclick={() => toggleAttribute(attr.key)}
-			>
-				{$_(attr.labelKey)}
-				<span class="opacity-60">({totalMissingPerAttribute[attr.key] ?? '?'})</span>
-			</button>
-		{/each}
-		<button class="btn btn-ghost btn-xs gap-1" onclick={() => { matchMode = matchMode === 'any' ? 'all' : 'any'; void loadData(true); }}>
-			{$_(matchMode === 'any' ? 'dataHygiene.matchAny' : 'dataHygiene.matchAll')}
-			<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-				<path d="M6 9l6 6 6-6"/>
-			</svg>
-		</button>
+	<div class="card bg-base-100 border border-base-200 shadow-sm">
+		<div class="card-body">
+			<h2 class="card-title text-base">{$_('dataHygiene.sectionFilters')}</h2>
+			<div class="flex flex-wrap gap-2 items-center">
+				{#each ATTRIBUTES as attr}
+					<button
+						class="btn btn-xs {selectedAttributes.includes(attr.key) ? 'btn-primary' : 'btn-outline'}"
+						onclick={() => toggleAttribute(attr.key)}
+					>
+						{$_(attr.labelKey)}
+						<span class="opacity-60">({totalMissingPerAttribute[attr.key] ?? '?'})</span>
+					</button>
+				{/each}
+				<button class="btn btn-ghost btn-xs gap-1" onclick={() => { matchMode = matchMode === 'any' ? 'all' : 'any'; void loadData(true); }}>
+					{$_(matchMode === 'any' ? 'dataHygiene.matchAny' : 'dataHygiene.matchAll')}
+					<svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M6 9l6 6 6-6"/>
+					</svg>
+				</button>
+			</div>
+		</div>
 	</div>
 
 	<!-- Loading state -->
 	{#if loading && books.length === 0}
-		<div class="flex items-center justify-center py-12 text-base-content/60 gap-2">
-			<LoaderCircle class="w-5 h-5 animate-spin" />
-			<span>{$_('dataHygiene.loading')}</span>
+		<div class="card bg-base-100 border border-base-200 shadow-sm">
+			<div class="card-body items-center py-10">
+				<span class="loading loading-spinner loading-lg"></span>
+				<p>{$_('dataHygiene.loading')}</p>
+			</div>
 		</div>
 	<!-- Error state -->
 	{:else if error && books.length === 0}
@@ -220,77 +232,86 @@
 		</Alert>
 	<!-- Empty results -->
 	{:else if !loading && books.length === 0}
-		<p class="text-sm text-base-content/50 py-8 text-center">
-			{$_('dataHygiene.noMissingBooks')}
-		</p>
+		<div class="card bg-base-100 border border-base-200 shadow-sm">
+			<div class="card-body py-10 text-center">
+				<p class="text-base-content/60">{$_('dataHygiene.noMissingBooks')}</p>
+			</div>
+		</div>
 	<!-- Results table -->
 	{:else}
-		<div class="rounded-2xl border border-base-200">
-			<table class="table table-sm">
-				<thead>
-					<tr>
-						<th class="w-8">
-							<input
-								type="checkbox"
-								class="checkbox checkbox-xs"
-								checked={selectedBookIds.size === books.length && books.length > 0}
-								onchange={toggleSelectAll}
-								aria-label={selectedBookIds.size === books.length ? $_('dataHygiene.deselectAll') : $_('dataHygiene.selectAll')}
-							/>
-						</th>
-						<th>{$_('book.title')}</th>
-						<th class="hidden sm:table-cell">{$_('book.author')}</th>
-						<th class="hidden md:table-cell">{$_('book.isbn')}</th>
-						<th class="hidden lg:table-cell">{$_('book.publisher')}</th>
-						<th>{$_('dataHygiene.tableHeaderMissing')}</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each books as book (book.id)}
-						<tr class="hover">
-							<td>
-								<div class="flex items-center">
-									<input
-										type="checkbox"
-										class="checkbox checkbox-xs"
-										checked={selectedBookIds.has(book.id)}
-										onchange={() => toggleBook(book.id)}
-										aria-label={$_('common.search')}
-									/>
-								</div>
-							</td>
-							<td class="font-medium break-words min-w-0">{book.title}</td>
-							<td class="hidden sm:table-cell max-w-[180px] truncate">{book.author || '—'}</td>
-							<td class="hidden md:table-cell font-mono text-xs">{book.isbn || '—'}</td>
-							<td class="hidden lg:table-cell max-w-[150px] truncate">{book.publisher || '—'}</td>
-							<td>
-								<div class="flex flex-wrap gap-1">
-									{#each book.missing_attributes as attr}
-										<span class="badge badge-outline badge-xs">{$_(ATTRIBUTES.find(a => a.key === attr)?.labelKey ?? attr)}</span>
-									{/each}
-								</div>
-							</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</div>
+		<div class="divider text-base-content/60 text-xs uppercase tracking-widest font-semibold">{$_('dataHygiene.sectionResults')}</div>
 
-		<!-- Load more -->
-		{#if hasMore}
-			<div class="flex justify-center">
-				<button
-					class="btn btn-outline btn-sm"
-					onclick={loadMore}
-					disabled={loading}
-				>
-					{#if loading}
-						<LoaderCircle class="w-4 h-4 animate-spin" />
-					{/if}
-					{$_('dataHygiene.loadMore')} ({total - offset - pageSize > 0 ? total - offset - pageSize : 0} {$_('dataHygiene.remaining')})
-				</button>
+		<div class="card bg-base-100 border border-base-200 shadow-sm">
+			<div class="card-body p-0">
+				<table class="table table-sm">
+					<thead>
+						<tr>
+							<th class="w-8">
+								<input
+									type="checkbox"
+									class="checkbox checkbox-xs"
+									checked={selectedBookIds.size === books.length && books.length > 0}
+									onchange={toggleSelectAll}
+									aria-label={selectedBookIds.size === books.length ? $_('dataHygiene.deselectAll') : $_('dataHygiene.selectAll')}
+								/>
+							</th>
+							<th>{$_('book.title')}</th>
+							<th class="hidden sm:table-cell">{$_('book.author')}</th>
+							<th class="hidden md:table-cell">{$_('book.isbn')}</th>
+							<th class="hidden lg:table-cell">{$_('book.publisher')}</th>
+							<th>{$_('dataHygiene.tableHeaderMissing')}</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each books as book (book.id)}
+							<tr class="hover">
+								<td>
+									<div class="flex items-center">
+										<input
+											type="checkbox"
+											class="checkbox checkbox-xs"
+											checked={selectedBookIds.has(book.id)}
+											onchange={() => toggleBook(book.id)}
+											aria-label={$_('common.search')}
+										/>
+									</div>
+								</td>
+								<td class="font-medium break-words min-w-0">{book.title}</td>
+								<td class="hidden sm:table-cell max-w-[180px] truncate">{book.author || '—'}</td>
+								<td class="hidden md:table-cell font-mono text-xs">{book.isbn || '—'}</td>
+								<td class="hidden lg:table-cell max-w-[150px] truncate">{book.publisher || '—'}</td>
+								<td>
+									<div class="flex flex-wrap gap-1">
+										{#each book.missing_attributes as attr}
+											<span class="badge badge-outline badge-xs">{$_(ATTRIBUTES.find(a => a.key === attr)?.labelKey ?? attr)}</span>
+										{/each}
+									</div>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
 			</div>
-		{/if}
+			{#if hasMore}
+				<div class="card-body border-t border-base-200 flex flex-row items-center justify-between">
+					<span class="text-xs text-base-content/60">
+						{$_('dataHygiene.showingCount', {
+							values: { shown: books.length, total }
+						})}
+					</span>
+					<button
+						class="btn btn-outline btn-sm"
+						onclick={loadMore}
+						disabled={loading}
+					>
+						{#if loading}
+							<LoaderCircle class="w-4 h-4 animate-spin" />
+						{/if}
+						{$_('dataHygiene.loadMore')}
+					</button>
+				</div>
+			{/if}
+		</div>
 	{/if}
 
 	<!-- Batch action bar -->

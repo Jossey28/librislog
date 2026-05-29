@@ -10,6 +10,7 @@
 	import CalendarHeatmap from '$lib/components/CalendarHeatmap.svelte';
 	import BookDetailDialog from '$lib/components/BookDetailDialog.svelte';
 	import BookDrawer from '$lib/components/BookDrawer.svelte';
+	import RatedBooksSection from '$lib/components/RatedBooksSection.svelte';
 	import { RotateCcw } from '@lucide/svelte';
 
 	type Segment = {
@@ -242,6 +243,8 @@
 			</div>
 		</div>
 
+		<div class="divider text-base-content/60 text-xs uppercase tracking-widest font-semibold">{$_('statistics.sectionDistributions')}</div>
+
 		<div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
 			<div class="card bg-base-100 border border-base-200 shadow-sm">
 				<div class="card-body">
@@ -313,6 +316,8 @@
 				<p class="text-xs text-base-content/70">{$_('statistics.pagesWastedFootnote')}</p>
 			</div>
 		</div>
+
+		<div class="divider text-base-content/60 text-xs uppercase tracking-widest font-semibold">{$_('statistics.sectionCharts')}</div>
 
 		<div class="grid grid-cols-1 gap-4">
 			<div class="card bg-base-100 border border-base-200 shadow-sm">
@@ -406,9 +411,16 @@
 									{$_('statistics.booksCount', { values: { count: author.book_count } })}
 								</div>
 								{#if author.covers.length > 0}
+									{@const hoveredCover = author.covers.find(c => c.book_id === activeBookId)}
+									<div class="h-5 overflow-hidden mb-1">
+										<p
+											class="text-xs font-medium truncate transition-all duration-300 {hoveredCover ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-1'}"
+											title={hoveredCover?.title ?? ''}
+										>{hoveredCover?.title ?? ''}</p>
+									</div>
 									<!-- Covers overlap with -ml-3 to save space, pl-3 keeps the first cover fully visible. -->
 									<div
-										class="flex items-end overflow-hidden pt-4 pb-1 pl-3"
+										class="flex items-end overflow-hidden pt-2 pb-1 pl-3"
 										role="group"
 										aria-label={$_('statistics.coversForAuthor', { values: { author: author.author } })}
 										ontouchmove={(e) => {
@@ -431,11 +443,13 @@
 											style:z-index={activeBookId === cover.book_id ? 50 : coverIdx + 1}
 											data-book-id={cover.book_id}
 											onclick={() => openCoverBook(cover.book_id)}
+											onmouseenter={() => { activeBookId = cover.book_id; }}
+											onmouseleave={() => { activeBookId = null; }}
 										>
 											<img
-												src={cover.cover_url}
+												src={cover.cover_url ?? '/placeholder-cover.svg'}
 												alt={$_('book.coverForAuthor', { values: { author: author.author, index: coverIdx + 1 } })}
-												class="h-24 w-auto rounded shadow-sm ring-1 ring-base-200 bg-base-100 transition-shadow duration-200 hover:shadow-lg hover:shadow-primary/30 hover:ring-2 hover:ring-primary {activeBookId === cover.book_id ? 'shadow-lg shadow-primary/30 ring-2 ring-primary' : ''}"
+												class="h-24 w-auto rounded shadow-sm ring-1 ring-base-200 bg-base-100 object-cover transition-shadow duration-200 hover:shadow-lg hover:shadow-primary/30 hover:ring-2 hover:ring-primary {activeBookId === cover.book_id ? 'shadow-lg shadow-primary/30 ring-2 ring-primary' : ''}"
 											/>
 											</button>
 										{/each}
@@ -451,6 +465,8 @@
 				{/if}
 			</div>
 		</div>
+
+		<div class="divider text-base-content/60 text-xs uppercase tracking-widest font-semibold">{$_('statistics.sectionActivity')}</div>
 
 		<div class="card bg-base-100 border border-base-200 shadow-sm">
 			<div class="card-body">
@@ -486,6 +502,39 @@
 				{/if}
 			</div>
 		</div>
+
+		<div class="divider text-base-content/60 text-xs uppercase tracking-widest font-semibold">{$_('statistics.ratingStats')}</div>
+
+		<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+			<div class="stat bg-base-100 rounded-2xl shadow-sm border border-base-200">
+				<div class="stat-title">{$_('statistics.booksWithRating')}</div>
+				<div class="stat-value text-primary text-2xl">{formatNumber(stats.books_with_rating, 0)}</div>
+			</div>
+			<div class="stat bg-base-100 rounded-2xl shadow-sm border border-base-200">
+				<div class="stat-title">{$_('statistics.booksWithoutRating')}</div>
+				<div class="stat-value text-base-content/60 text-2xl">{formatNumber(stats.books_without_rating, 0)}</div>
+			</div>
+			<div class="stat bg-base-100 rounded-2xl shadow-sm border border-base-200">
+				<div class="stat-title">{$_('statistics.averageRating')}</div>
+				<div class="stat-value text-warning text-2xl">
+					{stats.average_rating !== null ? formatNumber(stats.average_rating, 1) : $_('statistics.noRating')}
+				</div>
+			</div>
+		</div>
+
+		{#if stats.top_rated_books.length > 0}
+			<RatedBooksSection
+				title={$_('statistics.topRated')}
+				books={stats.top_rated_books}
+			/>
+		{/if}
+
+		{#if stats.worst_rated_books.length > 0}
+			<RatedBooksSection
+				title={$_('statistics.worstRated')}
+				books={stats.worst_rated_books}
+			/>
+		{/if}
 		{/if}
 	{/if}
 </div>

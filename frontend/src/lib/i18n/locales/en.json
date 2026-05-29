@@ -47,7 +47,18 @@
 	"pagesPerDay": "pages/day",
 	"loading": "Loading statistics...",
 	"noData": "No data available yet. Start reading and tracking books to see statistics!",
-    "resetZoom": "Reset zoom"
+	"resetZoom": "Reset zoom",
+	"sectionDistributions": "Distributions",
+	"sectionCharts": "Reading Trends",
+	"sectionActivity": "Activity",
+	"ratingStats": "Rating Statistics",
+	"booksWithRating": "Books with Rating",
+	"booksWithoutRating": "Books without Rating",
+	"averageRating": "Avg Rating",
+	"noRating": "No rating",
+	"topRated": "Top Rated",
+	"worstRated": "Worst Rated",
+	"showMore": "Show more"
   },
   "dashboard": {
     "title": "Reading Dashboard",
@@ -92,6 +103,7 @@
     "addFirstBook": "Add your first book",
     "dateAdded": "Date added",
     "rating": "Rating",
+    "ratingSaved": "Rating saved",
     "desc": "Desc",
     "asc": "Asc",
     "close": "Close",
@@ -370,7 +382,8 @@
     "batchUpdateFailed": "Batch update failed due to an unexpected error. No changes were saved.",
     "tooManyBooksSelected": "Too many books selected. Please select at most {max} at a time.",
     "importMappingNameConflict": "A mapping with this name already exists.",
-    "importMappingNotFound": "Import mapping not found."
+    "importMappingNotFound": "Import mapping not found.",
+    "importFileNotFound": "Import file not found. Please upload the file again."
   },
   "oidc": {
     "orContinueWith": "or continue with",
@@ -579,6 +592,9 @@
     "noAttributeSelected": "Select at least one attribute to search for.",
     "noFieldSelected": "Select a field to update.",
     "noValueEntered": "Enter a value to set.",
+    "sectionFilters": "Filters",
+    "sectionResults": "Results",
+    "showingCount": "Showing {shown} of {total} books",
     "allSet": "Your library is in great shape! All books have complete metadata.",
     "allSetFiltered": "Your library is in great shape! All books have complete metadata for the selected attributes.",
     "tableHeaderMissing": "Missing",

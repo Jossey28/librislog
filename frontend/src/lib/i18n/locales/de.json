@@ -47,8 +47,19 @@
 	"pagesPerDay": "Seiten/Tag",
 	"loading": "Lade Statistiken...",
 	"noData": "Noch keine Daten verfügbar. Fange an, Bücher zu lesen und zu erfassen, um Statistiken zu sehen!",
-	"resetZoom": "Zoom zurücksetzen"
-  },
+	"resetZoom": "Zoom zurücksetzen",
+	"sectionDistributions": "Verteilungen",
+	"sectionCharts": "Lesetrends",
+	"sectionActivity": "Aktivität",
+	"ratingStats": "Bewertungsstatistiken",
+	"booksWithRating": "Bewertete Bücher",
+	"booksWithoutRating": "Unbewertete Bücher",
+	"averageRating": "Ø Bewertung",
+	"noRating": "Keine Bewertung",
+	"topRated": "Am besten bewertet",
+	"worstRated": "Am schlechtesten bewertet",
+	"showMore": "Mehr anzeigen"
+	},
   "dashboard": {
     "title": "Lese-Dashboard",
     "subtitle": "Ein schneller Überblick über dein Lesen",
@@ -92,6 +103,7 @@
     "addFirstBook": "Erstes Buch hinzufügen",
     "dateAdded": "Hinzugefügt am",
     "rating": "Bewertung",
+    "ratingSaved": "Bewertung gespeichert",
     "desc": "Absteigend",
     "asc": "Aufsteigend",
     "close": "Schließen",
@@ -370,7 +382,8 @@
     "fileTooLarge": "Die Datei ist zu groß. Bitte versuche eine kleinere Datei oder prüfe die Server-Limits.",
     "exportNoDatasets": "Wähle mindestens einen Datensatz zum Exportieren aus.",
     "importMappingNameConflict": "Ein Mapping mit diesem Namen existiert bereits.",
-    "importMappingNotFound": "Import-Mapping nicht gefunden."
+    "importMappingNotFound": "Import-Mapping nicht gefunden.",
+    "importFileNotFound": "Importdatei nicht gefunden. Bitte lade die Datei erneut hoch."
   },
   "oidc": {
     "orContinueWith": "oder weiter mit",
@@ -579,6 +592,9 @@
     "noAttributeSelected": "Wähle mindestens ein Attribut zum Suchen aus.",
     "noFieldSelected": "Wähle ein zu aktualisierendes Feld aus.",
     "noValueEntered": "Gib einen Wert zum Setzen ein.",
+    "sectionFilters": "Filter",
+    "sectionResults": "Ergebnisse",
+    "showingCount": "{shown} von {total} Büchern angezeigt",
     "allSet": "Deine Bibliothek ist in großartiger Verfassung! Alle Bücher haben vollständige Metadaten.",
     "allSetFiltered": "Deine Bibliothek ist in großartiger Verfassung! Alle Bücher haben vollständige Metadaten für die ausgewählten Attribute.",
     "tableHeaderMissing": "Fehlend",

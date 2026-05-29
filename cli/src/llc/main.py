@@ -1,4 +1,5 @@
 import typer
+from llc.docker import ComposeEnv
 
 app = typer.Typer(
     name="ll",
@@ -32,11 +33,17 @@ docs_app = typer.Typer(
     help="Build and serve documentation",
     rich_markup_mode="rich",
 )
+docker_app = typer.Typer(
+    name="docker",
+    help="Manage Docker containers (up, down, logs, status, shell, restart)",
+    rich_markup_mode="rich",
+)
 app.add_typer(pr_app)
 app.add_typer(tag_app)
 app.add_typer(test_app)
 app.add_typer(branch_app)
 app.add_typer(docs_app)
+app.add_typer(docker_app)
 
 
 @pr_app.command("list")
@@ -151,3 +158,61 @@ def docs_preview():
     """Preview the built VitePress documentation site."""
     from llc.docs import cmd_preview
     cmd_preview()
+
+
+@docker_app.command("up")
+def docker_up(
+    service: str | None = typer.Argument(None, help="Service to build and start (default: all)"),
+    env: ComposeEnv = typer.Option(ComposeEnv.dev, "--env", help="Compose environment to target [dev|prod|e2e]"),
+):
+    """Build and start containers (optionally a single service)."""
+    from llc.docker import cmd_up
+    cmd_up(service, env=env)
+
+
+@docker_app.command("down")
+def docker_down(
+    env: ComposeEnv = typer.Option(ComposeEnv.dev, "--env", help="Compose environment to target [dev|prod|e2e]"),
+):
+    """Stop and remove containers."""
+    from llc.docker import cmd_down
+    cmd_down(env=env)
+
+
+@docker_app.command("logs")
+def docker_logs(
+    follow: bool = typer.Option(False, "--follow", "-f", help="Follow log output"),
+    service: str | None = typer.Argument(None, help="Service name"),
+    env: ComposeEnv = typer.Option(ComposeEnv.dev, "--env", help="Compose environment to target [dev|prod|e2e]"),
+):
+    """View container logs."""
+    from llc.docker import cmd_logs
+    cmd_logs(follow=follow, service=service, env=env)
+
+
+@docker_app.command("status")
+def docker_status(
+    env: ComposeEnv = typer.Option(ComposeEnv.dev, "--env", help="Compose environment to target [dev|prod|e2e]"),
+):
+    """Show container status."""
+    from llc.docker import cmd_status
+    cmd_status(env=env)
+
+
+@docker_app.command("shell")
+def docker_shell(
+    service: str = typer.Argument(..., help="Service name (e.g. backend, frontend)"),
+):
+    """Open a shell in a running container."""
+    from llc.docker import cmd_shell
+    cmd_shell(service)
+
+
+@docker_app.command("restart")
+def docker_restart(
+    service: str = typer.Argument(..., help="Service name"),
+    env: ComposeEnv = typer.Option(ComposeEnv.dev, "--env", help="Compose environment to target [dev|prod|e2e]"),
+):
+    """Restart a service."""
+    from llc.docker import cmd_restart
+    cmd_restart(service, env=env)

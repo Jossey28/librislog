@@ -140,8 +140,18 @@ export interface TopAuthor {
 
 export interface TopAuthorCover {
 	book_id: number;
+	title: string;
 	reading_status: ReadingStatus;
 	cover_url: string;
+}
+
+export interface TopRatedBook {
+	book_id: number;
+	title: string;
+	author: string | null;
+	rating: number;
+	reading_status: ReadingStatus;
+	cover_url: string | null;
 }
 
 export interface StatisticsResponse {
@@ -158,6 +168,11 @@ export interface StatisticsResponse {
 	books_finished_per_month: MonthlyBooks[];
 	books_finished_per_year: YearlyBooks[];
 	top_authors: TopAuthor[];
+	books_with_rating: number;
+	books_without_rating: number;
+	average_rating: number | null;
+	top_rated_books: TopRatedBook[];
+	worst_rated_books: TopRatedBook[];
 }
 
 export type UserRole = 'admin' | 'user';
