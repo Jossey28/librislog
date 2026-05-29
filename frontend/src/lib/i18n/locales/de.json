@@ -381,7 +381,8 @@
     "fileTooLarge": "Die Datei ist zu groß. Bitte versuche eine kleinere Datei oder prüfe die Server-Limits.",
     "exportNoDatasets": "Wähle mindestens einen Datensatz zum Exportieren aus.",
     "importMappingNameConflict": "Ein Mapping mit diesem Namen existiert bereits.",
-    "importMappingNotFound": "Import-Mapping nicht gefunden."
+    "importMappingNotFound": "Import-Mapping nicht gefunden.",
+    "importFileNotFound": "Importdatei nicht gefunden. Bitte lade die Datei erneut hoch."
   },
   "oidc": {
     "orContinueWith": "oder weiter mit",

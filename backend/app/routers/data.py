@@ -293,6 +293,7 @@ async def execute_import_data(
     async def event_generator():
         with Session(stream_bind) as session:
             completed = False
+            import_failed_rows = 0
             final_error: str | None = None
             try:
                 async for event in execute_import(
@@ -305,6 +306,7 @@ async def execute_import_data(
                 ):
                     if event.get("event") == "complete":
                         completed = True
+                        import_failed_rows = event.get("failed", 0)
                     if event.get("event") == "error":
                         final_error = str(event.get("message") or "Import failed")
                     yield f"data: {json.dumps(event)}\n\n"
@@ -321,7 +323,7 @@ async def execute_import_data(
                 final_error = 'error.importExecutionFailed'
                 yield f"data: {json.dumps({'event': 'error', 'message': 'error.importExecutionFailed'})}\n\n"
             finally:
-                if completed or final_error is not None:
+                if completed and import_failed_rows == 0 and final_error is None:
                     delete_parsed_upload(body.file_id, current_user.id)
 
     return StreamingResponse(
