@@ -409,7 +409,9 @@
     "dataManagement": {
       "title": "Manage my data",
       "description": "Export your library or import books from a CSV/JSON file.",
-      "link": "Import / Export"
+      "link": "Import / Export",
+      "missingCoversDescription": "Quickly assign missing covers with auto-suggestions.",
+      "missingCoversLink": "Manage Missing Covers"
     },
     "dangerZone": {
       "title": "Danger Zone",
@@ -611,6 +613,33 @@
     "thankYouText": "LibrisLog would not exist without the amazing open-source libraries and frameworks it builds upon. Our thanks go to all developers who contribute to these projects.",
     "frontend": "Frontend",
     "backend": "Backend",
-    "devTools": "Dev Tools"
+    "devTools": "Dev Tools",
+    "documentation": "Documentation"
+  },
+  "missingCovers": {
+    "title": "Manage Missing Covers",
+    "header": "{count} {count, plural, one {Book} other {Books}} Missing Covers",
+    "bookInfo": "{title} by {author}",
+    "isbnLabel": "ISBN: {isbn}",
+    "noIsbn": "This book has no ISBN. Automatic cover search is not available.",
+    "noCandidates": "No cover could be determined automatically.",
+    "searchGoogle": "Search Cover on Google",
+    "searchGoogleAria": "Open Google image search for this book in a new tab",
+    "manualUrlLabel": "Or paste a cover image URL",
+    "manualUrlPlaceholder": "https://example.com/cover.jpg",
+    "manualUrlSave": "Save Cover",
+    "manualUrlInvalid": "Please enter a valid HTTP(S) URL",
+    "manualUrlNotHttps": "Warning: URL is not HTTPS. Prefer HTTPS for security.",
+    "skip": "Skip",
+    "skipAria": "Skip this book and go to the next",
+    "coverSaved": "Cover saved",
+    "coverSaveFailed": "Failed to save cover",
+    "allDone": "All books have covers! Great job.",
+    "allDoneSub": "Every book in your library now has a cover image.",
+    "loadingBook": "Loading next book...",
+    "loadingCandidates": "Searching cover sources...",
+    "keyboardHint": "Tip: Press 1\u20139 to select a cover, \u2192 to skip",
+    "candidatesError": "Cover search failed. You can still use manual import.",
+    "retry": "Retry"
   }
 }

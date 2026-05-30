@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError as SQLAIntegrityError
 from sqlmodel import Session
 
 from app.config import settings
-from app.models import User
+from app.models import Book, User
 import app.routers.books as books_router
 
 
@@ -250,6 +250,70 @@ def test_list_books_supports_limit_and_offset(client: TestClient) -> None:
     assert second_page.status_code == 200
     second_body = second_page.json()
     assert [item["title"] for item in second_body["books"]] == ["Third"]
+
+
+async def _fake_download_cover(url: str, covers_dir: str | Path, http_client: Any, user_id: int) -> str:
+    filename = "test_cover.jpg"
+    (Path(covers_dir) / filename).write_bytes(b"img")
+    return filename
+
+
+def test_list_books_filter_has_cover_excludes_empty_string(client: TestClient, session: Session, monkeypatch: MonkeyPatch) -> None:
+    """A book with cover_url='' (bypassing validator) is treated as missing a cover."""
+    monkeypatch.setattr(books_router, "import_cover_from_url", _fake_download_cover)
+    book = _create_book(client, title="Empty Cover")
+
+    # Bypass the model validator by setting cover_url to "" via raw SQL
+    from sqlalchemy import update as sa_update
+    session.exec(sa_update(Book).where(Book.id == book["id"]).values(cover_url=""))
+    session.commit()
+
+    _create_book(client, title="Real Cover", cover_url="http://example.com/real.jpg")
+
+    resp = client.get("/api/books?has_cover=true")
+    assert resp.status_code == 200
+    titles = [b["title"] for b in resp.json()["books"]]
+    assert "Real Cover" in titles
+    assert "Empty Cover" not in titles
+
+
+def test_list_books_filter_has_cover_false(client: TestClient, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "covers_dir", str(tmp_path))
+    monkeypatch.setattr(books_router, "import_cover_from_url", _fake_download_cover)
+    _create_book(client, title="No Cover", cover_url=None)
+    _create_book(client, title="With Cover", cover_url="http://example.com/cover.jpg")
+
+    resp = client.get("/api/books?has_cover=false")
+    assert resp.status_code == 200
+    data = resp.json()
+    titles = [b["title"] for b in data["books"]]
+    assert "No Cover" in titles
+    assert "With Cover" not in titles
+
+
+def test_list_books_filter_has_cover_true(client: TestClient, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "covers_dir", str(tmp_path))
+    monkeypatch.setattr(books_router, "import_cover_from_url", _fake_download_cover)
+    _create_book(client, title="No Cover", cover_url=None)
+    _create_book(client, title="With Cover", cover_url="http://example.com/cover.jpg")
+
+    resp = client.get("/api/books?has_cover=true")
+    assert resp.status_code == 200
+    data = resp.json()
+    titles = [b["title"] for b in data["books"]]
+    assert "With Cover" in titles
+    assert "No Cover" not in titles
+
+
+def test_list_books_without_has_cover_returns_all(client: TestClient, tmp_path: Path, monkeypatch: MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "covers_dir", str(tmp_path))
+    monkeypatch.setattr(books_router, "import_cover_from_url", _fake_download_cover)
+    _create_book(client, title="Book A", cover_url=None)
+    _create_book(client, title="Book B", cover_url="http://example.com/cover.jpg")
+
+    resp = client.get("/api/books")
+    assert resp.status_code == 200
+    assert len(resp.json()["books"]) == 2
 
 
 def test_update_book_to_did_not_finish_status(client: TestClient) -> None:

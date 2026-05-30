@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from typing import List, Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+import sqlalchemy as sa
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, func, or_, select
 
@@ -140,6 +141,7 @@ def _build_book_read_with_tags(book: Book, tags_text: str | None) -> BookRead:
 def list_books(
     status: Optional[ReadingStatus] = Query(default=None),
     q: Optional[str] = Query(default=None),
+    has_cover: Optional[bool] = Query(default=None),
     sort: Literal["title", "date_added", "date_started", "date_finished", "rating"] = Query(
         default="date_added"
     ),
@@ -180,6 +182,14 @@ def list_books(
                 Book.id.in_(matching_tag_book_ids),
             )
         )
+
+    if has_cover is not None:
+        if has_cover:
+            base_statement = base_statement.where(Book.cover_url.is_not(None), Book.cover_url != "")
+        else:
+            base_statement = base_statement.where(
+                sa.or_(Book.cover_url.is_(None), Book.cover_url == "")
+            )
 
     total = session.exec(
         select(func.count()).select_from(base_statement.subquery())
