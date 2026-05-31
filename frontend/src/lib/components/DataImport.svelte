@@ -57,6 +57,14 @@
 		importResult = null;
 		showAllValidation = false;
 		showAllFailures = false;
+		selectedMappingId = '';
+		mappingName = '';
+		missingMappingFields = [];
+		preview = null;
+		previewMappingSnapshot = null;
+		loadingPreview = false;
+		validating = false;
+		pendingDeleteMappingId = null;
 	}
 
 	async function refreshMappings() {

@@ -344,7 +344,7 @@
 	});
 </script>
 
-<div id="profile-content" class="max-w-3xl mx-auto flex flex-col gap-6">
+<div id="profile-content" class="max-w-5xl mx-auto flex flex-col gap-6">
 	<h1 class="text-2xl font-bold">{$_('user.profile')}</h1>
 
 	<div id="section-profile" class="scroll-mt-24 card bg-base-100 border border-base-200 shadow-sm rounded-2xl">
@@ -493,11 +493,20 @@
 	<div id="section-data" class="scroll-mt-24 card bg-base-100 border border-base-200 shadow-sm rounded-2xl">
 		<div class="card-body gap-3">
 			<h2 class="text-lg font-semibold">{$_('profile.dataManagement.title')}</h2>
-			<p class="text-sm text-base-content/70">{$_('profile.dataManagement.description')}</p>
-			<a class="btn btn-outline btn-sm w-fit" href="/data?tab=export">{$_('profile.dataManagement.link')}</a>
-			<div class="divider my-1"></div>
-			<p class="text-sm text-base-content/70">{$_('dataHygiene.description')}</p>
-			<a class="btn btn-outline btn-sm w-fit" href="/data-hygiene">{$_('dataHygiene.title')}</a>
+			<div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+				<div class="border border-base-300 rounded-xl p-4 flex flex-col gap-2">
+					<p class="text-sm text-base-content/70">{$_('profile.dataManagement.description')}</p>
+					<a class="btn btn-outline btn-sm self-start" href="/data?tab=export">{$_('profile.dataManagement.link')}</a>
+				</div>
+				<div class="border border-base-300 rounded-xl p-4 flex flex-col gap-2">
+					<p class="text-sm text-base-content/70">{$_('dataHygiene.description')}</p>
+					<a class="btn btn-outline btn-sm self-start" href="/data-hygiene">{$_('dataHygiene.title')}</a>
+				</div>
+				<div class="border border-base-300 rounded-xl p-4 flex flex-col gap-2">
+					<p class="text-sm text-base-content/70">{$_('profile.dataManagement.missingCoversDescription')}</p>
+					<a class="btn btn-outline btn-sm self-start" href="/missing-covers">{$_('profile.dataManagement.missingCoversLink')}</a>
+				</div>
+			</div>
 		</div>
 	</div>
 

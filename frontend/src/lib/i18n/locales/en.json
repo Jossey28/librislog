@@ -38,16 +38,27 @@
     "coversForAuthor": "Book covers for {author}",
     "booksCount": "{count} {count, plural, one {book} other {books}}",
     "unknownLanguage": "Unknown",
-	"pagesReadCalendar": "Reading Activity (Last 365 Days)",
-	"noCalendarData": "No reading data available for the past year",
-	"pagesOver": "pages over",
-	"daysLabel": "days",
-	"avgPerDay": "Avg per active day:",
-	"avgPerDayAll": "Avg per day (365 days):",
-	"pagesPerDay": "pages/day",
-	"loading": "Loading statistics...",
-	"noData": "No data available yet. Start reading and tracking books to see statistics!",
-    "resetZoom": "Reset zoom"
+    "pagesReadCalendar": "Reading Activity (Last 365 Days)",
+    "noCalendarData": "No reading data available for the past year",
+    "pagesOver": "pages over",
+    "daysLabel": "days",
+    "avgPerDay": "Avg per active day:",
+    "avgPerDayAll": "Avg per day (365 days):",
+    "pagesPerDay": "pages/day",
+    "loading": "Loading statistics...",
+    "noData": "No data available yet. Start reading and tracking books to see statistics!",
+    "resetZoom": "Reset zoom",
+    "sectionDistributions": "Distributions",
+    "sectionCharts": "Reading Trends",
+    "sectionActivity": "Activity",
+    "ratingStats": "Rating Statistics",
+    "booksWithRating": "Books with Rating",
+    "booksWithoutRating": "Books without Rating",
+    "averageRating": "Avg Rating",
+    "noRating": "No rating",
+    "topRated": "Top Rated",
+    "worstRated": "Worst Rated",
+    "showMore": "Show more"
   },
   "dashboard": {
     "title": "Reading Dashboard",
@@ -92,6 +103,7 @@
     "addFirstBook": "Add your first book",
     "dateAdded": "Date added",
     "rating": "Rating",
+    "ratingSaved": "Rating saved",
     "desc": "Desc",
     "asc": "Asc",
     "close": "Close",
@@ -251,7 +263,7 @@
       "title": "Book was already finished",
       "message": "This book was finished on {finishedDate}. What should we do?",
       "keepFinished": "Keep finish date",
-      "clearAndStart": "Clear & start today",
+      "clearAndStart": "Clear finish date & start today",
       "keepDesc": "Keeps the finish date ({finishedDate}) and does not set a start date.",
       "clearDesc": "Removes the finish date and sets today ({newStartDate}) as the start date."
     }
@@ -370,7 +382,8 @@
     "batchUpdateFailed": "Batch update failed due to an unexpected error. No changes were saved.",
     "tooManyBooksSelected": "Too many books selected. Please select at most {max} at a time.",
     "importMappingNameConflict": "A mapping with this name already exists.",
-    "importMappingNotFound": "Import mapping not found."
+    "importMappingNotFound": "Import mapping not found.",
+    "importFileNotFound": "Import file not found. Please upload the file again."
   },
   "oidc": {
     "orContinueWith": "or continue with",
@@ -396,7 +409,9 @@
     "dataManagement": {
       "title": "Manage my data",
       "description": "Export your library or import books from a CSV/JSON file.",
-      "link": "Import / Export"
+      "link": "Import / Export",
+      "missingCoversDescription": "Quickly assign missing covers with auto-suggestions.",
+      "missingCoversLink": "Manage Missing Covers"
     },
     "dangerZone": {
       "title": "Danger Zone",
@@ -579,6 +594,9 @@
     "noAttributeSelected": "Select at least one attribute to search for.",
     "noFieldSelected": "Select a field to update.",
     "noValueEntered": "Enter a value to set.",
+    "sectionFilters": "Filters",
+    "sectionResults": "Results",
+    "showingCount": "Showing {shown} of {total} books",
     "allSet": "Your library is in great shape! All books have complete metadata.",
     "allSetFiltered": "Your library is in great shape! All books have complete metadata for the selected attributes.",
     "tableHeaderMissing": "Missing",
@@ -595,6 +613,33 @@
     "thankYouText": "LibrisLog would not exist without the amazing open-source libraries and frameworks it builds upon. Our thanks go to all developers who contribute to these projects.",
     "frontend": "Frontend",
     "backend": "Backend",
-    "devTools": "Dev Tools"
+    "devTools": "Dev Tools",
+    "documentation": "Documentation"
+  },
+  "missingCovers": {
+    "title": "Manage Missing Covers",
+    "header": "{count} {count, plural, one {Book} other {Books}} Missing Covers",
+    "bookInfo": "{title} by {author}",
+    "isbnLabel": "ISBN: {isbn}",
+    "noIsbn": "This book has no ISBN. Automatic cover search is not available.",
+    "noCandidates": "No cover could be determined automatically.",
+    "searchGoogle": "Search Cover on Google",
+    "searchGoogleAria": "Open Google image search for this book in a new tab",
+    "manualUrlLabel": "Alternatively, paste a cover image URL",
+    "manualUrlPlaceholder": "https://example.com/cover.jpg",
+    "manualUrlSave": "Save Cover",
+    "manualUrlInvalid": "Please enter a valid HTTP(S) URL",
+    "manualUrlNotHttps": "Warning: URL is not HTTPS. Prefer HTTPS for security.",
+    "skip": "Skip",
+    "skipAria": "Skip this book and go to the next",
+    "coverSaved": "Cover saved",
+    "coverSaveFailed": "Failed to save cover",
+    "allDone": "All books have covers! Great job.",
+    "allDoneSub": "Every book in your library now has a cover image.",
+    "loadingBook": "Loading next book...",
+    "loadingCandidates": "Searching cover sources...",
+    "keyboardHint": "Tip: Press 1\u20139 to select a cover, \u2192 to skip",
+    "candidatesError": "Cover search failed. You can still use manual import.",
+    "retry": "Retry"
   }
 }

@@ -66,6 +66,22 @@ Create and delete semantic version tags.
 | `llc tag create` | Interactive tag creation — picks the branch, suggests the next version (major/minor/patch bump), creates and pushes the tag |
 | `llc tag delete` | Interactive tag deletion — select from recent tags or enter a name, deletes locally and remotely |
 
+### `llc docker`
+
+Manage Docker containers using compose files.
+
+All commands accept `--env [dev|prod|e2e]` to select the compose file
+(default: `dev`, which uses `docker-compose.dev.yml`).
+
+| Command | Description |
+|---------|-------------|
+| `llc docker up [service]` | Build and start containers (all, or a single service) |
+| `llc docker down` | Stop and remove containers |
+| `llc docker logs [-f] [service]` | View container logs |
+| `llc docker status` | Show container status |
+| `llc docker shell <service>` | Open a shell in a running container |
+| `llc docker restart <service>` | Restart a service |
+
 ### `llc branch`
 
 Create, delete, and sync local branches.

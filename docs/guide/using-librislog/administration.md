@@ -25,11 +25,11 @@ Click "Delete" to remove a user account. You cannot delete your own account from
 
 ### Creating a Backup
 
-Downloads the entire SQLite database as a `.db` file. This is a complete snapshot of your library, users, and settings.
+Downloads a ZIP archive containing the SQLite database, cover images, and import temp files. This is a complete snapshot of your library, users, and settings.
 
 ### Restoring a Backup
 
-Upload a previously downloaded `.db` file to restore the database. The app validates the backup before applying it.
+Upload a previously downloaded `.zip` backup file to restore the database. The app validates the backup before applying it. Backups from older versions are automatically migrated to the current schema on restore.
 
 ::: warning
 Restoring overwrites all current data. Create a fresh backup first if you want to preserve your current library.

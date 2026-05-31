@@ -3,6 +3,7 @@
 import csv
 import hashlib
 import json
+import logging
 import re
 import secrets
 from datetime import datetime, timezone
@@ -16,9 +17,12 @@ from sqlmodel import Session, select
 from app.config import settings
 from app.models import Book, ReadingProgress, ReadingStatus, User
 from app.schemas import ImportFieldConfig
+
+logger = logging.getLogger(__name__)
 from app.time_utils import utcnow
 from app.services.cover_storage import download_cover
 from app.services.tags import sync_book_tags
+from app.services.isbn_utils import normalize_isbn
 
 BOOK_IMPORT_FIELDS: list[str] = [
     "title",
@@ -491,17 +495,37 @@ def validate_import(
             _parse_year(row_data.get("published_year"), "published_year")
             _parse_int(row_data.get("page_count"), "page_count")
             reading_status = _parse_reading_status(row_data.get("reading_status"))
-            date_started = _parse_datetime(row_data.get("date_started"), "date_started")
-            date_finished = _parse_datetime(row_data.get("date_finished"), "date_finished")
-            if date_started and date_finished and date_started > date_finished:
-                errors.append(f"Row {idx}: date_started is after date_finished")
-                continue
             _normalize_language(
                 None if row_data.get("language") is None else str(row_data.get("language"))
             )
+            isbn_raw = row_data.get("isbn")
+            if isbn_raw:
+                normalize_isbn(str(isbn_raw))
         except ValueError as exc:
             errors.append(f"Row {idx}: {exc}")
             continue
+
+        date_started: datetime | None = None
+        try:
+            date_started = _parse_datetime(row_data.get("date_started"), "date_started")
+        except ValueError as exc:
+            errors.append(f"Row {idx}: {exc}")
+
+        date_finished: datetime | None = None
+        try:
+            date_finished = _parse_datetime(row_data.get("date_finished"), "date_finished")
+        except ValueError as exc:
+            errors.append(f"Row {idx}: {exc}")
+
+        if date_started and date_finished and date_started > date_finished:
+            errors.append(f"Row {idx}: date_started is after date_finished")
+            continue
+
+        if reading_status == ReadingStatus.read and not date_finished:
+            warnings.append(
+                f"Row {idx}: marked as 'read' but has no finished date; "
+                "without a finish date the book will not count toward monthly statistics"
+            )
 
         if create_progress_for_read and reading_status == ReadingStatus.read and not row_data.get("page_count"):
             warnings.append(f"Row {idx}: marked as 'read' but has no page count; will not create a progress entry")
@@ -572,16 +596,36 @@ def preview_import(
                 row_errors.append("Rating out of range, will be ignored")
             _parse_year(row_data.get("published_year"), "published_year")
             _parse_int(row_data.get("page_count"), "page_count")
-            _parse_reading_status(row_data.get("reading_status"))
-            date_started = _parse_datetime(row_data.get("date_started"), "date_started")
-            date_finished = _parse_datetime(row_data.get("date_finished"), "date_finished")
-            if date_started and date_finished and date_started > date_finished:
-                row_errors.append("date_started is after date_finished")
+            reading_status = _parse_reading_status(row_data.get("reading_status"))
             _normalize_language(
                 None if row_data.get("language") is None else str(row_data.get("language"))
             )
+            isbn_raw = row_data.get("isbn")
+            if isbn_raw:
+                normalize_isbn(str(isbn_raw))
         except ValueError as exc:
             row_errors.append(str(exc))
+
+        date_started: datetime | None = None
+        try:
+            date_started = _parse_datetime(row_data.get("date_started"), "date_started")
+        except ValueError as exc:
+            row_errors.append(str(exc))
+
+        date_finished: datetime | None = None
+        try:
+            date_finished = _parse_datetime(row_data.get("date_finished"), "date_finished")
+        except ValueError as exc:
+            row_errors.append(str(exc))
+
+        if date_started and date_finished and date_started > date_finished:
+            row_errors.append("date_started is after date_finished")
+
+        if reading_status == ReadingStatus.read and not date_finished:
+            row_errors.append(
+                "Marked as 'read' but has no finished date; "
+                "without a finish date the book will not count toward monthly statistics"
+            )
 
         # Convert raw values to strings for display
         source_display = {k: str(v) if v is not None else "" for k, v in row.items()}
@@ -659,10 +703,27 @@ async def execute_import(
                 language = _normalize_language(
                     None if row_data.get("language") is None else str(row_data.get("language"))
                 )
-                date_started = _parse_datetime(row_data.get("date_started"), "date_started")
-                date_finished = _parse_datetime(row_data.get("date_finished"), "date_finished")
+                date_errors: list[str] = []
+                date_started: datetime | None = None
+                try:
+                    date_started = _parse_datetime(row_data.get("date_started"), "date_started")
+                except ValueError as exc:
+                    date_errors.append(str(exc))
+
+                date_finished: datetime | None = None
+                try:
+                    date_finished = _parse_datetime(row_data.get("date_finished"), "date_finished")
+                except ValueError as exc:
+                    date_errors.append(str(exc))
+
+                if date_errors:
+                    raise ValueError("; ".join(date_errors))
+
                 if date_started and date_finished and date_started > date_finished:
                     raise ValueError("date_started is after date_finished")
+
+                if reading_status == ReadingStatus.read and not date_finished:
+                    raise ValueError("Marked as 'read' but has no finished date")
 
                 cover_url = None
                 raw_cover = row_data.get("cover_url")
@@ -695,8 +756,8 @@ async def execute_import(
                 session.add(book)
                 session.flush()
 
-                if create_progress_for_read and reading_status == ReadingStatus.read and page_count is not None:
-                    log_date = date_finished if date_finished is not None else utcnow()
+                if create_progress_for_read and reading_status == ReadingStatus.read and page_count is not None and date_finished is not None:
+                    log_date = date_finished
                     if log_date.tzinfo is None:
                         log_date = log_date.replace(tzinfo=timezone.utc)
                     progress_entry = ReadingProgress(
@@ -763,7 +824,7 @@ PREDEFINED_MAPPINGS: list[dict[str, Any]] = [
             "title": {"source": "Title", "transform": None},
             "subtitle": {"source": "", "transform": None},
             "author": {"source": "Author", "transform": None},
-            "isbn": {"source": "ISBN13", "transform": None},
+            "isbn": {"source": "ISBN13", "transform": "value.replace('=', '').replace('\"', '').strip() if value else None"},
             "publisher": {"source": "Publisher", "transform": None},
             "published_year": {
                 "source": "Original Publication Year",
@@ -779,7 +840,7 @@ PREDEFINED_MAPPINGS: list[dict[str, Any]] = [
             "blurb": {"source": "", "transform": None},
             "rating": {
                 "source": "My Rating",
-                "transform": "str(int(value)) if value and str(value).strip() else None",
+                "transform": "None if not value or value.strip() == '0' else value.strip()",
             },
             "reading_status": {
                 "source": "Exclusive Shelf",
@@ -790,8 +851,23 @@ PREDEFINED_MAPPINGS: list[dict[str, Any]] = [
                     "return status"
                 ),
             },
-            "date_started": {"source": "Date Added", "transform": None},
-            "date_finished": {"source": "Date Read", "transform": None},
+            "date_started": {"source": "Date Added", "transform": "value.replace('/', '-') if value else None"},
+            "date_finished": {
+                "source": "Date Read",
+                "transform": (
+                    "df = None if not value or (row.get('Date Added') "
+                    "and value < row['Date Added']) "
+                    "else value.replace('/', '-')\n"
+                    "# Uncomment the following lines, to add date_finished to \"Date Added + 1 day\" "
+                    "in case Good Reads set status == \"read\" but did not provide a finish date\n"
+                    "#if not df and row.get(\"Date Added\") and row.get(\"Exclusive Shelf\") == \"read\":\n"
+                    "#\t# Fallback to date_added + 1\n"
+                    "#\tfrom datetime import datetime, timedelta\n"
+                    "#\treturn (datetime.strptime(row[\"Date Added\"], "
+                    "\"%Y/%m/%d\") + timedelta(days=1)).strftime(\"%Y-%m-%d\")\n"
+                    "return df"
+                ),
+            },
             "cover_url": {"source": "", "transform": None},
         },
     },

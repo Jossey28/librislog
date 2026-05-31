@@ -9,6 +9,7 @@ import textwrap
 from typing import Any, Callable
 
 from RestrictedPython import compile_restricted
+from RestrictedPython.Eval import default_guarded_getitem
 from RestrictedPython.Guards import safe_builtins, safer_getattr
 
 
@@ -18,6 +19,7 @@ class TransformExecutionError(Exception):
 # Whitelisted modules available in transform globals
 _TRANSFORM_MODULES: dict[str, Any] = {
     "datetime": __import__("datetime"),
+    "time": __import__("time"),
     "re": __import__("re"),
     "json": __import__("json"),
     "math": __import__("math"),
@@ -41,6 +43,7 @@ _CUSTOM_BUILTINS["__import__"] = _guarded_import
 _TRANSFORM_GLOBALS: dict[str, Any] = {
     "__builtins__": _CUSTOM_BUILTINS,
     "_getattr_": safer_getattr,
+    "_getitem_": default_guarded_getitem,
     "_getiter_": iter,
     "_iter_unpack_sequence_": lambda x, y: x,
     **_TRANSFORM_MODULES,
@@ -71,7 +74,7 @@ _TRANSFORM_GLOBALS: dict[str, Any] = {
 }
 
 # Whitelisted modules that may be imported
-_ALLOWED_IMPORTS: set[str] = {"datetime", "re", "json", "math"}
+_ALLOWED_IMPORTS: set[str] = {"datetime", "time", "re", "json", "math"}
 
 # AST node types that are forbidden in transforms
 _FORBIDDEN_AST_NODES: tuple[type[ast.AST], ...] = (

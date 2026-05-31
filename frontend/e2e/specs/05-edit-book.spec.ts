@@ -58,4 +58,34 @@ test.describe('Edit Book', () => {
 		}
 		await page.waitForTimeout(500);
 	});
+
+	test('5.3 set and persist rating from detail dialog', async ({ page }) => {
+		const library = new LibraryPage(page);
+		await library.goto();
+		await page.waitForTimeout(1000);
+
+		await library.switchTab('want to read');
+		await page.waitForTimeout(500);
+
+		const cards = library.getBookCards();
+		await expect(cards.first()).toBeVisible({ timeout: 5000 });
+		await cards.first().click();
+		await page.waitForSelector('[role="dialog"]', { timeout: 5000 });
+
+		const star2 = page.locator('[role="dialog"] input[type="radio"][aria-label*="2"]');
+		await expect(star2).toBeVisible({ timeout: 5000 });
+		await star2.click();
+
+		await expect(page.getByText(/Rating saved|Bewertung gespeichert/i)).toBeVisible({ timeout: 3000 });
+
+		const closeBtn = page.locator('button[aria-label*="Close"], button[aria-label*="Schließen"]').first();
+		await closeBtn.click();
+		await page.waitForTimeout(500);
+
+		await cards.first().click();
+		await page.waitForSelector('[role="dialog"]', { timeout: 5000 });
+
+		const checkedStar = page.locator('[role="dialog"] input[type="radio"]:checked');
+		await expect(checkedStar).toHaveAttribute('aria-label', /2 (star|Stern)/);
+	});
 });

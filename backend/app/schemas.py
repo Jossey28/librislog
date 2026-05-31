@@ -223,8 +223,19 @@ class TopAuthor(SQLModel):
 class TopAuthorCover(SQLModel):
     """Cover reference for a book by a top author."""
     book_id: int
+    title: str
     reading_status: ReadingStatus
-    cover_url: str
+    cover_url: str | None
+
+
+class TopRatedBook(SQLModel):
+    """A book appearing in top/worst rated lists."""
+    book_id: int
+    title: str
+    author: Optional[str]
+    rating: int
+    reading_status: ReadingStatus
+    cover_url: Optional[str]
 
 
 class StatisticsResponse(SQLModel):
@@ -242,6 +253,11 @@ class StatisticsResponse(SQLModel):
     books_finished_per_month: list[MonthlyBooks]
     books_finished_per_year: list[YearlyBooks]
     top_authors: list[TopAuthor]
+    books_with_rating: int
+    books_without_rating: int
+    average_rating: Optional[float]
+    top_rated_books: list[TopRatedBook]
+    worst_rated_books: list[TopRatedBook]
 
 
 class UserLogin(SQLModel):
