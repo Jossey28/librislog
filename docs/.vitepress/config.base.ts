@@ -52,6 +52,7 @@ export default defineConfig({
                 { text: 'CLI Reference', link: '/guide/cli' },
               ],
             },
+            { text: 'Integrations 🔗', link: '/api/integrations/' },
           ],
         },
         {
@@ -75,6 +76,14 @@ export default defineConfig({
           items: [
             { text: 'Overview', link: '/api/' },
             { text: 'Headless Setup & API Keys', link: '/api/setup' },
+            {
+              text: 'Integrations',
+              link: '/api/integrations/',
+              collapsed: true,
+              items: [
+                { text: 'Homepage', link: '/api/integrations/homepage' },
+              ],
+            },
           ],
         },
       ],
