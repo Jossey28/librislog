@@ -885,7 +885,7 @@ def get_predefined_mapping(mapping_id: int) -> dict[str, object] | None:
     return None
 
 
-def cleanup_temp_files(max_age_hours: int = 24) -> None:
+def cleanup_temp_files(max_age_hours: int = 48) -> None:
     """Delete temporary import files older than *max_age_hours*.
 
     Args:
