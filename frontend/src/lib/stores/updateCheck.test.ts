@@ -130,6 +130,7 @@ describe('checkForUpdate', () => {
 			latestVersion: 'v2.0.0',
 			releaseUrl: 'https://github.com/codebude/librislog/releases/tag/v2.0.0',
 		});
+		expect(cached.appVersion).toBe('v1.0.0');
 		expect(typeof cached.timestamp).toBe('number');
 	});
 
@@ -137,6 +138,7 @@ describe('checkForUpdate', () => {
 		const cachedData = {
 			timestamp: Date.now(),
 			data: { latestVersion: 'v2.0.0', releaseUrl: 'https://github.com/codebude/librislog/releases/tag/v2.0.0' },
+			appVersion: 'v1.0.0',
 		};
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedData));
 		const fetchMock = mockFetch({ version: 'v3.0.0' });
@@ -149,6 +151,7 @@ describe('checkForUpdate', () => {
 		const cachedData = {
 			timestamp: Date.now() - 61 * 60 * 1000,
 			data: { latestVersion: 'v2.0.0', releaseUrl: '' },
+			appVersion: 'v1.0.0',
 		};
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedData));
 		const fetchMock = mockFetch({ version: 'v3.0.0' });
@@ -170,14 +173,28 @@ describe('checkForUpdate', () => {
 		await checkForUpdate();
 		const cached = JSON.parse(localStorage.getItem(STORAGE_KEY)!);
 		expect(cached.data).toBeNull();
+		expect(cached.appVersion).toBe('v1.0.0');
 	});
 
 	it('skips fetch when cached null result is still valid', async () => {
-		const cachedData = { timestamp: Date.now(), data: null };
+		const cachedData = { timestamp: Date.now(), data: null, appVersion: 'v1.0.0' };
 		localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedData));
 		const fetchMock = mockFetch({ version: 'v2.0.0' });
 		const result = await checkForUpdate();
 		expect(fetchMock).not.toHaveBeenCalled();
+		expect(result).toBeNull();
+	});
+
+	it('refetches when app version changed', async () => {
+		const cachedData = {
+			timestamp: Date.now(),
+			data: { latestVersion: 'v2.0.0', releaseUrl: '' },
+			appVersion: 'v0.9.0',
+		};
+		localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedData));
+		const fetchMock = mockFetch({ version: 'v1.0.0' });
+		const result = await checkForUpdate();
+		expect(fetchMock).toHaveBeenCalledOnce();
 		expect(result).toBeNull();
 	});
 });

@@ -35,6 +35,7 @@ export function isNewer(latest: string, current: string): boolean {
 interface CachedData {
 	timestamp: number;
 	data: UpdateInfo | null;
+	appVersion: string;
 }
 
 export async function checkForUpdate(): Promise<UpdateInfo | null> {
@@ -44,7 +45,9 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
 	if (cached) {
 		try {
 			const parsed: CachedData = JSON.parse(cached);
-			if (Date.now() - parsed.timestamp < CACHE_TTL) {
+			if (parsed.appVersion !== version) {
+				localStorage.removeItem(STORAGE_KEY);
+			} else if (Date.now() - parsed.timestamp < CACHE_TTL) {
 				return parsed.data;
 			}
 		} catch {
@@ -55,22 +58,22 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
 	try {
 		const res = await fetch(CHECK_URL);
 		if (!res.ok) {
-			localStorage.setItem(STORAGE_KEY, JSON.stringify({ timestamp: Date.now(), data: null }));
+			localStorage.setItem(STORAGE_KEY, JSON.stringify({ timestamp: Date.now(), data: null, appVersion: version }));
 			return null;
 		}
 		const data: { version?: string; release_url?: string } = await res.json();
 		if (!data.version || !isNewer(data.version, version)) {
-			localStorage.setItem(STORAGE_KEY, JSON.stringify({ timestamp: Date.now(), data: null }));
+			localStorage.setItem(STORAGE_KEY, JSON.stringify({ timestamp: Date.now(), data: null, appVersion: version }));
 			return null;
 		}
 		const info: UpdateInfo = {
 			latestVersion: data.version,
 			releaseUrl: data.release_url ?? `https://github.com/codebude/librislog/releases/tag/${data.version}`,
 		};
-		localStorage.setItem(STORAGE_KEY, JSON.stringify({ timestamp: Date.now(), data: info }));
+		localStorage.setItem(STORAGE_KEY, JSON.stringify({ timestamp: Date.now(), data: info, appVersion: version }));
 		return info;
 	} catch {
-		localStorage.setItem(STORAGE_KEY, JSON.stringify({ timestamp: Date.now(), data: null }));
+		localStorage.setItem(STORAGE_KEY, JSON.stringify({ timestamp: Date.now(), data: null, appVersion: version }));
 		return null;
 	}
 }
