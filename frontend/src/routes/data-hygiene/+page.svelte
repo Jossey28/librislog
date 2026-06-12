@@ -32,6 +32,7 @@
 	let selectedBookIds = $state<Set<number>>(new Set());
 	let batchField = $state<HygieneAttribute | null>(null);
 	let batchValue = $state('');
+	let batchFieldWasAutoSelected = $state(false);
 	let showBatchConfirm = $state(false);
 	let batchUpdating = $state(false);
 	let dataLoaded = $state(false);
@@ -176,6 +177,25 @@
 			}
 		}
 		return [...set];
+	});
+
+	$effect(() => {
+		if (missingAttrsOfSelected.length === 1) {
+			batchField = missingAttrsOfSelected[0];
+			batchFieldWasAutoSelected = true;
+			return;
+		}
+
+		if (missingAttrsOfSelected.length > 1 && batchFieldWasAutoSelected) {
+			batchField = null;
+			batchFieldWasAutoSelected = false;
+			return;
+		}
+
+		if (batchField && !missingAttrsOfSelected.includes(batchField)) {
+			batchField = null;
+			batchFieldWasAutoSelected = false;
+		}
 	});
 </script>
 
@@ -325,6 +345,7 @@
 				<select
 					class="select select-bordered select-xs flex-1 min-w-[140px]"
 					bind:value={batchField}
+					onchange={() => (batchFieldWasAutoSelected = false)}
 					aria-label={$_('dataHygiene.batchFieldLabel')}
 				>
 					<option value={null}>{$_('dataHygiene.batchFieldPlaceholder')}</option>
