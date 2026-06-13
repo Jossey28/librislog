@@ -205,7 +205,7 @@ def list_api_keys(
         select(ApiKey).where(
             ApiKey.user_id == current_user.id,
             ApiKey.revoked_at.is_(None),
-        )
+        ).order_by(ApiKey.created_at.desc())
     ).all()
     return [ApiKeyRead.model_validate(k) for k in keys]
 
@@ -256,7 +256,7 @@ def list_embed_tokens(
         select(EmbedToken).where(
             EmbedToken.user_id == current_user.id,
             EmbedToken.revoked_at.is_(None),
-        )
+        ).order_by(EmbedToken.created_at.desc())
     ).all()
     return [EmbedTokenRead.model_validate(t) for t in tokens]
 
