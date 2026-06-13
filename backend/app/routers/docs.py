@@ -80,6 +80,12 @@ def _wrap_docs_html(html: str) -> HTMLResponse:
     return HTMLResponse(html.replace("</head>", f"{custom_css}</head>"))
 
 
+def _get_openapi_url(request: Request) -> str:
+    """Return the OpenAPI URL relative to the current request, respecting root_path."""
+    root_path = request.scope.get("root_path", "")
+    return f"{root_path}/api/openapi.json"
+
+
 @router.get("/docs", include_in_schema=False)
 def redirect_to_custom_swagger_docs(request: Request) -> RedirectResponse:
     """Redirect to the custom-themed Swagger UI page."""
@@ -89,7 +95,7 @@ def redirect_to_custom_swagger_docs(request: Request) -> RedirectResponse:
 @router.get("/api/docs", include_in_schema=False)
 def custom_swagger_docs(request: Request) -> HTMLResponse:
     """Serve a custom-themed Swagger UI page."""
-    openapi_url = str(request.url_for("openapi"))
+    openapi_url = _get_openapi_url(request)
     response = get_swagger_ui_html(
         openapi_url=openapi_url,
         title=f"{request.app.title} - Swagger UI",
@@ -112,7 +118,7 @@ def redirect_to_custom_redoc_docs(request: Request) -> RedirectResponse:
 @router.get("/api/redoc", include_in_schema=False)
 def custom_redoc_docs(request: Request) -> HTMLResponse:
     """Serve a custom-themed ReDoc page."""
-    openapi_url = str(request.url_for("openapi"))
+    openapi_url = _get_openapi_url(request)
     response = get_redoc_html(
         openapi_url=openapi_url,
         title=f"{request.app.title} - ReDoc",
