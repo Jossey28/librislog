@@ -14,6 +14,19 @@ API key to use them. You can create one either:
   [Headless Setup](/api/setup#3-create-an-api-key) guide for a
   CLI-based workflow.
 
+## Embed Widgets (No Header Auth)
+
+Some dashboards (like Homarr) only support iframe widgets and cannot set
+custom HTTP headers. For these integrations you need an **embed token**:
+
+<span id="embed-tokens"></span>
+
+- **Create one** from your [Profile page](/guide/using-librislog/profile) under
+  "Embed Tokens".
+- Embed tokens are **scoped to embed endpoints only** and can be revoked
+  or rotated independently of API keys.
+- They are passed as query parameter (`?token=...`) in the widget URL.
+
 ## Available Integrations
 
 - [Dashy](/api/integrations/dashy) — Display your LibrisLog statistics as
@@ -26,6 +39,9 @@ API key to use them. You can create one either:
   reading statistics as sensors in
   [Home Assistant](https://www.home-assistant.io/) using the RESTful
   integration.
+- [Homarr](/api/integrations/homarr) — Display your LibrisLog statistics on a
+  [Homarr](https://homarr.dev/) dashboard using the iframe widget with an
+  embed token.
 - [Homepage](/api/integrations/homepage) — Display your LibrisLog statistics
   on a [Homepage](https://gethomepage.dev/) dashboard using the custom API
   widget.
