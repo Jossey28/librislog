@@ -4,7 +4,7 @@
 	import { api } from '$lib/api';
 	import PasswordRequirements from '$lib/components/PasswordRequirements.svelte';
 	import { currentUser } from '$lib/stores/auth';
-	import { Info } from '@lucide/svelte';
+	import { Calendar, Info } from '@lucide/svelte';
 	import { _, SUPPORTED_LOCALES, setLocale } from '$lib/i18n';
 	import { getPasswordChecks, passwordChecksPassed, passwordPattern } from '$lib/password';
 	import { getTimezone, setTimezone, detectTimezone } from '$lib/stores/timezone';
@@ -12,6 +12,7 @@
 	import Alert from '$lib/components/Alert.svelte';
 	import { toasts } from '$lib/toasts';
 	import { localizeError } from '$lib/errors';
+	import { toDateInputValue, today } from '$lib/date';
 	import type { ApiKeyMeta, AppConfig, EmbedTokenMeta, OidcConfig, OidcLinkStatus } from '$lib/types';
 
 	let firstname = $state('');
@@ -263,8 +264,11 @@
 	let createdEmbedToken = $state<string | null>(null);
 	let embedTokenCopied = $state(false);
 	let pendingRotateTokenId = $state<number | null>(null);
+	let pendingSaveExpiryTokenId = $state<number | null>(null);
 	let pendingDeleteEmbedTokenId = $state<number | null>(null);
 	let embedTokenMessage = $state<{ type: 'success' | 'error'; text: string } | null>(null);
+	let editExpiryTokenId = $state<number | null>(null);
+	let editExpiryValue = $state('');
 
 	async function loadEmbedTokens() {
 		embedTokens = await api.profile.listEmbedTokens();
@@ -308,6 +312,38 @@
 		} finally {
 			pendingRotateTokenId = null;
 		}
+	}
+
+	async function saveEmbedTokenExpiry(id: number, dateValue: string) {
+		pendingSaveExpiryTokenId = id;
+		embedTokenMessage = null;
+		try {
+			if (!dateValue || dateValue.length !== 10) return;
+			const expiresAt = new Date(dateValue + 'T23:59:59').toISOString();
+			await api.profile.updateEmbedToken(id, { expires_at: expiresAt });
+			embedTokens = embedTokens.map((t) => (t.id === id ? { ...t, expires_at: expiresAt } : t));
+			embedTokenMessage = { type: 'success', text: $_('common.saved') };
+		} catch (e: unknown) {
+			embedTokens = await api.profile.listEmbedTokens();
+			embedTokenMessage = {
+				type: 'error',
+				text: e instanceof Error ? e.message : $_('common.actionFailed', { values: { action: $_('common.save') } })
+			};
+		} finally {
+			pendingSaveExpiryTokenId = null;
+		}
+	}
+
+
+	async function confirmExpirySave() {
+		if (editExpiryTokenId !== null && editExpiryValue.length === 10) {
+			await saveEmbedTokenExpiry(editExpiryTokenId, editExpiryValue);
+		}
+		editExpiryTokenId = null;
+	}
+
+	function cancelExpiryEdit() {
+		editExpiryTokenId = null;
 	}
 
 	function requestDeleteEmbedToken(id: number) {
@@ -586,7 +622,7 @@
 				<Info class="w-3 h-3 shrink-0" />
 				{$_('user.embedTokenOriginsTooltip')}
 			</p>
-			<input type="date" class="input input-bordered max-w-48" name="embed-token-expires" bind:value={embedTokenExpires} min={(() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })()} />
+			<input type="date" class="input input-bordered max-w-48" name="embed-token-expires" bind:value={embedTokenExpires} min={today(timezone)} />
 			<p class="text-xs text-base-content/50 -mt-1">{$_('user.embedTokenExpiresAt')}</p>
 			{#if createdEmbedToken}
 				<Alert type="success" onClose={() => (createdEmbedToken = null)} duration={0}>
@@ -613,14 +649,23 @@
 								<p class="text-xs text-base-content/50">
 									{t.allowed_origins ?? $_('user.embedTokenNoOrigins')}
 								</p>
-								<p class="text-xs text-base-content/50">
-									{#if t.expires_at}
+								{#if t.expires_at}
+									<p class="text-xs text-base-content/50 flex items-center gap-1 flex-wrap">
 										{$_('user.embedTokenExpiresAtLabel')}: {new Date(t.expires_at).toLocaleDateString()}
 										{#if new Date(t.expires_at) < new Date()}
-											<span class="badge badge-error badge-xs align-middle">{$_('user.embedTokenExpired')}</span>
+											<span class="badge badge-error badge-xs">{$_('user.embedTokenExpired')}</span>
 										{/if}
-									{/if}
-								</p>
+										<button
+											type="button"
+											class="btn btn-ghost btn-sm"
+											disabled={pendingSaveExpiryTokenId === t.id}
+											title={$_('user.embedTokenEditExpiry')}
+											onclick={() => { editExpiryTokenId = t.id; editExpiryValue = toDateInputValue(t.expires_at, timezone); }}
+										>
+											<Calendar class="w-4 h-4" />
+										</button>
+									</p>
+								{/if}
 								<p class="text-xs text-base-content/50">
 									{#if t.last_used_at}
 										{$_('user.embedTokenLastUsed')}: {new Date(t.last_used_at).toLocaleDateString()}
@@ -633,14 +678,43 @@
 								</p>
 							</div>
 							<div class="flex gap-1 shrink-0">
-								<button class="btn btn-ghost btn-xs" onclick={() => rotateEmbedToken(t.id)} disabled={pendingRotateTokenId === t.id}>
-									{$_('user.rotateEmbedToken')}
-								</button>
+								{#if t.expires_at && new Date(t.expires_at) < new Date()}
+									<div class="tooltip tooltip-left" data-tip={$_('user.embedTokenRotateExpiredHint')}>
+										<button class="btn btn-ghost btn-xs" disabled>
+											{$_('user.rotateEmbedToken')}
+										</button>
+									</div>
+								{:else}
+									<button class="btn btn-ghost btn-xs" onclick={() => rotateEmbedToken(t.id)} disabled={pendingRotateTokenId === t.id}>
+										{$_('user.rotateEmbedToken')}
+									</button>
+								{/if}
 								<button class="btn btn-error btn-outline btn-xs" onclick={() => requestDeleteEmbedToken(t.id)}>{$_('common.delete')}</button>
 							</div>
 						</li>
 					{/each}
 				</ul>
+			{/if}
+			{#if editExpiryTokenId !== null}
+				<dialog class="modal modal-open" onclick={(e) => { if (e.target === e.currentTarget) cancelExpiryEdit(); }}>
+					<div class="modal-box">
+						<form method="dialog">
+							<button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick={cancelExpiryEdit}>✕</button>
+						</form>
+						<h3 class="font-bold text-lg">{$_('user.embedTokenEditExpiry')}</h3>
+						<p class="text-sm text-base-content/70 mt-1">{$_('user.embedTokenEditExpiryDescription')}</p>
+						<div class="py-4">
+							<input type="date" class="input input-bordered w-full"
+								bind:value={editExpiryValue}
+								min={today(timezone)}
+							/>
+						</div>
+						<div class="modal-action">
+							<button class="btn btn-sm" onclick={cancelExpiryEdit}>{$_('common.cancel')}</button>
+							<button class="btn btn-primary btn-sm" onclick={confirmExpirySave} disabled={editExpiryValue.length !== 10}>{$_('common.save')}</button>
+						</div>
+					</div>
+				</dialog>
 			{/if}
 		</div>
 	</div>

@@ -157,6 +157,22 @@ class TestRotateEmbedToken:
         assert old is not None
         assert old.revoked_at is not None
 
+    def test_cannot_rotate_expired_token(self, client: TestClient, session: Session) -> None:
+        plain = _create_token(
+            session,
+            user_id=1,
+            name="Expired",
+            expires_at=datetime.now(timezone.utc) - timedelta(hours=1),
+        )
+        token = session.exec(
+            select(EmbedToken).where(EmbedToken.token_hash == hash_embed_token(plain))
+        ).first()
+        assert token is not None
+
+        resp = client.post(f"/api/profile/embed-tokens/{token.id}/rotate")
+        assert resp.status_code == 409
+        assert resp.json()["detail"] == "Expired embed tokens cannot be rotated"
+
 
 class TestDeleteEmbedToken:
     def test_revokes_token(self, client: TestClient, session: Session) -> None:

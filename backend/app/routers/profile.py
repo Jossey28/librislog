@@ -317,7 +317,14 @@ def rotate_embed_token(
     if not token or token.user_id != current_user.id or token.revoked_at is not None:
         raise HTTPException(status_code=404, detail="Embed token not found")
 
-    token.revoked_at = utcnow()
+    now = utcnow()
+    if token.expires_at is not None and token.expires_at < now:
+        raise HTTPException(
+            status_code=409,
+            detail="Expired embed tokens cannot be rotated",
+        )
+
+    token.revoked_at = now
     session.add(token)
 
     plain_token = generate_embed_token()

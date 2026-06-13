@@ -326,6 +326,9 @@
     "embedTokenNeverUsed": "Jamais utilisé",
     "embedTokenOriginsTooltip": "Restreindre les URL de tableau de bord pouvant utiliser ce jeton. Séparez plusieurs origines par des virgules. Laissez vide pour autoriser toute origine.",
     "rotateEmbedToken": "Renouveler",
+    "embedTokenEditExpiry": "Modifier la date d'expiration",
+    "embedTokenEditExpiryDescription": "Sélectionnez une nouvelle date d'expiration pour ce jeton d'intégration. Le jeton ne sera plus valide après cette date.",
+    "embedTokenRotateExpiredHint": "Les jetons expirés ne peuvent pas être renouvelés. Définissez d'abord une nouvelle date d'expiration.",
     "noEmbedTokens": "Pas encore de jetons d'intégration"
   },
   "admin": {

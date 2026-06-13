@@ -326,6 +326,9 @@
     "embedTokenNeverUsed": "Nie genutzt",
     "embedTokenOriginsTooltip": "Beschränke, welche Dashboard-URLs diesen Token verwenden dürfen. Mehrere Ursprünge mit Kommas trennen. Leer lassen für beliebigen Ursprung.",
     "rotateEmbedToken": "Erneuern",
+    "embedTokenEditExpiry": "Ablaufdatum ändern",
+    "embedTokenEditExpiryDescription": "Wähle ein neues Ablaufdatum für diesen Embed-Token. Der Token ist nach diesem Datum nicht mehr gültig.",
+    "embedTokenRotateExpiredHint": "Abgelaufene Tokens können nicht erneuert werden. Setze zuerst ein neues Ablaufdatum.",
     "noEmbedTokens": "Noch keine Embed-Tokens"
   },
   "admin": {

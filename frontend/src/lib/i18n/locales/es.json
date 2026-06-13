@@ -326,6 +326,9 @@
     "embedTokenNeverUsed": "Nunca usado",
     "embedTokenOriginsTooltip": "Restringe qué URLs de panel pueden usar este token. Separa varios orígenes con comas. Déjalo vacío para permitir cualquier origen.",
     "rotateEmbedToken": "Rotar",
+    "embedTokenEditExpiry": "Cambiar fecha de vencimiento",
+    "embedTokenEditExpiryDescription": "Selecciona una nueva fecha de vencimiento para este token de inserción. El token dejará de ser válido después de esta fecha.",
+    "embedTokenRotateExpiredHint": "Los tokens expirados no se pueden rotar. Establece primero una nueva fecha de vencimiento.",
     "noEmbedTokens": "Aún no hay tokens de inserción"
   },
   "admin": {

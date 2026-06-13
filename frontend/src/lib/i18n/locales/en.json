@@ -326,6 +326,9 @@
     "embedTokenNeverUsed": "Never used",
     "embedTokenOriginsTooltip": "Restrict which dashboard URLs can use this token. Separate multiple origins with commas. Leave empty to allow any origin.",
     "rotateEmbedToken": "Rotate",
+    "embedTokenEditExpiry": "Change expiry date",
+    "embedTokenEditExpiryDescription": "Select a new expiry date for this embed token. The token will no longer be valid after this date.",
+    "embedTokenRotateExpiredHint": "Expired tokens cannot be rotated. Set a new expiry date first.",
     "noEmbedTokens": "No embed tokens yet"
   },
   "admin": {
