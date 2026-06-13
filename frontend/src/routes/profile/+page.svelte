@@ -531,6 +531,7 @@
 				name="timezone"
 				class="input input-bordered max-w-xs"
 				bind:value={timezone}
+				autocomplete="off"
 				placeholder={$_('settings.timezonePlaceholder')}
 			/>
 			<datalist id="timezone-list">
@@ -571,7 +572,7 @@
 				<a href={`${base}/api-docs`} class="link link-primary">{$_('settings.apiDocsTitle')}</a>
 			</p>
 			<div class="flex gap-2">
-				<input class="input input-bordered flex-1" name="key-description" bind:value={description} placeholder={$_('user.keyDescription')} />
+				<input class="input input-bordered flex-1" name="key-description" bind:value={description} autocomplete="off" placeholder={$_('user.keyDescription')} />
 				<button class="btn btn-primary btn-sm" onclick={createKey}>{$_('user.addKey')}</button>
 			</div>
 			{#if createdKey}
@@ -612,11 +613,11 @@
 				</Alert>
 			{/if}
 			<div class="flex gap-2">
-				<input class="input input-bordered flex-1" name="embed-token-name" bind:value={embedTokenName} placeholder={$_('user.embedTokenNamePlaceholder')} />
+				<input class="input input-bordered flex-1" name="embed-token-name" bind:value={embedTokenName} autocomplete="off" placeholder={$_('user.embedTokenNamePlaceholder')} />
 				<button class="btn btn-primary btn-sm" onclick={createEmbedToken} disabled={!embedTokenName.trim()}>{$_('user.addEmbedToken')}</button>
 			</div>
 			<div class="flex gap-2">
-				<input class="input input-bordered flex-1" name="embed-token-origins" bind:value={embedTokenOrigins} placeholder={$_('user.embedTokenOriginsPlaceholder')} />
+				<input class="input input-bordered flex-1" name="embed-token-origins" bind:value={embedTokenOrigins} autocomplete="off" placeholder={$_('user.embedTokenOriginsPlaceholder')} />
 			</div>
 			<p class="text-xs text-base-content/50 flex items-start gap-1">
 				<Info class="w-3 h-3 shrink-0" />
@@ -780,6 +781,7 @@
 					class="input input-bordered max-w-md"
 					name="reset-data-confirmation"
 					bind:value={resetDataConfirmation}
+					autocomplete="off"
 					placeholder={$_('profile.dangerZone.resetData.placeholder')}
 				/>
 				<p class="text-xs text-base-content/60">{$_('profile.dangerZone.resetData.hint')}</p>
@@ -809,6 +811,7 @@
 					class="input input-bordered max-w-md"
 					name="delete-account-confirmation"
 					bind:value={deleteAccountConfirmation}
+					autocomplete="off"
 					placeholder={$_('profile.dangerZone.deleteAccount.placeholder')}
 				/>
 				<p class="text-xs text-base-content/60">{$_('profile.dangerZone.deleteAccount.hint')}</p>
