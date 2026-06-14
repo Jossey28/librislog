@@ -1,9 +1,11 @@
 import type { Theme } from 'vitepress'
 import DefaultTheme from 'vitepress/theme'
 import { useRoute } from 'vitepress'
+import { watch } from 'vue'
 import imageViewer from 'vitepress-plugin-image-viewer'
 import vImageViewer from 'vitepress-plugin-image-viewer/lib/vImageViewer.vue'
 import CommitInfo from './components/CommitInfo.vue'
+import { installMermaidZoom } from './mermaid-zoom'
 import 'viewerjs/dist/viewer.min.css'
 
 export default {
@@ -20,5 +22,15 @@ export default {
         return true
       }
     })
+
+    if (typeof window !== 'undefined') {
+      const init = () => {
+        setTimeout(() => {
+          document.querySelectorAll<HTMLElement>('.mermaid').forEach(installMermaidZoom)
+        }, 800)
+      }
+      init()
+      watch(() => route.path, init)
+    }
   },
 } satisfies Theme
