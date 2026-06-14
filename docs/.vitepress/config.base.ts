@@ -50,6 +50,7 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { text: 'CLI Reference', link: '/guide/cli' },
+                { text: 'Database Layout', link: '/guide/database-layout' },
               ],
             },
             { text: 'Integrations 🔗', link: '/api/integrations/' },
