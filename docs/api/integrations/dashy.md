@@ -1,25 +1,57 @@
 # Dashy
 
 LibrisLog can be integrated into [Dashy](https://dashy.to/), a self-hosted
-dashboard for your services, using its
-[HTML embedded widget](https://dashy.to/docs/widgets#html-embedded-widget).
+dashboard for your services, using one of its widget types:
 
-This widget displays your reading statistics as styled stat cards directly on
-your Dashy dashboard.
+- **[Custom API widget](#custom-api-widget-recommended)** (Dashy ≥4.3.1) —
+  a simple, built-in widget that fetches your stats directly (recommended).
+- **[HTML embedded widget](#html-embedded-widget)** — a fully customizable
+  widget with styled stat cards.
 
 ## Prerequisites
 
 - A running LibrisLog instance reachable from your Dashy server
 - An [API key](/api/integrations/#api-keys) with access to the
   statistics endpoint
-- **CORS must be configured** — add your Dashy URL to the
-  [`CORS_ORIGINS`](/guide/configuration#core-settings) environment variable
-  of the LibrisLog backend so that the browser can fetch the API directly
 
-## Configuration
+## Custom API Widget (Recommended)
 
-Add the following to the Dashy `conf.yml` under the section or item where you
-want the widget to appear:
+Since Dashy v4.3.1 you can use the built-in
+[custom API widget](https://dashy.to/docs/widgets#api-response).
+Add the following to your Dashy `conf.yml`:
+
+```yaml
+widgets:
+  - type: customapi
+    options:
+      url: <LIBRISLOG-URL>/api/books/stats
+      headers:
+        X-API-Key: "<API-KEY>"
+      refreshInterval: 60000
+      display: block
+      mappings:
+        - field: books_read
+          label: Read
+          format: number
+        - field: books_reading
+          label: Reading
+          format: number
+        - field: books_want_to_read
+          label: Want to read
+          format: number
+        - field: total_books
+          label: Total
+          format: number
+```
+
+The `refreshInterval` is specified in milliseconds. `60000` equals 1 minute.
+
+## HTML Embedded Widget
+
+For full control over the appearance you can use the
+[HTML embedded widget](https://dashy.to/docs/widgets#html-embedded-widget).
+
+Add the following to your Dashy `conf.yml`:
 
 ```yaml
 widgets:
@@ -112,6 +144,10 @@ widgets:
         })();
 ```
 
+The `updateInterval` is specified in seconds. `300` equals 5 minutes.
+
+## Placeholders
+
 Replace the placeholders with your own values:
 
 | Placeholder | Example | Description |
@@ -119,19 +155,24 @@ Replace the placeholders with your own values:
 | `<LIBRISLOG-URL>` | `http://192.168.1.100:8000` | The base URL of your LibrisLog instance (http or https) |
 | `<API-KEY>` | `lk_nRHsF3jxIBDa9u....` | An API key with access to the statistics endpoint |
 
-The `updateInterval` is specified in seconds. `300` equals 5 minutes.
-
 ## CORS
 
-Since the widget runs inside the Dashy iframe and fetches the LibrisLog API
-directly from the browser, you must add your Dashy URL to the
+The embed widget runs inside the Dashy iframe and fetches the API directly from
+the browser. You must add your Dashy URL to the
 [`CORS_ORIGINS`](/guide/configuration#core-settings) environment variable of
-the LibrisLog backend. For example:
+the LibrisLog backend:
 
 ```
-CORS_ORIGINS=["https://dashy.YOUR-DOMAIN"]
+CORS_ORIGINS=["<LIBRISLOG-URL>"]
 ```
 
-## Result
+The custom API widget also requires CORS if Dashy is configured to render
+widgets client-side. If CORS errors occur, add the origin as shown above.
 
-![Dashy Widget](/screenshots/integrations-dashy.png)
+## Results
+
+### Custom API (API Response) Widget
+![Dashy Custom API Widget](/screenshots/integrations-dashy-customapi.png)
+
+### HTML Embed Widget
+![Dashy HTML Embedded Widget](/screenshots/integrations-dashy-embed.png)

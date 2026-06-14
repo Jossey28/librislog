@@ -1,7 +1,8 @@
 import { defineConfig } from 'vitepress'
+import { withMermaid } from 'vitepress-plugin-mermaid'
 import baseConfig from './config.base'
 
-export default defineConfig({
+export default withMermaid(defineConfig({
   ...baseConfig,
   base: '/next/',
   head: [
@@ -16,4 +17,4 @@ export default defineConfig({
       { text: 'Release Docs', link: 'https://docs.librislog.app/' },
     ],
   },
-})
+}))

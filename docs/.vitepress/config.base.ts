@@ -50,6 +50,7 @@ export default defineConfig({
               collapsed: true,
               items: [
                 { text: 'CLI Reference', link: '/guide/cli' },
+                { text: 'Database Layout', link: '/guide/database-layout' },
               ],
             },
             { text: 'Integrations 🔗', link: '/api/integrations/' },
@@ -81,8 +82,11 @@ export default defineConfig({
               link: '/api/integrations/',
               collapsed: true,
               items: [
+                { text: 'Embed API', link: '/api/integrations/embed-api' },
                 { text: 'Dashy', link: '/api/integrations/dashy' },
+                { text: 'Glance', link: '/api/integrations/glance' },
                 { text: 'Home Assistant', link: '/api/integrations/homeassistant' },
+                { text: 'Homarr', link: '/api/integrations/homarr' },
                 { text: 'Homepage', link: '/api/integrations/homepage' },
               ],
             },
