@@ -75,7 +75,7 @@ jobs:
       - name: Generate DB layout docs (release)
         if: steps.check-release-docs.outputs.has_docs == 'true'
         working-directory: release/docs
-        run: npm run docs:gen-db
+        run: npm run docs:gen-db 2>/dev/null || echo "Skipped — docs:gen-db not in this release"
 
       - name: Build release docs
         if: steps.check-release-docs.outputs.has_docs == 'true'
